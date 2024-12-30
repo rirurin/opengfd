@@ -1,0 +1,13 @@
+[workspace]
+
+members = [ "opengfd" ]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.0"
+authors = [ "Rirurin" ]
+categories = [ "games" ]
+homepage = "https://riri.wtf"
+repository = "https://github.com/rirurin/opengfd"
+license-file = "LICENSE"
+edition = "2021"
