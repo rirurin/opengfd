@@ -7,14 +7,20 @@ use windows::Win32::System::Threading::{
     DeleteCriticalSection, 
     EnterCriticalSection,
     InitializeCriticalSectionAndSpinCount,
-    // LeaveCriticalSection
+    LeaveCriticalSection
 };
 
 #[derive(Debug)]
-pub struct RecursiveMutexGuard;
-impl Drop for RecursiveMutexGuard {
-    fn drop(&mut self) {
-        
+pub struct RecursiveMutexGuard<'a>(&'a mut RecursiveMutex);
+impl<'a> RecursiveMutexGuard<'a> {
+    fn new(mutex: &'a mut RecursiveMutex) -> Self {
+        unsafe { EnterCriticalSection(&mut mutex.0 as *mut CRITICAL_SECTION) }
+        Self(mutex)
+    }
+}
+impl<'a> Drop for RecursiveMutexGuard<'a> {
+    fn drop(&mut self) { 
+        unsafe { LeaveCriticalSection(&mut self.0.0 as *mut CRITICAL_SECTION) };
     }
 }
 
@@ -29,15 +35,9 @@ impl RecursiveMutex {
         unsafe { InitializeCriticalSectionAndSpinCount(platform.as_mut_ptr(), 1500).unwrap() };
         Self(unsafe { platform.assume_init() })
     }
-    pub fn lock(&mut self) {
-        unsafe { EnterCriticalSection(&mut self.0 as *mut CRITICAL_SECTION) }
+    pub fn lock(&mut self) -> RecursiveMutexGuard<'_> {
+        RecursiveMutexGuard::new(self)
     }
-    /*
-    // unlock is implicitly called when the lock goes out of scope
-    pub fn unlock(&mut self) {
-        unsafe { LeaveCriticalSection(&mut self.0 as *mut CRITICAL_SECTION) }
-    }
-    */
 }
 
 impl Drop for RecursiveMutex {
@@ -58,6 +58,7 @@ unsafe impl Sync for Mutex {}
 
 impl Mutex {
     pub fn new() -> Self { Self(AtomicU32::new(0)) }
+    pub fn lock(&mut self) -> u32 { self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel) }
 }
 
 pub mod ffi {

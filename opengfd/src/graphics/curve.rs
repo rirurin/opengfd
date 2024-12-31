@@ -1,5 +1,5 @@
 use glam::Vec2;
-use std::fmt::Debug;
+use std::fmt::{ Debug, Formatter };
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -27,20 +27,13 @@ pub struct Curve2 {
     point: [Vec2; 2],
     table: [u16; 23]
 }
-/*
-impl Debug for Curve2 {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let curve_targets_str = {
-            match self.curve_type {
-                CurveType::Integer => {
 
-                }
-            }
-        };
-        write!("")
+impl Debug for Curve2 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "Curve2 {{ type: {:?}, points: ({}, {}) }}", self.curve_type, self.point[0], self.point[1])
     }
 }
-*/
+
 /// Four-point bezier curve. Mostly used for particle systems.
 #[repr(C)]
 pub struct Curve4 {
@@ -48,6 +41,12 @@ pub struct Curve4 {
     target: [CurveTarget; 4],
     point: [Vec2; 2],
     table: [u16; 23]
+}
+
+impl Debug for Curve4 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "Curve4 {{ type: {:?}, points: ({}, {}) }}", self.curve_type, self.point[0], self.point[1])
+    }
 }
 
 pub mod ffi {
