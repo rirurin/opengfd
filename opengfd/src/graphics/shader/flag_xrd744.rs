@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Flags0 : u32 {
         const FLAG0_HDR = 0x00000001;
         const FLAG0_IMMEDIATE = 0x00000002;
@@ -31,6 +32,7 @@ bitflags! {
     
 }
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Flags1 : u32 {
         const FLAG0_OPAQUE_ALPHA1 = 0x10000000;
         const FLAG0_DEFERRED = 0x20000000;
@@ -67,6 +69,7 @@ bitflags! {
     }
 }
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Flags2 : u32 {
         const FLAG2_HDR_TONEMAP = 0x00000001;
         const FLAG2_HDR_STAR = 0x00000002;
@@ -103,6 +106,7 @@ bitflags! {
     }
 }
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Flags3 : u32 {
         const FLAG3_REFLECT_TYPE1 = 0x00000001;
         const FLAG3_MATERIAL_MULTIPLE_MODULATE = 0x00000002;

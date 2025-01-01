@@ -18,6 +18,7 @@ riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-t
 version = "0.58"
 features = [
     "Win32_Foundation",
+    "Win32_Graphics_Direct3D11",
     "Win32_System_Kernel",
     "Win32_System_Threading"
 ]
@@ -39,6 +40,8 @@ io_serde = []
 io_rkyv = []
 # Use Catherine Full Body's animation structs
 cfb_gap = []
+# Metaphor: Refantazio demo has a slightly different gfdGlobal
+is_metaphor_demo = []
 
 # Profile Build
 [profile.profile]

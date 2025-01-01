@@ -7,6 +7,8 @@ compile_error!("v1-core and v2-core are mutually exclusive!");
 #[cfg(all(feature = "adapter-hedge", feature = "adapter-ngr"))]
 compile_error!("adapter-hedge and adapter-ngr are mutually exclusive!");
 
+// LIBRARY STRUCTURE
+
 pub mod ai {
 
 }
@@ -26,7 +28,12 @@ pub mod device {
 
     }
     pub mod ngr {
-
+        pub mod renderer {
+            pub mod hint;
+            pub mod ps;
+            pub mod state;
+            pub mod vs;
+        }
     }
 }
 pub mod effect {
@@ -53,11 +60,18 @@ pub mod effect {
 pub mod fw {
 
 }
+pub mod globals;
 pub mod graphics {
     pub mod cull;
     pub mod curve;
+    pub mod environment;
     pub mod material;
+    pub mod render {
+        pub mod cmd_buffer;
+        pub mod render;
+    }
     pub mod resources;
+    pub mod render_ot;
     pub mod shader {
         #[cfg(feature = "v1-core")]
         #[path = "flag_xrd744.rs"]
@@ -68,11 +82,20 @@ pub mod graphics {
         pub mod shader;
     }
     pub mod quake;
+    pub mod scene;
     pub mod skin;
     pub mod texture;
 }
 pub mod kernel {
     pub mod asset;
+    #[cfg(feature = "v1-core")]
+    #[path = "global_xrd744.rs"]
+    pub mod global;
+    #[cfg(feature = "v2-core")]
+    #[path = "global_xrd759.rs"]
+    pub mod global;
+    pub mod global_common;
+    pub mod task;
 }
 pub mod object {
     #[path = "object_base.rs"]

@@ -1,6 +1,9 @@
 [workspace]
 
-members = [ "opengfd" ]
+members = [ 
+    "opengfd", 
+    "opengfd-reloaded"
+]
 resolver = "2"
 
 [workspace.package]

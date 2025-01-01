@@ -18,7 +18,7 @@ use super::{
     epl::EPL,
     geometry::Geometry,
     light::{ Light, LightContainer },
-    morph::Morph,
+    morph::MorphController,
     node::Node, 
     object::Object
 };
@@ -40,7 +40,7 @@ pub struct Mesh {
     node_array: *mut ItemArray<*mut Node>,
     geoemtry_array: *mut ItemArray<*mut Geometry>,
     material_array: *mut ItemArray<*mut Material>,
-    morph_array: *mut ItemArray<*mut Morph>,
+    morph_array: *mut ItemArray<*mut MorphController>,
     camera_array: *mut ItemArray<*mut Camera>,
     light_array: *mut ItemArray<*mut Light>,
     effect_array: *mut ItemArray<*mut EPL>,

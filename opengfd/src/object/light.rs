@@ -5,6 +5,7 @@ use riri_mod_tools_proc::ensure_layout;
 
 #[allow(non_snake_case)]
 #[ensure_layout(size = 192usize)]
+#[derive(Debug)]
 pub struct Light {
     #[field_offset(0usize)]
     pub super_: Object,
@@ -41,6 +42,7 @@ pub struct Light {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct LightAttenuation {
     pub kc: f32,
     pub kl: f32,

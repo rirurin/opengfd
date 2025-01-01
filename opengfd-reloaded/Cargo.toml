@@ -1,0 +1,31 @@
+[package]
+name = "opengfd-reloaded"
+description = "Reimplementation of portions of GFD Engine, designed to interoperate with Metaphor: Refantazio"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license-file.workspace = true
+edition.workspace = true
+
+[dependencies]
+opengfd = { version = "0.1", path = "../opengfd" }
+riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-rt = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-rt" }
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.58"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D11",
+    "Win32_System_Kernel",
+    "Win32_System_Threading"
+]
+
+[build-dependencies]
+toml = "0.8"
+walkdir = "2.5"
+# csbindgen = "1.8"
+csbindgen = { version = "1.8", path = "../../csbindgen/csbindgen" }
+riri-mod-tools = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools" }

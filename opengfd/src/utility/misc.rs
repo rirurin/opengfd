@@ -21,7 +21,7 @@ pub struct RGBA(glam::U8Vec4);
 #[derive(Debug, Clone, Copy)]
 pub struct RGBFloat(glam::Vec3);
 #[derive(Debug, Clone, Copy)]
-pub struct RGBAFloat(glam::Vec4);
+pub struct RGBAFloat([f32; 4]);
 
 #[repr(C)]
 #[derive(Debug)]
@@ -35,4 +35,18 @@ pub struct Fade {
 pub struct Range {
     datums: f32,
     range: f32
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct LinkedList<T> {
+    head: *mut T,
+    tail: *mut T
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct LinkedListNode<T> {
+    prev: *mut T,
+    next: *mut T
 }

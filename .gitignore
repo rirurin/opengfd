@@ -2,3 +2,11 @@
 /Cargo.lock
 /*/target
 /*/Cargo.lock
+
+/metaphor.opengfd/obj
+/metaphor.opengfd/riri_hook
+.vs/
+
+/*/incl/
+/*/middata/
+*.g.cs
