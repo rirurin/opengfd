@@ -1,4 +1,5 @@
 use crate::{
+    device::ngr::renderer::vs::VertexShaderPlatform,
     graphics::shader::shader::ShaderID,
     utility::reference::Reference
 };
@@ -9,7 +10,7 @@ use std::marker::PhantomPinned;
 pub struct PixelShader {
     field00: i32,
     id: ShaderID,
-    data: *mut u8,
+    pub data: *mut VertexShaderPlatform,
     ref_: Reference,
     prev: *mut PixelShader,
     next: *mut PixelShader,

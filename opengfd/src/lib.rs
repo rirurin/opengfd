@@ -28,12 +28,23 @@ pub mod device {
 
     }
     pub mod ngr {
-        pub mod renderer {
+        pub mod allocator;
+        pub mod hint;
+        #[cfg(target_os = "windows")]
+        #[path = "win32"]
+        pub mod platform {
+            pub mod allocator;
+        }
+        pub mod renderer { 
+            pub mod cbuffer;
+            pub mod d3d {
+
+            }
             pub mod hint;
             pub mod ps;
             pub mod state;
             pub mod vs;
-        }
+        } 
     }
 }
 pub mod effect {

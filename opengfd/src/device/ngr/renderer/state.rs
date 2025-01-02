@@ -255,6 +255,12 @@ pub struct BasicBuffers {
     pub vatBoundingBoxMin: f32,
     #[field_offset(84usize)]
     pub vatBoundingBoxMax: f32,
+    #[field_offset(0x5c)] pub cull_mode: i32,
+    #[field_offset(0x74)] pub alpha_blend_enable: bool,
+    #[field_offset(0x90)] pub color_write_enable: i32,
+    #[field_offset(0x98)] pub z_enable: bool,
+    #[field_offset(0x9c)] pub z_write_enable: i32,
+    #[field_offset(0xa0)] pub z_func: i32,
     #[field_offset(200usize)]
     pub field167_0xc8: u32,
     #[field_offset(204usize)]
@@ -290,7 +296,7 @@ pub struct BasicBuffers {
     #[field_offset(880usize)]
     pub field711_0x370: Mat4,
     #[field_offset(944usize)]
-    pub field712_0x3b0: u32,
+    pub flags: u32,
     #[field_offset(948usize)]
     pub field713_0x3b4: u32,
 }
@@ -348,12 +354,12 @@ impl DeferredContextDX11 {
 }
 */
 
-// gfdShaderVertexBindOtPreCallback
-// gfdShaderFragmentBindOtPreCallback
-// gfdRenderStatePushOtPreCallback
-// gfdRenderStateSetOtPreCallback
-// gfdRenderStatePopOtPreCallback
-// gfdCmdBufferAlloc
+// gfdShaderVertexBindOtPreCallback (completely breaks UI)
+// gfdShaderFragmentBindOtPreCallback (works, with minor graphical issues)
+// gfdRenderStatePushOtPreCallback (verified)
+// gfdRenderStateSetOtPreCallback (verified)
+// gfdRenderStatePopOtPreCallback (verified)
+// gfdCmdBufferAlloc (still needs testing!)
 // BindVertexShader
 // BindPixelShader
 // PushRenderState

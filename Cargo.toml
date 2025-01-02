@@ -2,6 +2,8 @@
 
 members = [ 
     "opengfd", 
+    "opengfd-proc", 
+    "opengfd-proc-impl",
     "opengfd-reloaded"
 ]
 resolver = "2"
