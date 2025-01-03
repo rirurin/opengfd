@@ -36,15 +36,20 @@ pub mod device {
             pub mod allocator;
         }
         pub mod renderer { 
+            pub mod blend;
             pub mod cbuffer;
-            pub mod d3d {
-
+            #[cfg(target_os = "windows")]
+            #[path = "d3d"]
+            pub mod platform {
+                pub mod d3d;
             }
             pub mod hint;
             pub mod ps;
+            pub mod render;
             pub mod state;
             pub mod vs;
         } 
+        pub mod structures;
     }
 }
 pub mod effect {
@@ -75,6 +80,8 @@ pub mod globals;
 pub mod graphics {
     pub mod cull;
     pub mod curve;
+    pub mod draw2d;
+    pub mod draw3d;
     pub mod environment;
     pub mod material;
     pub mod render {

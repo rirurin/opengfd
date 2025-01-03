@@ -7,7 +7,10 @@
 use crate::{
     device::ngr::{
         allocator::Allocator,
-        renderer::state::DrawState
+        renderer::{
+            platform::d3d::ngr_142ed6270,
+            state::DrawState
+        }
     },
     kernel::global::Global
 };
@@ -33,3 +36,4 @@ impl<T> std::fmt::Debug for UnsafePtr<T> {
 create_gfd_static!(GFD_GLOBAL, Global);
 create_gfd_static!(NGR_DRAW_STATE, *mut DrawState);
 create_gfd_static!(NGR_ALLOCATOR, *mut Allocator);
+create_gfd_static!(NGR_WINDOW, *mut ngr_142ed6270);

@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
-
+use bitflags::bitflags;
 use crate::{
+    device::ngr::renderer::cbuffer::{
+        BufferType, ConstantBuffer
+    },
     graphics::texture::Texture,
     object::{ mesh::Mesh, node::Node },
     utility::misc::RGBAFloat
@@ -8,9 +11,11 @@ use crate::{
 use glam::Mat4;
 use riri_mod_tools_proc::ensure_layout;
 use windows::Win32::Graphics::Direct3D11::{
+    ID3D11Buffer,
     ID3D11DeviceContext,
     ID3D11PixelShader,
-    ID3D11VertexShader
+    ID3D11VertexShader,
+    ID3D11Resource
 };
 
 #[ensure_layout(size = 6112usize)]
@@ -217,28 +222,29 @@ pub struct DrawState {
     pub basicBuffers: [BasicBuffers; 4usize],
 }
 
-#[ensure_layout(size = 136usize)]
-pub struct ConstantBuffer {
-    #[field_offset(0usize)]
-    pub vtable: *mut [*mut ::std::os::raw::c_void; 24usize],
-    #[field_offset(8usize)]
-    pub ref_: i32,
-    #[field_offset(16usize)]
-    pub field3_0x10: *mut ::std::os::raw::c_void,
-    #[field_offset(24usize)]
-    pub cbufferFields: CbufferFields,
-    #[field_offset(80usize)]
-    pub byteWidth: u32,
-    #[field_offset(88usize)]
-    pub field7_0x58: i32,
-    #[field_offset(92usize)]
-    pub cbufferSlot: i32,
-    #[field_offset(96usize)]
-    pub d3d11Cbuffer: [*mut ::std::os::raw::c_void; 3usize],
-    #[field_offset(124usize)]
-    pub field11_0x7c: i32,
-    #[field_offset(128usize)]
-    pub activeBuffers: i32,
+#[repr(C)]
+#[derive(PartialEq)]
+pub struct BufferBlendMode {
+    pub(super) field00: i32,
+    pub(super) field04: i32,
+    pub(super) field08: i32,
+    pub(super) field0c: i32,
+    pub(super) field10: i32,
+    pub(super) field14: i32
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct BufferFlags: u32 {
+        const USING_VSCONST_TRANSFORM = 1 << 24;
+        const USING_VSCONST_VIEWPROJ = 1 << 25;
+        const USING_VSCONST_COLORS = 1 << 26;
+        const USING_VSCONST_UV_TRANSFORM0 = 1 << 27;
+        const USING_VSCONST_UV_TRANSFORM1 = 1 << 28;
+        const USING_VSCONST_UV_TRANSFORM2 = 1 << 29;
+        const USING_VSCONST_VAT = 1 << 30;
+        const USING_REG_8_BUF_360 = 1 << 31;
+    }
 }
 
 #[ensure_layout(size = 960usize)]
@@ -257,6 +263,7 @@ pub struct BasicBuffers {
     pub vatBoundingBoxMax: f32,
     #[field_offset(0x5c)] pub cull_mode: i32,
     #[field_offset(0x74)] pub alpha_blend_enable: bool,
+    #[field_offset(0x78)] pub blend_mode: BufferBlendMode,
     #[field_offset(0x90)] pub color_write_enable: i32,
     #[field_offset(0x98)] pub z_enable: bool,
     #[field_offset(0x9c)] pub z_write_enable: i32,
@@ -317,6 +324,11 @@ pub struct MemHint {
     pub vtable: *mut ::std::os::raw::c_void,
 }
 
+pub trait DeferredContext {
+    unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32);
+    unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8);
+}
+
 #[derive(Debug)]
 #[ensure_layout(size = 1800usize)]
 pub struct DeferredContextBase {
@@ -328,6 +340,58 @@ pub struct DeferredContextBase {
     pub target_vertex_shader: ID3D11VertexShader,
     #[field_offset(176usize)]
     pub target_pixel_shader: ID3D11PixelShader,
+    #[field_offset(0x108)] field108: [DeferredContext108; 4]
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct DeferredContext108 {
+    buffer: [ID3D11Buffer; 4],
+    _unk: [u8; 0x160]
+}
+
+impl DeferredContext for DeferredContextBase {
+    // 0x141188f80 (Metaphor: Refantazio Prologue Demo, Steam 1.01)
+    unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32) {
+        let ctx = &self.device_context;
+        let mut first = buf.get_buffer_unchecked(0);
+        let update_flags = if buf.vtable_3() { 1 } else { 1 << (upd & 0x1f) };
+        if (buf.active_buffers & update_flags) != 0 { 
+            ctx.UpdateSubresource(
+                first.as_ref().map(|f| f.into()), 
+                0, 
+                None, 
+                std::mem::transmute(buf.vtable_21(upd).as_ref()),
+                // buf.vtable_21(upd).as_ref().unwrap() as *const ID3D11Buffer as *const core::ffi::c_void, 
+                0, 
+                0);
+            buf.active_buffers &= !update_flags; 
+        }
+        first = buf.get_buffer_unchecked(0);
+        if !std::ptr::eq(
+            self.field108.get_unchecked(ty as usize)
+            .buffer.get_unchecked(buf.slot as usize)
+            , std::mem::transmute(buf.get_buffer_unchecked(0).as_ref())
+        ) {
+            let slice = std::slice::from_raw_parts(first, 1);
+            match ty {
+                BufferType::Vertex => ctx.VSSetConstantBuffers(buf.slot as u32, Some(slice)),
+                BufferType::Geometry => ctx.GSSetConstantBuffers(buf.slot as u32, Some(slice)),
+                BufferType::Pixel => ctx.PSSetConstantBuffers(buf.slot as u32, Some(slice)),
+                BufferType::Compute => ctx.CSSetConstantBuffers(buf.slot as u32, Some(slice)),
+            };
+            let old_buf = self.field108.get_unchecked(ty as usize);
+            match buf.get_buffer_unchecked(0).as_ref() {
+                Some(v) => *&mut old_buf.buffer.get_unchecked(buf.slot as usize) = v,
+                None => 
+            *&mut (old_buf.buffer.get_unchecked(buf.slot as usize) as *const ID3D11Buffer) 
+            = std::ptr::null()
+            };
+        }
+    }
+    unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8) {
+        
+    }
 }
 
 #[derive(Debug)]
@@ -336,6 +400,8 @@ pub struct DeferredContextDX11 {
     #[field_offset(0usize)]
     pub super_: DeferredContextBase,
 }
+
+
 /*
 impl DeferredContextDX11 {
     pub(crate) unsafe fn set_vertex_program_load(&mut self, shader: Option<std::ptr::NonNull<super::vs::VertexShaderPlatform>>) {
@@ -359,14 +425,14 @@ impl DeferredContextDX11 {
 // gfdRenderStatePushOtPreCallback (verified)
 // gfdRenderStateSetOtPreCallback (verified)
 // gfdRenderStatePopOtPreCallback (verified)
-// gfdCmdBufferAlloc (still needs testing!)
-// BindVertexShader
-// BindPixelShader
-// PushRenderState
-// SetRenderState
-// PopRenderState
-// SetupOt
-// RenderOtLink
+// gfdCmdBufferAlloc (verified)
+// BindVertexShader (TODO. Hooked, but needs more work)
+// BindPixelShader (verified)
+// PushRenderState (verified)
+// SetRenderState (verified)
+// PopRenderState (verified)
+// SetupOt (verified)
+// RenderOtLink (verified)
 // gfdRender2D_PosCol
 // gfdRender2D_PosColTex
 // gfdSetupTexture2D
@@ -374,9 +440,6 @@ impl DeferredContextDX11 {
 // gfdDrawPrimLine2D
 // gfdDrawPrimRect2D
 // DrawDebugFont
-
-#[ensure_layout(size = 4usize)]
-pub struct D3D11DeviceContext {}
 
 #[ensure_layout(size = 16usize)]
 pub struct GraphicsStarFilter {
@@ -396,3 +459,7 @@ pub struct _142236508 {}
 pub struct _142236510 {}
 #[ensure_layout(size = 96usize)]
 pub struct _142234cb0 {}
+
+pub struct PlatformTexture {
+    data: [u8; 0xb0]
+}

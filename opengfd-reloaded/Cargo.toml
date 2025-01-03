@@ -10,6 +10,7 @@ license-file.workspace = true
 edition.workspace = true
 
 [dependencies]
+glam = "0.29"
 opengfd = { version = "0.1", path = "../opengfd" }
 riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-proc" }
 riri-mod-tools-rt = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-rt" }

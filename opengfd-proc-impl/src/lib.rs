@@ -133,7 +133,6 @@ impl GfdStatic {
             #get_unchecked_fn
             #get_mut_unchecked_fn
         };
-        println!("{}", out.to_string());
         Ok(out)
     }
 }

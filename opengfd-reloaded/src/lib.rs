@@ -1,16 +1,17 @@
+#![allow(unused_imports)]
+
 use opengfd::{
     device::ngr::renderer::{
-        ps::PixelShader,
-        vs::{ VertexShader, VertexShaderPlatform },
-        state::{ DeferredContextBase, DeferredContextDX11 }
+        blend::BlendModePkt,
+        cbuffer::ConstantBuffer,
+        ps::PixelShader, 
+        state::{ DeferredContext, DeferredContextBase, DeferredContextDX11 }, 
+        vs::{ VertexShader, VertexShaderPlatform }
     },
-    globals
+    globals,
+    graphics::{render::cmd_buffer::CmdBuffer, render_ot::{ RenderOt, RenderOtBase, RenderOtEx }}
 };
-use std::ptr::NonNull;
-use windows::{
-    core::Param,
-    Win32::Graphics::Direct3D11::{ ID3D11PixelShader, ID3D11VertexShader }
-};
+use windows::Win32::Graphics::Direct3D11::{ ID3D11PixelShader, ID3D11VertexShader };
 use riri_mod_tools_proc::{ ensure_layout, original_function, riri_hook_fn, riri_hook_static };
 use riri_mod_tools_rt::{ logln, sigscan_resolver };
 
@@ -55,7 +56,7 @@ pub unsafe extern "C" fn set_ngr_draw_state(ofs: usize) -> Option<std::ptr::NonN
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_DRAWSTATE, usize);
-
+/*
 #[riri_hook_fn(static_offset(0x1192e20))]
 #[allow(non_snake_case)] // Verified
 pub unsafe extern "C" fn ngrSetVertexProgramLoadHook(p_ctx: *mut u8, p_shader: *mut u8) {
@@ -90,6 +91,7 @@ pub unsafe fn gfdDeviceShaderVertexBind(id: i32, shader: &VertexShaderPlatform) 
         shader
     );
 }
+*/
 /*
 
 #[riri_hook_fn(static_offset(0x114aec0))]
@@ -121,28 +123,26 @@ pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: 
     }
 }
 */
-
 /*
-#[riri_hook_fn(static_offset(0x1192ee0))]
-#[allow(non_snake_case)] // Verified
-pub unsafe extern "C" fn ngrSetPixelProgramLoadHook(p_ctx: *mut u8, p_shader: *mut u8) {
-    let ctx = &mut *(p_ctx as *mut DeferredContextDX11);
-    let shader = if p_shader.is_null() { None } else { Some(&(&*(p_shader as *const VertexShaderPlatform)).d3d_pixel) };
-    // compare by-reference (equality operator checks by-value, following PartialEq/Eq impl)
+#[riri_hook_fn(static_offset(0x1103150))]
+#[allow(non_snake_case)] // Major graphical issues
+// Glow materials are completely cooked
+pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: i32, data: *mut u8) {
+    let current = &mut (globals::get_gfd_global_unchecked().graphics.shader_current_vertex as *const VertexShader);
+    let data = (data as *mut VertexShader).as_ref();
     if std::ptr::eq(
-        // Option<&T> has same memory layout as &T and *T
-        std::mem::transmute::<Option<&ID3D11PixelShader>, *const ID3D11PixelShader>(shader), 
-        &raw const ctx.super_.target_pixel_shader
+        std::mem::transmute::<Option<&VertexShader>, *const VertexShader>(data), 
+        *current
     ) { return; }
-    // get D3D context from NGR context
-    let device_ctx = &ctx.super_.device_context;
-    device_ctx.PSSetShader(shader, None);
-    match shader {
-        Some(v) => *&mut &ctx.super_.target_pixel_shader = v,
-        None => *&mut &raw const ctx.super_.target_pixel_shader = std::ptr::null()
+    *current = std::mem::transmute::<Option<&VertexShader>, *mut VertexShader>(data);
+    if let Some(shader) = data {
+        if !shader.data.is_null() {
+            gfdDeviceShaderVertexBind(id, shader.data.as_ref().unwrap());
+        }
     }
 }
 */
+
 #[allow(non_snake_case)] // Verified
 pub unsafe fn ngrSetPixelProgramLoad(ctx: &mut DeferredContextDX11, shader: Option<&VertexShaderPlatform>) {
     let shader = shader.map(|f| &f.d3d_pixel);
@@ -166,7 +166,7 @@ pub unsafe fn gfdDeviceShaderPixelBind(id: i32, shader: Option<&VertexShaderPlat
         shader
     );
 }
-
+/*
 #[riri_hook_fn(static_offset(0x11031c0))]
 #[allow(non_snake_case)] // Some minor graphical issues:
 // - Gallica doesn't appear properly when running the loading screen for the first time
@@ -184,13 +184,24 @@ pub unsafe extern "C" fn gfdShaderPixelBindOtPreCallbackHook(_ot: *mut u8, id: i
         }
     }
 }
+*/
 
-#[riri_hook_fn(static_offset(0x10743f0))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStatePushOtPreCallbackHook(_ot: *mut u8, _a2: *mut u8, stack: i32) {
-    let global = globals::get_gfd_global_unchecked_mut();
-    global.graphics.render_state_stack[stack as usize][1] = global.graphics.render_state_stack[stack as usize][0];
-    global.graphics.render_state_stack[stack as usize][0] = global.graphics.render_state_current[stack as usize];
+#[allow(non_snake_case)] // Some minor graphical issues:
+// - Gallica doesn't appear properly when running the loading screen for the first time
+pub unsafe extern "C" fn gfdShaderPixelBindOtPreCallback(_ot: *mut RenderOt, id: *mut u8, p_data: *mut u8) {
+    let id = id as i32;
+    let shader_current_fragment = &mut (globals::get_gfd_global_unchecked().graphics.shader_current_fragment as *const PixelShader);
+    let data = (p_data as *mut PixelShader).as_ref();
+    if std::ptr::eq(
+        std::mem::transmute::<Option<&PixelShader>, *const PixelShader>(data), 
+        *shader_current_fragment
+    ) { return; }
+    *shader_current_fragment = std::mem::transmute::<Option<&PixelShader>, *mut PixelShader>(data);
+    if let Some(shader) = data {
+        if !shader.data.is_null() {
+            gfdDeviceShaderPixelBind(id, shader.data.as_ref());
+        }
+    }
 }
 
 #[repr(u32)]
@@ -310,9 +321,24 @@ pub unsafe fn gfdDeviceRenderSetState(p_buffer: i32, p_fun: u32, value: *mut u8)
     *globals::get_gfd_global_unchecked_mut().graphics.render_state_current.get_unchecked_mut(p_fun as usize) = value as usize;
 }
 
-#[riri_hook_fn(static_offset(0x1074430))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStatePopOtPreCallback(_render_ot: *mut u8, buffer: i32, fun: u32) {
+pub unsafe extern "C" fn gfdRenderStateSetOtPreCallback
+(_render_ot: *mut RenderOt, buffer: *mut u8, data: *mut u8) {
+    gfdDeviceRenderSetState(buffer as i32, *(data as *const u32), data.add(8));
+}
+
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderStatePushOtPreCallback(_ot: *mut RenderOt, _a2: *mut u8, stack: *mut u8) {
+    let stack = stack as u32;
+    let global = globals::get_gfd_global_unchecked_mut();
+    global.graphics.render_state_stack[stack as usize][1] = global.graphics.render_state_stack[stack as usize][0];
+    global.graphics.render_state_stack[stack as usize][0] = global.graphics.render_state_current[stack as usize];
+}
+
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderStatePopOtPreCallback(_ot: *mut RenderOt, buffer: *mut u8, fun: *mut u8) {
+    let fun = fun as u32;
+    let buffer = buffer as i32;
     let global = globals::get_gfd_global_unchecked_mut();
     let popped = *global.graphics.render_state_stack.get_unchecked(fun as usize).get_unchecked(0);
     *global.graphics.render_state_stack.get_unchecked_mut(fun as usize).get_unchecked_mut(0) = 
@@ -320,46 +346,128 @@ pub unsafe extern "C" fn gfdRenderStatePopOtPreCallback(_render_ot: *mut u8, buf
     gfdDeviceRenderSetState(buffer, fun, popped as *mut u8);
 }
 
-#[riri_hook_fn(static_offset(0x10743d0))]
+#[riri_hook_fn(static_offset(0x1072960))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStateSetOtPreCallback(_render_ot: *mut u8, buffer: i32, data: *mut u8) {
-    gfdDeviceRenderSetState(buffer, *(data as *const u32), data.add(8));
+pub unsafe extern "C" fn gfdRenderStateSet(prio: u32, state: u32, value: *mut u8) {
+    let ot = RenderOtEx::<16>::new();
+    ot.set::<u32>(0, state).unwrap();
+    ot.set::<*mut u8>(8, value).unwrap();
+    ot.set_pre_cb(gfdRenderStateSetOtPreCallback);
+    ot.set_pre_cb_data(ot.data_raw());
+    ot.link(prio)
+}
+
+#[riri_hook_fn(static_offset(0x1072a50))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderStatePop(prio: u32, state: u32) {
+    let ot = RenderOtEx::<0>::new();
+    ot.set_pre_cb(gfdRenderStatePopOtPreCallback);
+    ot.set_pre_cb_data(state as *mut u8);
+    ot.link(prio)
+}
+
+#[riri_hook_fn(static_offset(0x10729e0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderStatePush(prio: u32, state: u32) {
+    let ot = RenderOtEx::<0>::new();
+    ot.set_pre_cb(gfdRenderStatePushOtPreCallback);
+    ot.set_pre_cb_data(state as *mut u8);
+    ot.link(prio)
+}
+
+#[riri_hook_fn(static_offset(0x1072d40))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderSetBlendMode(prio: u32, blend: u32) {
+    let ot = RenderOtEx::<0>::new();
+    ot.set_data(&raw const *BlendModePkt::new(blend));
+    ot.link(prio);
+}
+
+#[riri_hook_fn(static_offset(0x1101030))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdShaderVertexBind(prio: u32, vertex: *mut u8) {
+    let ot = RenderOtEx::<0>::new();
+    ot.set_pre_cb_data(vertex);
+    ot.set_pre_cb(gfdShaderVertexBindOtPreCallback);
+    ot.link(prio);
+}
+
+#[allow(non_snake_case)] 
+pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallback(_ot: *mut RenderOt, id: *mut u8, p_data: *mut u8) {
+    gfdShaderVertexBindOtPreCallbackHook(_ot as *mut u8, id as u32, p_data);
+}
+
+#[riri_hook_fn(static_offset(0x1103150))]
+#[allow(non_snake_case)] 
+pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: u32, p_data: *mut u8) {
+    original_function!(_ot, id, p_data)
+}
+
+#[riri_hook_fn(static_offset(0x1101600))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdShaderFragmentBind(prio: u32, fragment: *mut u8) {
+    let ot = RenderOtEx::<0>::new();
+    ot.set_pre_cb_data(fragment);
+    ot.set_pre_cb(gfdShaderPixelBindOtPreCallback);
+    ot.link(prio);
+}
+
+#[riri_hook_fn(static_offset(0x1192f80))]
+// #[no_mangle]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetConstantBuffers(this: *mut u8, ty: u32, buf: *mut u8, a4: u32) {
+    let this = &mut *(this as *mut DeferredContextBase);
+    let buf = &mut *(buf as *mut ConstantBuffer);
+    this.set_constant_buffers(ty.try_into().unwrap(), buf, a4);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn test_clone_resource(a: *mut u8) {
+    let resrc = &*(a as *mut ID3D11PixelShader);
+    let a = resrc.clone();
+    let b = a.GetDevice().unwrap();
 }
 
 /*
+#[riri_hook_fn(static_offset(0x112ad60))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdDeviceShaderVertexBindHook(id: i32, p_shader: *const u8) {
-    let shader = p_shader as *const VertexShaderPlatform;
-    if shader.is_null() { return; }
-    let draw = &mut *globals::get_ngr_draw_state().unwrap();
-    //logln!(Information, "Context: 0x{:x}, Shader: 0x{:x}", 
-    /*
-    println!("Context: 0x{:x}, Shader: 0x{:x}",
-        draw.basicBuffers[id as usize].deferredContexts[draw.otFrameId as usize] as usize,
-        shader as usize
-    );
-    */
-    // original_function!(id, p_shader)
-    ngrSetVertexProgramLoad(
-        draw.basicBuffers[id as usize].deferredContexts[draw.otFrameId as usize].as_mut().unwrap(),
-        shader.as_ref().unwrap());
+pub unsafe extern "C" fn ngrImmediateRenderPrepareForDraw(state: *mut u8, a2: u32) {
+    let state = &mut *(state as *mut opengfd::device::ngr::renderer::state::DrawState);
+    let ctx = &mut**state.basicBuffers.get_unchecked_mut(a2 as usize).deferredContexts.get_unchecked_mut(state.otFrameId as usize);
+    let flags = state.basicBuffers.get_unchecked_mut(a2 as usize).flags;
+    if flags
+}
+*/
+
+/*
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdIm2DRenderPrimitive2D(prio: u32, prim: u8, data: usize, num: u32, flags: u32) {
+    original_function!(prio. prim, data, num, flags)
 }
 */
 /*
-#[riri_hook_fn(static_offset(0x1103150))]
+#[riri_hook_fn(static_offset(0x1109580))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallback(_render_ot: *mut u8, id: i32, shader: *mut u8) {
-    let global = &mut*globals::get_gfd_global();
-    let new_shader = shader as *const VertexShader;
-    let current_vertex_shader = global.graphics.shader_current_vertex;
-    if !std::ptr::eq(current_vertex_shader, new_shader) &&
-        !new_shader.is_null() && !(&*current_vertex_shader).data.is_null()
-    {
-        /*
-        gfdDeviceShaderVertexBind(id, &*(&*current_vertex_shader).data);
-        *&mut global.graphics.shader_current_vertex = new_shader as *mut VertexShader;
-        */
-    }
-    original_function!(_render_ot, id, shader)
+pub unsafe extern "C" fn gfdDevCmdMakeImmediateRenderPrimitivePkt(a1: usize, a2: u8, a3: u32, a4: u32, a5: u32) {
+    original_function!(a1, a2, a3, a4, a5)
+}
+*/
+/*
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderSetTransformWorldOtPreCallback
+(_render_ot: *mut RenderOt, buffer: *mut u8, data: *mut u8) {
+    let buf_id = buffer as i32;
+    let data = data as *mut glam::Mat4;
+    
+}
+
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdRenderSetTransformWorld(prio: u32, v: *mut u8) {
+    let v = v as *mut glam::Mat4;
+    let ot = RenderOtEx::<64>::new();
+    ot.set::<glam::Mat4>(0, *v).unwrap();
+    ot.set_pre_cb(gfdRenderSetTransformWorldOtPreCallback);
+    ot.set_pre_cb_data(ot.data_raw());
+    ot.link(prio);
 }
 */
