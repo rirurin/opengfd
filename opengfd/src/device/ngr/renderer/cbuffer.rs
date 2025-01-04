@@ -33,25 +33,25 @@ pub struct ConstantBuffer {
     fields: CbufferFields,
     byte_width: u32,
     field54: u32,
-    field58: u32,
+    resource_count: u32,
     pub(super) slot: i32,
-    d3d11_cbuffer: [Option<ID3D11Buffer>; 3],
-    field78: i32,
-    field7c: i32,
-    pub(super) active_buffers: u32,
+    buffer: Option<ID3D11Buffer>,
+    resources: [*const std::ffi::c_void; 3],
+    // pub(super) active_buffers: u32,
+    pub active_buffers: u32,
 }
 
 impl ConstantBuffer {
-    pub fn vtable_3(&self) -> bool { self.field58 == 0 }
-    pub unsafe fn vtable_21(&self, index: u32) -> &Option<ID3D11Buffer> {
-        let real_index = if self.vtable_3() { 0 } else { index } as usize;
-        unsafe { self.d3d11_cbuffer.get_unchecked(real_index + 1) }
+    pub fn has_resources(&self) -> bool { self.resource_count == 0 }
+    pub unsafe fn get_resource(&self, index: u32) -> *const std::ffi::c_void {
+        let real_index = if self.has_resources() { 0 } else { index } as usize;
+        unsafe { *self.resources.get_unchecked(real_index) }
     }
-    pub unsafe fn get_buffer_unchecked(&self, index: usize) -> &Option<ID3D11Buffer> {
-        self.d3d11_cbuffer.get_unchecked(index)
+    pub unsafe fn get_buffer(&self) -> Option<&ID3D11Buffer> {
+        self.buffer.as_ref()
     }
-    pub unsafe fn get_buffer_unchecked_mut(&mut self, index: usize) -> &mut Option<ID3D11Buffer> {
-        self.d3d11_cbuffer.get_unchecked_mut(index)
+    pub unsafe fn get_buffer_as_slice(&self) -> &[Option<ID3D11Buffer>] {
+        std::slice::from_raw_parts(&self.buffer, 1)
     }
     pub fn get_active_buffers(&self) -> u32 { self.active_buffers }
 }

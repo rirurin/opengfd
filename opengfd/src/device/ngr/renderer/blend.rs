@@ -4,7 +4,7 @@ use crate::{
 };
 use riri_mod_tools_proc::ensure_layout;
 
-pub const BLEND_MODE_FUNCTIONS: [ [i32; 4]; 6 ] = [
+pub static BLEND_MODE_FUNCTIONS: [ [i32; 4]; 6 ] = [
     [ 1, 0, 1, 0 ],
     [ 4, 5, 4, 5 ],
     [ 4, 1, 4, 1 ],

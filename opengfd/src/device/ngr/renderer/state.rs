@@ -1,21 +1,33 @@
-#![allow(non_snake_case)]
+#![allow(non_snake_case, unused_imports)]
 use bitflags::bitflags;
 use crate::{
-    device::ngr::renderer::cbuffer::{
-        BufferType, ConstantBuffer
+    device::ngr::{
+        structures::CrcHash,
+        renderer::cbuffer::{
+            BufferType, ConstantBuffer
+        }
     },
     graphics::texture::Texture,
     object::{ mesh::Mesh, node::Node },
-    utility::misc::RGBAFloat
+    utility::{ 
+        misc::RGBAFloat,
+        reference::Reference
+    }
 };
 use glam::Mat4;
+use std::hash::Hash;
 use riri_mod_tools_proc::ensure_layout;
-use windows::Win32::Graphics::Direct3D11::{
-    ID3D11Buffer,
-    ID3D11DeviceContext,
-    ID3D11PixelShader,
-    ID3D11VertexShader,
-    ID3D11Resource
+use windows::{
+    core::Interface,
+    Win32::Graphics::Direct3D11::{
+        D3D11_FILL_MODE,
+        ID3D11Buffer,
+        ID3D11DeviceContext,
+        ID3D11PixelShader,
+        ID3D11VertexShader,
+        ID3D11Resource,
+        ID3D11RasterizerState
+    }
 };
 
 #[ensure_layout(size = 6112usize)]
@@ -327,19 +339,17 @@ pub struct MemHint {
 pub trait DeferredContext {
     unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32);
     unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8);
+    unsafe fn rs_set_state(&mut self, rasterizer: *mut u8);
 }
 
 #[derive(Debug)]
 #[ensure_layout(size = 1800usize)]
 pub struct DeferredContextBase {
-    #[field_offset(0usize)]
-    pub vtable: *mut ::std::os::raw::c_void,
-    #[field_offset(8usize)]
-    pub device_context: ID3D11DeviceContext,
-    #[field_offset(160usize)]
-    pub target_vertex_shader: ID3D11VertexShader,
-    #[field_offset(176usize)]
-    pub target_pixel_shader: ID3D11PixelShader,
+    #[field_offset(0)] vtable: *const std::ffi::c_void,
+    #[field_offset(8)] pub device_context: ID3D11DeviceContext,
+    #[field_offset(0x90)] pub rasterizer: ID3D11RasterizerState,
+    #[field_offset(0xa0)] pub target_vertex_shader: ID3D11VertexShader,
+    #[field_offset(0xb0)] pub target_pixel_shader: ID3D11PixelShader,
     #[field_offset(0x108)] field108: [DeferredContext108; 4]
 }
 
@@ -350,30 +360,34 @@ pub struct DeferredContext108 {
     _unk: [u8; 0x160]
 }
 
+impl DeferredContextBase {
+    // unsafe fn set_rasterizer_state(&mut self)
+}
+
 impl DeferredContext for DeferredContextBase {
     // 0x141188f80 (Metaphor: Refantazio Prologue Demo, Steam 1.01)
+    // 0x141192f80 (Metaphor: Refantazio, Steam 1.02)
+    // TODO: Fix this! Flickering!
     unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32) {
         let ctx = &self.device_context;
-        let mut first = buf.get_buffer_unchecked(0);
-        let update_flags = if buf.vtable_3() { 1 } else { 1 << (upd & 0x1f) };
+        let first = buf.get_buffer();
+        let update_flags = if !buf.has_resources() { 1 } else { 1 << (upd & 0x1f) };
         if (buf.active_buffers & update_flags) != 0 { 
             ctx.UpdateSubresource(
-                first.as_ref().map(|f| f.into()), 
+                first.map(|f| f.into()), 
                 0, 
                 None, 
-                std::mem::transmute(buf.vtable_21(upd).as_ref()),
-                // buf.vtable_21(upd).as_ref().unwrap() as *const ID3D11Buffer as *const core::ffi::c_void, 
+                buf.get_resource(upd),
                 0, 
                 0);
             buf.active_buffers &= !update_flags; 
         }
-        first = buf.get_buffer_unchecked(0);
         if !std::ptr::eq(
             self.field108.get_unchecked(ty as usize)
             .buffer.get_unchecked(buf.slot as usize)
-            , std::mem::transmute(buf.get_buffer_unchecked(0).as_ref())
+            , std::mem::transmute(buf.get_buffer())
         ) {
-            let slice = std::slice::from_raw_parts(first, 1);
+            let slice = buf.get_buffer_as_slice();
             match ty {
                 BufferType::Vertex => ctx.VSSetConstantBuffers(buf.slot as u32, Some(slice)),
                 BufferType::Geometry => ctx.GSSetConstantBuffers(buf.slot as u32, Some(slice)),
@@ -381,7 +395,7 @@ impl DeferredContext for DeferredContextBase {
                 BufferType::Compute => ctx.CSSetConstantBuffers(buf.slot as u32, Some(slice)),
             };
             let old_buf = self.field108.get_unchecked(ty as usize);
-            match buf.get_buffer_unchecked(0).as_ref() {
+            match buf.get_buffer() {
                 Some(v) => *&mut old_buf.buffer.get_unchecked(buf.slot as usize) = v,
                 None => 
             *&mut (old_buf.buffer.get_unchecked(buf.slot as usize) as *const ID3D11Buffer) 
@@ -392,6 +406,13 @@ impl DeferredContext for DeferredContextBase {
     unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8) {
         
     }
+    unsafe fn rs_set_state(&mut self, rasterizer: *mut u8) {
+
+    }
+    // GetRasterizerState
+    // GetBlendState
+    // OMSetBlendState
+    // SetShaderSampler
 }
 
 #[derive(Debug)]
@@ -460,6 +481,239 @@ pub struct _142236510 {}
 #[ensure_layout(size = 96usize)]
 pub struct _142234cb0 {}
 
+#[allow(dead_code)]
 pub struct PlatformTexture {
     data: [u8; 0xb0]
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct RasterizerKey {
+    pub(crate) field_mode: FillMode,
+    pub(crate) cull_mode: CullMode,
+    pub(crate) is_front_counter_clockwise: bool,
+    pub(crate) scissor_enable: bool,
+    pub(crate) antialiased_line_enable: bool,
+    pub(crate) depth_bias: u32,
+    pub(crate) depth_bias_clamp: f32,
+    pub(crate) slope_scaled_depth_bias: f32,
+    pub(crate) depth_clip_enable: bool
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FillMode {
+    Wireframe = 0,
+    Solid = 1
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CullMode {
+    None = 0,
+    Front = 1,
+    Back = 2
+}
+
+impl Hash for RasterizerKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) { 
+        state.write_u8(self.field_mode as u8);
+        state.write_u8(self.cull_mode as u8);
+        state.write_u8(self.is_front_counter_clockwise as u8);
+        state.write_u8(self.scissor_enable as u8);
+        state.write_u8(self.antialiased_line_enable as u8);
+        state.write_u32(self.depth_bias);
+        state.write_u32(self.depth_bias_clamp as u32);
+        state.write_u32(self.slope_scaled_depth_bias as u32);
+        state.write_u8(self.depth_clip_enable as u8);
+    }
+}
+
+impl RasterizerKey {
+    pub fn crc_hash(&self) -> u32 {
+        let mut hasher = crc32fast::Hasher::new();
+        self.hash(&mut hasher);
+        hasher.finalize()
+    } 
+}
+
+impl PartialEq<CrcHash> for RasterizerState {
+    fn eq(&self, other: &CrcHash) -> bool {
+        self.key.crc_hash() == other.get_hash()
+    }
+}
+
+impl PartialEq<RasterizerKey> for RasterizerState {
+    fn eq(&self, other: &RasterizerKey) -> bool {
+        self.key.field_mode == other.field_mode &&
+        self.key.cull_mode == other.cull_mode &&
+        self.key.is_front_counter_clockwise == other.is_front_counter_clockwise &&
+        self.key.scissor_enable == other.scissor_enable &&
+        self.key.antialiased_line_enable == other.antialiased_line_enable &&
+        self.key.depth_bias              == other.depth_bias &&
+        self.key.depth_bias_clamp        == other.depth_bias_clamp &&
+        self.key.slope_scaled_depth_bias == other.slope_scaled_depth_bias &&
+        self.key.depth_clip_enable       == other.depth_clip_enable
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct RasterizerState {
+    _cpp_vtable: *mut u8,
+    ref_count: Reference,
+    field10: usize,
+    key: RasterizerKey,
+    hash: CrcHash,
+    platform_rasterizer: Option<ID3D11RasterizerState>
+}
+
+impl RasterizerState {
+    pub fn new(key: &RasterizerKey) -> Self {
+        Self {
+            _cpp_vtable: std::ptr::null_mut(),
+            ref_count: Reference::new(),
+            field10: 0,
+            key: key.clone(),
+            hash: CrcHash::new(key),
+            platform_rasterizer: None
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct BlendKey {
+    pub(crate) enable_blending: bool,
+    pub(crate) source_blend: BlendType,
+    pub(crate) dest_blend: BlendType,
+    pub(crate) blend_op: BlendTypeOperation,
+    pub(crate) source_blend_alpha: BlendType,
+    pub(crate) dest_blend_alpha: BlendType,
+    pub(crate) blend_op_alpha: BlendTypeOperation,
+    pub(crate) render_mask: u32,
+    pub(crate) blend_state: bool
+}
+
+impl Hash for BlendKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) { 
+        state.write_u8(self.enable_blending as u8);
+        if self.enable_blending {
+            state.write_u8(self.source_blend as u8);
+            state.write_u8(self.dest_blend as u8);
+            state.write_u8(self.blend_op as u8);
+            state.write_u8(self.source_blend_alpha as u8);
+            state.write_u8(self.dest_blend_alpha as u8);
+            state.write_u8(self.blend_op_alpha as u8);
+            state.write_u32(self.render_mask as u32);
+        }
+        state.write_u8(self.blend_state as u8);
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BlendType {
+    Zero = 0,
+    One,
+    SourceColor,
+    InverseSourceColor,
+    SourceAlpha,
+    InverseSourceAlpha,
+    DestinationAlpha,
+    InverseDestinationAlpha,
+    DestinationColor,
+    InverseDestinationColor,
+    SourceAlphaSaturate,
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BlendTypeOperation {
+    Add = 0,
+    Subtract,
+    ReverseSubtract,
+    Min,
+    Max,
+}
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct DepthStencilDescriptions {
+    pub(crate) stencil_fall_op: StencilOperation,
+    pub(crate) stencil_depth_fall_op: StencilOperation,
+    pub(crate) stencil_pass_op: StencilOperation,
+    pub(crate) stencil_func: ComparisonFunc,
+}
+
+impl Hash for DepthStencilDescriptions {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) { 
+        state.write_u8(self.stencil_fall_op as u8);
+        state.write_u8(self.stencil_depth_fall_op as u8);
+        state.write_u8(self.stencil_pass_op as u8);
+        state.write_u8(self.stencil_func as u8);
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct DepthStencilKey {
+    pub(crate) depth_enable: bool,
+    pub(crate) depth_write_mask: DepthWriteMask,
+    pub(crate) depth_func: ComparisonFunc,
+    pub(crate) stencil_enable: bool,
+    pub(crate) stencil_read_mask: u8,
+    pub(crate) stencil_write_mask: u8,
+    pub(crate) front_face: DepthStencilDescriptions,
+    pub(crate) back_face: DepthStencilDescriptions
+}
+
+// 0x1411cdff0
+impl Hash for DepthStencilKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u8(self.depth_enable as u8);
+        state.write_u8(self.depth_write_mask as u8);
+        if self.depth_enable {
+            state.write_u8(self.depth_func as u8);
+        }
+        state.write_u8(self.stencil_enable as u8);
+        if self.stencil_enable {
+            state.write_u8(self.stencil_read_mask);
+            state.write_u8(self.stencil_write_mask);
+            self.front_face.hash(state);
+            self.back_face.hash(state);
+        }
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DepthWriteMask {
+    MaskNone = 0,
+    MaskAll
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum StencilOperation {
+    Keep = 0,
+    Zero,
+    Replace,
+    IncrementClamp,
+    DecrementClamp,
+    Invert,
+    IncrementWrap,
+    DecrementWrap,
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ComparisonFunc {
+    Never = 0,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always,
 }

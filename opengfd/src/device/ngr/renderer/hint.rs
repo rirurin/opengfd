@@ -24,21 +24,21 @@ impl BufferFieldHint {
 
 // In InitializeNGRBasicBuffers (see Prologue Demo disasm)
 
-pub const GFD_VSCONST_SYSTEM: [BufferFieldHint; 4] = [
+pub static GFD_VSCONST_SYSTEM: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // zeroVec
     BufferFieldHint::new(0, BufferFieldType::Float4), // constants
     BufferFieldHint::new(0, BufferFieldType::Float2), // resolutionRev
     BufferFieldHint::new(0, BufferFieldType::Float2),
 ];
 
-pub const GFD_VSCONST_TRANSFORM: [BufferFieldHint; 4] = [
+pub static GFD_VSCONST_TRANSFORM: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxLocalToWorld
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxLocalToWorldViewProj
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxLocalToWorldViewProjPrev
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxModelToLocal
 ];
 
-pub const GFD_VSCONST_VIEWPROJ: [BufferFieldHint; 5] = [
+pub static GFD_VSCONST_VIEWPROJ: [BufferFieldHint; 5] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxViewProj
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxView
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxInvView
@@ -46,22 +46,22 @@ pub const GFD_VSCONST_VIEWPROJ: [BufferFieldHint; 5] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // fovy
 ];
 
-pub const GFD_VSCONST_COLORS: [BufferFieldHint; 1] = [
+pub static GFD_VSCONST_COLORS: [BufferFieldHint; 1] = [
     BufferFieldHint::new(0, BufferFieldType::Float4) // constantColor
 ];
 
-pub const GFD_VSCONST_UVX_TRANSFORM: [BufferFieldHint; 1] = [
+pub static GFD_VSCONST_UVX_TRANSFORM: [BufferFieldHint; 1] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4) // mtxUVXTransform
 ];
 
-pub const GFD_VSCONST_LIGHT_VEC: [BufferFieldHint; 4] = [
+pub static GFD_VSCONST_LIGHT_VEC: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float3), // lightDirection
     BufferFieldHint::new(0, BufferFieldType::Float), // light_reserved_0
     BufferFieldHint::new(0, BufferFieldType::Float3), // lightInvDirection
     BufferFieldHint::new(0, BufferFieldType::Float), // light_reserved_1
 ];
 
-pub const GFD_PSCONST_LIGHT_PS: [BufferFieldHint; 7] = [
+pub static GFD_PSCONST_LIGHT_PS: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // lightColor
     BufferFieldHint::new(0, BufferFieldType::Float3), // lightDirection
     BufferFieldHint::new(0, BufferFieldType::Float), // lightSpecularIntensity
@@ -71,7 +71,7 @@ pub const GFD_PSCONST_LIGHT_PS: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Float) // lightShadowAlpha
 ];
 
-pub const GFD_PSCONST_SYSTEM: [BufferFieldHint; 7] = [
+pub static GFD_PSCONST_SYSTEM: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // resolution
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // resolutionRev
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxView
@@ -81,7 +81,7 @@ pub const GFD_PSCONST_SYSTEM: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // invProjParams
 ];
 
-pub const GFD_PSCONST_ENV_COLORS: [BufferFieldHint; 12] = [
+pub static GFD_PSCONST_ENV_COLORS: [BufferFieldHint; 12] = [
     BufferFieldHint::new(0, BufferFieldType::Float3), // sceneAmbientPBR
     BufferFieldHint::new(0, BufferFieldType::Float), // envMapMipLevels
     BufferFieldHint::new(0, BufferFieldType::Float3), // sceneAmbientToon
@@ -96,14 +96,14 @@ pub const GFD_PSCONST_ENV_COLORS: [BufferFieldHint; 12] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // sceneSkyFogColor
 ];
 
-pub const GFD_VSCONST_VAT: [BufferFieldHint; 4] = [
+pub static GFD_VSCONST_VAT: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // boundingBoxMax
     BufferFieldHint::new(0, BufferFieldType::Float), // boundingBoxMin
     BufferFieldHint::new(0, BufferFieldType::Float), // time
     BufferFieldHint::new(0, BufferFieldType::Float), // totalFrame
 ];
 
-pub const REG_8_BUF_360: [BufferFieldHint; 4] = [
+pub static REG_8_BUF_360: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
@@ -112,13 +112,13 @@ pub const REG_8_BUF_360: [BufferFieldHint; 4] = [
 
 // In FUN_1411217a0 (see Prologue Demo disasm)
 
-pub const GFD_VSCONST_SHADOW: [BufferFieldHint; 3] = [
+pub static GFD_VSCONST_SHADOW: [BufferFieldHint; 3] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // mtxLightViewProj[0]
     BufferFieldHint::new(0, BufferFieldType::Float), // mtxLightViewProj[1]
     BufferFieldHint::new(0, BufferFieldType::Float), // mtxLightViewProj[2]
 ];
 
-pub const GFD_PSCONST_FOG: [BufferFieldHint; 22] = [
+pub static GFD_PSCONST_FOG: [BufferFieldHint; 22] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // fogParameters
     BufferFieldHint::new(0, BufferFieldType::Float4), // fogColorParameter
     BufferFieldHint::new(0, BufferFieldType::Float4), // dirInscatColor
@@ -143,7 +143,7 @@ pub const GFD_PSCONST_FOG: [BufferFieldHint; 22] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // fogDistanceColor_sky
 ];
 
-pub const GFD_PSCONST_SHADOW: [BufferFieldHint; 7] = [
+pub static GFD_PSCONST_SHADOW: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // shadowDimmer
     BufferFieldHint::new(0, BufferFieldType::Float), // shadowBiasPBR
     BufferFieldHint::new(0, BufferFieldType::Float), // shadowBiasOther
@@ -155,7 +155,7 @@ pub const GFD_PSCONST_SHADOW: [BufferFieldHint; 7] = [
 
 // In gfdMaterialCreateConstantBuffer (see Prologue Demo disasm)
 
-pub const GFD_PSCONST_MATERIAL_TYPE0: [BufferFieldHint; 9] = [
+pub static GFD_PSCONST_MATERIAL_TYPE0: [BufferFieldHint; 9] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
     BufferFieldHint::new(0, BufferFieldType::Float), // matEmissive
     BufferFieldHint::new(0, BufferFieldType::Float), // matRoughness
@@ -167,7 +167,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE0: [BufferFieldHint; 9] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE1: [BufferFieldHint; 8] = [
+pub static GFD_PSCONST_MATERIAL_TYPE1: [BufferFieldHint; 8] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matAmbient
     BufferFieldHint::new(0, BufferFieldType::Float4), // matDiffuse
     BufferFieldHint::new(0, BufferFieldType::Float4), // matSpecular
@@ -178,7 +178,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE1: [BufferFieldHint; 8] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE2: [BufferFieldHint; 22] = [
+pub static GFD_PSCONST_MATERIAL_TYPE2: [BufferFieldHint; 22] = [
     BufferFieldHint::new(0, BufferFieldType::Float3), // matSpecularColor
     BufferFieldHint::new(0, BufferFieldType::Float), // outlineID
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
@@ -203,7 +203,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE2: [BufferFieldHint; 22] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // multiFittingTile
 ];
 
-pub const GFD_PSCONST_MATERIAL_TOON_OUTLINE: [BufferFieldHint; 7] = [
+pub static GFD_PSCONST_MATERIAL_TOON_OUTLINE: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // outlineBloomIntensity
     BufferFieldHint::new(0, BufferFieldType::Float), // lerpBlendRate
     BufferFieldHint::new(0, BufferFieldType::Float), // _reserve
@@ -213,13 +213,13 @@ pub const GFD_PSCONST_MATERIAL_TOON_OUTLINE: [BufferFieldHint; 7] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matShadowColor
 ];
 
-pub const GFD_VSCONST_TOON_OUTLINE: [BufferFieldHint; 3] = [
+pub static GFD_VSCONST_TOON_OUTLINE: [BufferFieldHint; 3] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // outlineThickness
     BufferFieldHint::new(0, BufferFieldType::Float), // outlineThinMax
     BufferFieldHint::new(0, BufferFieldType::Float2), // outlineThinFade
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE4: [BufferFieldHint; 14] = [
+pub static GFD_PSCONST_MATERIAL_TYPE4: [BufferFieldHint; 14] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
     BufferFieldHint::new(0, BufferFieldType::Float4), // matEmissiveColor
     BufferFieldHint::new(0, BufferFieldType::Float), // matBloomIntensity
@@ -236,7 +236,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE4: [BufferFieldHint; 14] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCOSNT_MATERIAL_OCEAN: [BufferFieldHint; 15] = [
+pub static GFD_PSCOSNT_MATERIAL_OCEAN: [BufferFieldHint; 15] = [
     BufferFieldHint::new(0, BufferFieldType::Float2), // TexShift
     BufferFieldHint::new(0, BufferFieldType::Float), // TCScale
     BufferFieldHint::new(0, BufferFieldType::Float), // OceanDepthScale
@@ -254,7 +254,7 @@ pub const GFD_PSCOSNT_MATERIAL_OCEAN: [BufferFieldHint; 15] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // waterFoamColor
 ];
 
-pub const GFD_VSCONST_OCEAN: [BufferFieldHint; 8] = [
+pub static GFD_VSCONST_OCEAN: [BufferFieldHint; 8] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4), // mtxInvLocalToWorld
     BufferFieldHint::new(0, BufferFieldType::Float2), // TexShift
     BufferFieldHint::new(0, BufferFieldType::Float), // TCScale
@@ -265,7 +265,7 @@ pub const GFD_VSCONST_OCEAN: [BufferFieldHint; 8] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE6: [BufferFieldHint; 18] = [
+pub static GFD_PSCONST_MATERIAL_TYPE6: [BufferFieldHint; 18] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matLayer0BaseColor
     BufferFieldHint::new(0, BufferFieldType::Float), // matLayer0Emissive
     BufferFieldHint::new(0, BufferFieldType::Float), // matLayer0Roughness
@@ -286,7 +286,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE6: [BufferFieldHint; 18] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE7: [BufferFieldHint; 12] = [
+pub static GFD_PSCONST_MATERIAL_TYPE7: [BufferFieldHint; 12] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // matLayer0Roughness
     BufferFieldHint::new(0, BufferFieldType::Float), // matLayer0Metallic
     BufferFieldHint::new(0, BufferFieldType::Float), // matLayer1Roughness
@@ -301,7 +301,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE7: [BufferFieldHint; 12] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_VSCONST_MATERIAL_TYPE7: [BufferFieldHint; 8] = [
+pub static GFD_VSCONST_MATERIAL_TYPE7: [BufferFieldHint; 8] = [
     BufferFieldHint::new(0, BufferFieldType::Float2), // matLayer0TileSize
     BufferFieldHint::new(0, BufferFieldType::Float2), // matLayer0TileOffset
     BufferFieldHint::new(0, BufferFieldType::Float2), // matLayer1TileSize
@@ -312,7 +312,7 @@ pub const GFD_VSCONST_MATERIAL_TYPE7: [BufferFieldHint; 8] = [
     BufferFieldHint::new(0, BufferFieldType::Float2), // matLayer3TileOffset
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE8: [BufferFieldHint; 9] = [
+pub static GFD_PSCONST_MATERIAL_TYPE8: [BufferFieldHint; 9] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
     BufferFieldHint::new(0, BufferFieldType::Float), // matEmissive
     BufferFieldHint::new(0, BufferFieldType::Float), // matRoughness
@@ -324,7 +324,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE8: [BufferFieldHint; 9] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE9: [BufferFieldHint; 18] = [
+pub static GFD_PSCONST_MATERIAL_TYPE9: [BufferFieldHint; 18] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
     BufferFieldHint::new(0, BufferFieldType::Float4), // matShadowColor
     BufferFieldHint::new(0, BufferFieldType::Float4), // matEdgeColor
@@ -345,7 +345,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE9: [BufferFieldHint; 18] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE10: [BufferFieldHint; 5] = [
+pub static GFD_PSCONST_MATERIAL_TYPE10: [BufferFieldHint; 5] = [
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
     BufferFieldHint::new(0, BufferFieldType::Float), // matMultiAlpha
     BufferFieldHint::new(0, BufferFieldType::Float), // matBloomIntensity
@@ -353,7 +353,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE10: [BufferFieldHint; 5] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE12: [BufferFieldHint; 22] = [
+pub static GFD_PSCONST_MATERIAL_TYPE12: [BufferFieldHint; 22] = [
     BufferFieldHint::new(0, BufferFieldType::Float3), // matSpecularColor
     BufferFieldHint::new(0, BufferFieldType::Float), // outlineID
     BufferFieldHint::new(0, BufferFieldType::Float4), // matBaseColor
@@ -378,11 +378,11 @@ pub const GFD_PSCONST_MATERIAL_TYPE12: [BufferFieldHint; 22] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE14: [BufferFieldHint; 1] = [
+pub static GFD_PSCONST_MATERIAL_TYPE14: [BufferFieldHint; 1] = [
     BufferFieldHint::new(0, BufferFieldType::Float4) // matBaseColor
 ];
 
-pub const GFD_PSCONST_MATERIAL_TYPE15: [BufferFieldHint; 116] = [
+pub static GFD_PSCONST_MATERIAL_TYPE15: [BufferFieldHint; 116] = [
     BufferFieldHint::new(0, BufferFieldType::Float2), // layers[0].tileSize
     BufferFieldHint::new(0, BufferFieldType::Float2), // layers[0].tileOffset
     BufferFieldHint::new(0, BufferFieldType::Float), // layers[0].roughness
@@ -503,7 +503,7 @@ pub const GFD_PSCONST_MATERIAL_TYPE15: [BufferFieldHint; 116] = [
 
 // In gfdCreateStaticConstantBuffers (see Prologue Demo disasm)
 
-pub const REG_12_BUF_598: [BufferFieldHint; 12] = [
+pub static REG_12_BUF_598: [BufferFieldHint; 12] = [
     BufferFieldHint::new(0, BufferFieldType::Float3),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float3),
@@ -518,7 +518,7 @@ pub const REG_12_BUF_598: [BufferFieldHint; 12] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_638: [BufferFieldHint; 5] = [
+pub static REG_11_BUF_638: [BufferFieldHint; 5] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float2),
@@ -526,34 +526,34 @@ pub const REG_11_BUF_638: [BufferFieldHint; 5] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_640: [BufferFieldHint; 2] = [
+pub static REG_11_BUF_640: [BufferFieldHint; 2] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
 ];
 
-pub const REG_11_BUF_648: [BufferFieldHint; 2] = [
+pub static REG_11_BUF_648: [BufferFieldHint; 2] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
 ];
 
-pub const REG_11_BUF_650: [BufferFieldHint; 3] = [
+pub static REG_11_BUF_650: [BufferFieldHint; 3] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
 ];
 
-pub const REG_11_BUF_658: [BufferFieldHint; 1] = [
+pub static REG_11_BUF_658: [BufferFieldHint; 1] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
 ];
 
-pub const REG_11_BUF_660: [BufferFieldHint; 4] = [
+pub static REG_11_BUF_660: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_668: [BufferFieldHint; 47] = [
+pub static REG_11_BUF_668: [BufferFieldHint; 47] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float2),
     BufferFieldHint::new(0, BufferFieldType::Float),
@@ -603,13 +603,13 @@ pub const REG_11_BUF_668: [BufferFieldHint; 47] = [
     BufferFieldHint::new(0, BufferFieldType::Matrix4),
 ];
 
-pub const REG_11_BUF_680: [BufferFieldHint; 3] = [
+pub static REG_11_BUF_680: [BufferFieldHint; 3] = [
     BufferFieldHint::new(0, BufferFieldType::Float2),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_688: [BufferFieldHint; 6] = [
+pub static REG_11_BUF_688: [BufferFieldHint; 6] = [
     BufferFieldHint::new(0, BufferFieldType::Float2),
     BufferFieldHint::new(0, BufferFieldType::Float2),
     BufferFieldHint::new(0, BufferFieldType::Float),
@@ -618,14 +618,14 @@ pub const REG_11_BUF_688: [BufferFieldHint; 6] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_4C0: [BufferFieldHint; 4] = [
+pub static REG_11_BUF_4C0: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const GFD_PSCONST_METABALL: [BufferFieldHint; 37] = [
+pub static GFD_PSCONST_METABALL: [BufferFieldHint; 37] = [
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
     BufferFieldHint::new(0, BufferFieldType::Float4),
@@ -665,13 +665,13 @@ pub const GFD_PSCONST_METABALL: [BufferFieldHint; 37] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_690: [BufferFieldHint; 3] = [
+pub static REG_11_BUF_690: [BufferFieldHint; 3] = [
     BufferFieldHint::new(0, BufferFieldType::Float2),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];
 
-pub const REG_11_BUF_6A8: [BufferFieldHint; 4] = [
+pub static REG_11_BUF_6A8: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),

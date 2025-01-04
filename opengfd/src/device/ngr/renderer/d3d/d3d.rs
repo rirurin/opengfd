@@ -4,8 +4,8 @@ use bitflags::bitflags;
 use crate::{
         device::ngr::{
         hint::MemHint,
-        // renderer::state::DeferredContextBase,
-        structures::PointerList
+        renderer::state::{ RasterizerKey, RasterizerState },
+        structures::{ CriticalSection, CrcHash, PointerList }
     },
     globals
 };
@@ -22,6 +22,7 @@ use windows::{
             },
             Direct3D11::{
                 D3D11_CREATE_DEVICE_FLAG,
+                D3D11_RASTERIZER_DESC,
                 D3D11CreateDeviceAndSwapChain,
                 ID3D11Device,
                 ID3D11DeviceContext,
@@ -104,16 +105,17 @@ bitflags! {
 
 #[repr(C)]
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 pub struct ngrDX11Renderer {
     vtable: *mut ::std::os::raw::c_void,
     flags0: Flags0,
     field2_0xc: i32,
     deferred_context: *mut DeferredContextSpecial,
-    list18: PointerList<usize>,
-    list48: PointerList<usize>,
-    list78: PointerList<usize>,
-    lista8: PointerList<usize>,
-    field12_0xd8: [*mut u8; 4usize],
+    pub blends: PointerList<usize>,
+    pub depth_stencils: PointerList<usize>,
+    pub rasterizers: PointerList<RasterizerState>,
+    pub samplers: PointerList<usize>,
+    pub mutexes: [*mut CriticalSection; 4],
     field13_0xf8: ngr_1420f21d0,
     cmdBuffer: *mut ngrCmdBuffer,
     unk0: [u8; 0x18],
@@ -129,7 +131,7 @@ pub struct ngrDX11Renderer {
     field59_0x170: i32,
 }
 
-pub const NGR_FEATURE_LEVEL: [D3D_FEATURE_LEVEL; 6] = [
+pub static NGR_FEATURE_LEVEL: [D3D_FEATURE_LEVEL; 6] = [
     windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_11_0,
     windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_10_1,
     windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_10_0,
@@ -138,7 +140,7 @@ pub const NGR_FEATURE_LEVEL: [D3D_FEATURE_LEVEL; 6] = [
     windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_9_1,
 ];
 
-pub const DXGI_FORMAT_TABLE0: [DXGI_FORMAT; 12] = [
+pub static DXGI_FORMAT_TABLE0: [DXGI_FORMAT; 12] = [
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -153,7 +155,7 @@ pub const DXGI_FORMAT_TABLE0: [DXGI_FORMAT; 12] = [
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D32_FLOAT,
 ];
 
-pub const DXGI_FORMAT_TABLE1: [DXGI_FORMAT; 12] = [
+pub static DXGI_FORMAT_TABLE1: [DXGI_FORMAT; 12] = [
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM ,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -201,7 +203,7 @@ impl ngrDX11Renderer {
             Some(&raw mut out.device),
             Some(&raw mut out.feature_level),
             Some(&raw mut out.device_context)
-        ).unwrap(); // TODO: Fail gracefully
+        ).unwrap();
         if out.feature_level.0 < windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_11_0.0 {
             panic!("TODO: Handle unsupported D3D version");
         }
@@ -222,6 +224,10 @@ impl ngrDX11Renderer {
         // TODO!
         let tex2d = self.swapchain.as_ref().unwrap().GetBuffer::<ID3D11Texture2D>(2).unwrap();
         let rtv = self.device.as_ref().unwrap().CreateRenderTargetView(&tex2d, None, None).unwrap();
+    }
+    pub fn try_get_rasterizer_state(&mut self, key: &RasterizerKey) -> Option<&RasterizerState> {
+        let hash = CrcHash::new(key);
+        self.rasterizers.find_by_predicate(|f| f == key && f == &hash)
     }
 }
 

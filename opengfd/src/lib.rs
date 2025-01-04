@@ -24,9 +24,11 @@ pub mod debug {
 
 }
 pub mod device {
+    #[cfg(feature = "adapter-hedge")]
     pub mod hedge {
 
     }
+    #[cfg(feature = "adapter-ngr")]
     pub mod ngr {
         pub mod allocator;
         pub mod hint;
@@ -42,6 +44,7 @@ pub mod device {
             #[path = "d3d"]
             pub mod platform {
                 pub mod d3d;
+                pub mod state;
             }
             pub mod hint;
             pub mod ps;
@@ -92,6 +95,24 @@ pub mod graphics {
     pub mod render_ot;
     pub mod shader {
         #[cfg(feature = "v1-core")]
+        pub mod attribute {
+            pub mod edge_v1;
+            pub mod outline_v1;
+            pub mod shadow_edge_v1;
+            pub mod toon_v1;
+            pub mod water_v1;
+        }
+        #[cfg(feature = "v2-core")]
+        pub mod attribute {
+            pub mod lambert_v2;
+            pub mod layered_v2;
+            pub mod metal_v2;
+            pub mod pbr_v2;
+            pub mod shadow_v2;
+            pub mod toon_v2;
+            pub mod water_v2;
+        }
+        #[cfg(feature = "v1-core")]
         #[path = "flag_xrd744.rs"]
         pub mod flag;
         #[cfg(feature = "v2-core")]
@@ -125,6 +146,30 @@ pub mod object {
     pub mod light;
     pub mod epl;
     pub mod morph;
+}
+pub mod tests {
+    #![allow(dead_code)]
+    use std::{
+        error::Error,
+        fmt::{ Debug, Display }
+    };
+    pub(crate) type TestReturn = Result<(), Box<dyn std::error::Error>>;
+    pub(crate) struct OpengfdError(String);
+    impl Error for OpengfdError { }
+    impl Debug for OpengfdError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "OpenGFD error: {}", self.0)
+        }
+    }
+    impl Display for OpengfdError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "OpenGFD error: {}", self.0)
+        }
+    }
+    impl OpengfdError {
+        pub fn new(t: String) -> Self { OpengfdError(t) }
+        pub fn new_str<T: AsRef<str>>(t: T) -> Self { OpengfdError(t.as_ref().to_owned()) }
+    }
 }
 pub mod utility {
     pub mod item_array;

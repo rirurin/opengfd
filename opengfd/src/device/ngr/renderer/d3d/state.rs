@@ -1,0 +1,222 @@
+#![allow(dead_code, unused_imports)]
+use crate::device::ngr::renderer::state::{
+    BlendKey,
+    BlendType,
+    BlendTypeOperation,
+    ComparisonFunc,
+    DepthStencilDescriptions,
+    DepthStencilKey,
+    DepthWriteMask,
+    CullMode,
+    FillMode,
+    StencilOperation,
+    RasterizerKey
+};
+use windows::Win32::{
+    Foundation::BOOL,
+    Graphics::Direct3D11::{
+        D3D11_BLEND,
+        D3D11_BLEND_DESC,
+        D3D11_BLEND_OP,
+        D3D11_COMPARISON_FUNC,
+        D3D11_CULL_MODE,
+        D3D11_DEPTH_STENCIL_DESC,
+        D3D11_DEPTH_STENCILOP_DESC,
+        D3D11_DEPTH_WRITE_MASK,
+        D3D11_FILL_MODE, 
+        D3D11_RASTERIZER_DESC,
+        D3D11_STENCIL_OP,
+        D3D11_RENDER_TARGET_BLEND_DESC
+    }
+};
+
+// 0x1411b1ff0
+impl From<FillMode> for D3D11_FILL_MODE {
+    fn from(value: FillMode) -> Self {
+        match value {
+            FillMode::Wireframe => windows::Win32::Graphics::Direct3D11::D3D11_FILL_WIREFRAME,
+            FillMode::Solid => windows::Win32::Graphics::Direct3D11::D3D11_FILL_SOLID 
+        }
+    }
+}
+
+// 0x1411b2010
+impl From<CullMode> for D3D11_CULL_MODE {
+    fn from(value: CullMode) -> Self {
+        match value {
+            CullMode::None => windows::Win32::Graphics::Direct3D11::D3D11_CULL_NONE,
+            CullMode::Front => windows::Win32::Graphics::Direct3D11::D3D11_CULL_FRONT,
+            CullMode::Back => windows::Win32::Graphics::Direct3D11::D3D11_CULL_BACK,
+        }
+    }
+}
+// For ngrDX11Renderer::CreateRasterizerState
+impl From<RasterizerKey> for D3D11_RASTERIZER_DESC {
+    fn from(value: RasterizerKey) -> Self {
+        Self {
+            FillMode: value.field_mode.into(),
+            CullMode: value.cull_mode.into(),
+            FrontCounterClockwise: value.is_front_counter_clockwise.into(),
+            DepthBias: value.depth_bias as i32,
+            DepthBiasClamp: value.depth_bias_clamp,
+            SlopeScaledDepthBias: value.slope_scaled_depth_bias,
+            DepthClipEnable: value.depth_clip_enable.into(),
+            ScissorEnable: value.scissor_enable.into(),
+            MultisampleEnable: false.into(),
+            AntialiasedLineEnable: value.antialiased_line_enable.into()
+        }
+    }
+}
+// 0x1411b1fb0
+impl From<BlendType> for D3D11_BLEND {
+    fn from(value: BlendType) -> Self {
+        match value {
+            BlendType::Zero => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_ZERO,
+            BlendType::One => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_ONE,
+            BlendType::SourceColor => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_SRC_COLOR,
+            BlendType::InverseSourceColor => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_INV_SRC_COLOR,
+            BlendType::SourceAlpha => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_SRC_ALPHA,
+            BlendType::InverseSourceAlpha => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_INV_SRC_ALPHA,
+            BlendType::DestinationAlpha => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_DEST_ALPHA,
+            BlendType::InverseDestinationAlpha => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_INV_DEST_ALPHA,
+            BlendType::DestinationColor => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_DEST_COLOR,
+            BlendType::InverseDestinationColor => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_INV_DEST_COLOR,
+            BlendType::SourceAlphaSaturate => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_SRC_ALPHA_SAT,
+        }
+    }
+}
+// 0x1411b1fd0
+impl From<BlendTypeOperation> for D3D11_BLEND_OP {
+    fn from(value: BlendTypeOperation) -> Self {
+        match value {
+            BlendTypeOperation::Add => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_OP_ADD,
+            BlendTypeOperation::Subtract => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_OP_SUBTRACT,
+            BlendTypeOperation::ReverseSubtract => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_OP_REV_SUBTRACT,
+            BlendTypeOperation::Min => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_OP_MIN,
+            BlendTypeOperation::Max => windows::Win32::Graphics::Direct3D11::D3D11_BLEND_OP_MAX,
+        }
+    }
+}
+
+fn get_blank_render_target(a1: u8, a2: u32) -> D3D11_RENDER_TARGET_BLEND_DESC {
+     D3D11_RENDER_TARGET_BLEND_DESC {
+         BlendEnable: false.into(),
+         SrcBlend: D3D11_BLEND(0),
+         DestBlend: D3D11_BLEND(0),
+         BlendOp: D3D11_BLEND_OP(0),
+         SrcBlendAlpha: D3D11_BLEND(0),
+         DestBlendAlpha: D3D11_BLEND(0),
+         BlendOpAlpha: D3D11_BLEND_OP(0),
+         RenderTargetWriteMask: create_render_target_write_mask(a1, a2)
+     }
+}
+
+fn create_render_target_write_mask(a1: u8, a2: u32) -> u8 {
+    let rdx = a2 >> (a1 * 4 & 0x1f);
+    rdx as u8 & 0xf
+}
+
+// For ngrDX11Renderer::CreateBlendState
+impl From<BlendKey> for D3D11_BLEND_DESC {
+    fn from(value: BlendKey) -> Self {
+        let ind_blend = if !value.blend_state { 
+            false
+        } else if (value.render_mask & !0xf) == 0 {
+            false
+        } else {
+            true
+        };
+        let first_render_target = if value.enable_blending {
+            D3D11_RENDER_TARGET_BLEND_DESC {
+                BlendEnable: true.into(),
+                SrcBlend: value.source_blend.into(),
+                DestBlend: value.dest_blend.into(),
+                BlendOp: value.blend_op.into(),
+                SrcBlendAlpha: value.source_blend_alpha.into(),
+                DestBlendAlpha: value.dest_blend_alpha.into(),
+                BlendOpAlpha: value.blend_op_alpha.into(),
+                RenderTargetWriteMask: create_render_target_write_mask(0, value.render_mask)
+            }
+        } else { get_blank_render_target(0, value.render_mask) };
+        let render_targets: [D3D11_RENDER_TARGET_BLEND_DESC; 8] = [
+            first_render_target,
+            get_blank_render_target(1, value.render_mask),
+            get_blank_render_target(2, value.render_mask),
+            get_blank_render_target(3, value.render_mask),
+            get_blank_render_target(4, value.render_mask),
+            get_blank_render_target(5, value.render_mask),
+            get_blank_render_target(6, value.render_mask),
+            get_blank_render_target(7, value.render_mask),
+        ];
+        Self {
+            AlphaToCoverageEnable: false.into(),
+            IndependentBlendEnable: ind_blend.into(),
+            RenderTarget: render_targets
+        }
+    }
+}
+
+impl From<StencilOperation> for D3D11_STENCIL_OP {
+    fn from(value: StencilOperation) -> Self {
+        match value {
+            StencilOperation::Keep => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_KEEP,
+            StencilOperation::Zero => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_ZERO,
+            StencilOperation::Replace => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_REPLACE,
+            StencilOperation::IncrementClamp => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_INCR_SAT,
+            StencilOperation::DecrementClamp => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_DECR_SAT,
+            StencilOperation::Invert => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_INVERT,
+            StencilOperation::IncrementWrap => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_INCR,
+            StencilOperation::DecrementWrap => windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_DECR,
+        }
+    }
+}
+
+impl From<ComparisonFunc> for D3D11_COMPARISON_FUNC {
+    fn from(value: ComparisonFunc) -> Self {
+        match value {
+            ComparisonFunc::Never => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_NEVER,
+            ComparisonFunc::Less => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_LESS,
+            ComparisonFunc::Equal => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_EQUAL,
+            ComparisonFunc::LessEqual => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_LESS_EQUAL,
+            ComparisonFunc::Greater => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_GREATER,
+            ComparisonFunc::NotEqual => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_NOT_EQUAL,
+            ComparisonFunc::GreaterEqual => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_GREATER_EQUAL,
+            ComparisonFunc::Always => windows::Win32::Graphics::Direct3D11::D3D11_COMPARISON_ALWAYS,
+        }
+    }
+}
+
+impl From<DepthStencilKey> for D3D11_DEPTH_STENCIL_DESC {
+    fn from(value: DepthStencilKey) -> Self {
+        Self {
+            DepthEnable: value.depth_enable.into(),
+            DepthWriteMask: value.depth_write_mask.into(),
+            DepthFunc: value.depth_func.into(),
+            StencilEnable: value.stencil_enable.into(),
+            StencilReadMask: value.stencil_read_mask,
+            StencilWriteMask: value.stencil_write_mask,
+            FrontFace: value.front_face.into(),
+            BackFace: value.back_face.into(),
+        }
+    }
+}
+
+impl From<DepthStencilDescriptions> for D3D11_DEPTH_STENCILOP_DESC {
+    fn from(value: DepthStencilDescriptions) -> Self {
+        Self {
+            StencilFailOp: value.stencil_fall_op.into(),
+            StencilDepthFailOp: value.stencil_depth_fall_op.into(),
+            StencilPassOp: value.stencil_pass_op.into(),
+            StencilFunc: value.stencil_func.into()
+        }
+    }
+}
+
+impl From<DepthWriteMask> for D3D11_DEPTH_WRITE_MASK {
+    fn from(value: DepthWriteMask) -> Self {
+        match value {
+            DepthWriteMask::MaskNone => windows::Win32::Graphics::Direct3D11::D3D11_DEPTH_WRITE_MASK_ZERO,
+            DepthWriteMask::MaskAll => windows::Win32::Graphics::Direct3D11::D3D11_DEPTH_WRITE_MASK_ALL,
+        }
+    }
+}

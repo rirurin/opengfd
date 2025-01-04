@@ -1,17 +1,34 @@
 #![allow(unused_imports)]
 
 use opengfd::{
-    device::ngr::renderer::{
-        blend::BlendModePkt,
-        cbuffer::ConstantBuffer,
-        ps::PixelShader, 
-        state::{ DeferredContext, DeferredContextBase, DeferredContextDX11 }, 
-        vs::{ VertexShader, VertexShaderPlatform }
+    device::ngr::{
+        structures::CrcHash,
+        renderer::{
+            blend::BlendModePkt,
+            cbuffer::ConstantBuffer,
+            platform::d3d::ngrDX11Renderer,
+            ps::PixelShader, 
+            state::{ 
+                DeferredContext, DeferredContextBase, DeferredContextDX11,
+                RasterizerKey, RasterizerState
+            }, 
+            vs::{ VertexShader, VertexShaderPlatform }
+        }
     },
     globals,
-    graphics::{render::cmd_buffer::CmdBuffer, render_ot::{ RenderOt, RenderOtBase, RenderOtEx }}
+    graphics::{
+        render::cmd_buffer::CmdBuffer, 
+        render_ot::{ RenderOt, RenderOtBase, RenderOtEx }
+    }
 };
-use windows::Win32::Graphics::Direct3D11::{ ID3D11PixelShader, ID3D11VertexShader };
+use windows::{
+    core::Interface,
+    Win32::Graphics::Direct3D11::{ 
+        ID3D11PixelShader, 
+        ID3D11VertexShader,
+        ID3D11Resource
+    }
+};
 use riri_mod_tools_proc::{ ensure_layout, original_function, riri_hook_fn, riri_hook_static };
 use riri_mod_tools_rt::{ logln, sigscan_resolver };
 
@@ -56,6 +73,153 @@ pub unsafe extern "C" fn set_ngr_draw_state(ofs: usize) -> Option<std::ptr::NonN
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_DRAWSTATE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_allocator(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_allocator(addr.as_ptr() as 
+        *mut *mut opengfd::device::ngr::allocator::Allocator);
+    logln!(Information, "got ngrAllocator: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8B 0D ?? ?? ?? ?? 4C 8D 4C 24 ?? 48 89 44 24 ?? 41 B8 10 00 00 00 48 8D 05 ?? ?? ?? ?? C7 44 24 ?? 00 00 00 13 48 89 44 24 ?? 48 8D 05 ?? ?? ?? ?? C7 44 24 ?? 35 00 00 00",
+    resolve_type = set_ngr_allocator,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_ALLOCATOR, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_window(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_window(addr.as_ptr() as 
+        *mut *mut opengfd::device::ngr::renderer::platform::d3d::ngr_142ed6270);
+    logln!(Information, "got ngrWindow: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 1.01 Demo: 48 8B 05 ?? ?? ?? ?? 48 8B 98 ?? ?? ?? ?? 8B 4E ??
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8B 05 ?? ?? ?? ?? 4C 8B B8 ?? ?? ?? ?? 8B 4E ??",
+    resolve_type = set_ngr_window,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_WINDOW, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_crchash_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_crchash_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrCrcHash vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 02 89 4A ?? C7 44 24 ?? 01 00 00 00 48 8B CA E8 ?? ?? ?? ?? 0F B6 13 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ??",
+    resolve_type = set_ngr_crchash_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_HASHER_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_dx11_renderer(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_dx11_renderer(addr.as_ptr() as 
+        *mut *mut opengfd::device::ngr::renderer::platform::d3d::ngrDX11Renderer);
+    logln!(Information, "got ngr DX11 renderer: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8B 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 44 8B 1D ?? ?? ?? ??",
+    resolve_type = set_ngr_dx11_renderer,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_DX11_RENDERER, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_rasterstate_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x64) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_rasterstate_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrRasterState vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 8B 0E 89 4B ?? 8B 46 ?? 89 43 ?? 0F B6 46 ??",
+    resolve_type = set_ngr_rasterstate_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_RASTERSTATE_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_blendstate_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x41) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_blendstate_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrBlendState vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
+    resolve_type = set_ngr_blendstate_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_BLENDSTATE_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_depthstencilstate_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x82) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_depthstencilstate_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrDepthStencilState vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
+    resolve_type = set_ngr_depthstencilstate_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_DEPTHSTENCILSTATE_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_sampler_state(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x66) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_sampler_state(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrDepthStencilState vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
+    resolve_type = set_ngr_sampler_state,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_SAMPLER_STATE, usize);
+
 /*
 #[riri_hook_fn(static_offset(0x1192e20))]
 #[allow(non_snake_case)] // Verified
@@ -411,23 +575,50 @@ pub unsafe extern "C" fn gfdShaderFragmentBind(prio: u32, fragment: *mut u8) {
     ot.set_pre_cb(gfdShaderPixelBindOtPreCallback);
     ot.link(prio);
 }
-
-#[riri_hook_fn(static_offset(0x1192f80))]
-// #[no_mangle]
+/*
+#[riri_hook_fn(static_offset(0x11d81b0))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn ngrSetConstantBuffers(this: *mut u8, ty: u32, buf: *mut u8, a4: u32) {
-    let this = &mut *(this as *mut DeferredContextBase);
-    let buf = &mut *(buf as *mut ConstantBuffer);
-    this.set_constant_buffers(ty.try_into().unwrap(), buf, a4);
+pub unsafe extern "C" fn ngrHashRasterizerKey(p_key: *const u8, p_hash: *mut u8) -> *mut u8 {
+    let key = &*(p_key as *const RasterizerKey);
+    std::ptr::write(p_hash as *mut CrcHash, CrcHash::new(key));
+    p_hash
 }
-
-#[no_mangle]
-pub unsafe extern "C" fn test_clone_resource(a: *mut u8) {
-    let resrc = &*(a as *mut ID3D11PixelShader);
-    let a = resrc.clone();
-    let b = a.GetDevice().unwrap();
+*/
+#[riri_hook_fn(static_offset(0x11947b0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrGetRasterizerStateInner(p_renderer: *mut u8, raster_key: *mut u8) -> *mut u8 {
+    let renderer = &mut *(p_renderer as *mut ngrDX11Renderer);
+    let key = &mut *(raster_key as *mut RasterizerKey);
+    let hash = CrcHash::new(key);
+    match renderer.rasterizers.find_by_predicate(|f| f == key && f == &hash) {
+        Some(v) => (&raw const *v) as *mut RasterizerState as *mut u8,
+        None => std::ptr::null_mut()
+    }
 }
-
+/*
+#[riri_hook_fn(static_offset(0x11947b0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrGetRasterizer(p_state: *mut u8, p_key: *mut u8) -> *mut u8 {
+    let renderer = globals::get_ngr_dx11_renderer_unchecked_mut();
+    let key = &mut *(p_key as *mut RasterizerKey);
+    let mutex_guard = (&mut **renderer.mutexes.get_unchecked_mut(1)).lock();
+    match renderer.try_get_rasterizer_state(key) {
+        Some(n) => (),
+        None => ()
+    };
+    std::ptr::null_mut()
+}
+*/
+/*
+#[riri_hook_fn(static_offset(0x1192f80))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetConstantBuffers(p_this: *mut u8, p_ty: u32, p_buf: *mut u8, upd: u32) {
+    let ty:opengfd::device::ngr::renderer::cbuffer::BufferType = p_ty.try_into().unwrap();
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let buf = &mut *(p_buf as *mut ConstantBuffer);
+    this.set_constant_buffers(ty, buf, upd);
+}
+*/
 /*
 #[riri_hook_fn(static_offset(0x112ad60))]
 #[allow(non_snake_case)]

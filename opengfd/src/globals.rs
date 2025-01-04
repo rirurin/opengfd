@@ -8,7 +8,10 @@ use crate::{
     device::ngr::{
         allocator::Allocator,
         renderer::{
-            platform::d3d::ngr_142ed6270,
+            platform::d3d::{
+                ngr_142ed6270,
+                ngrDX11Renderer
+            },
             state::DrawState
         }
     },
@@ -33,7 +36,15 @@ impl<T> std::fmt::Debug for UnsafePtr<T> {
     }
 }
 
+// static items
 create_gfd_static!(GFD_GLOBAL, Global);
 create_gfd_static!(NGR_DRAW_STATE, *mut DrawState);
 create_gfd_static!(NGR_ALLOCATOR, *mut Allocator);
 create_gfd_static!(NGR_WINDOW, *mut ngr_142ed6270);
+create_gfd_static!(NGR_DX11_RENDERER, *mut ngrDX11Renderer);
+// C++ virtual tables
+create_gfd_static!(NGR_CRCHASH_VTABLE, u8);
+create_gfd_static!(NGR_RASTERSTATE_VTABLE, u8);
+create_gfd_static!(NGR_BLENDSTATE_VTABLE, u8);
+create_gfd_static!(NGR_DEPTHSTENCILSTATE_VTABLE, u8);
+create_gfd_static!(NGR_SAMPLER_STATE, u8);
