@@ -19,7 +19,8 @@ use opengfd::{
     graphics::{
         render::cmd_buffer::CmdBuffer, 
         render_ot::{ RenderOt, RenderOtBase, RenderOtEx }
-    }
+    },
+    utility::reference::{ GfdRc, GfdRcType }
 };
 use windows::{
     core::Interface,
@@ -595,18 +596,27 @@ pub unsafe extern "C" fn ngrGetRasterizerStateInner(p_renderer: *mut u8, raster_
         None => std::ptr::null_mut()
     }
 }
+
+// #[riri_hook_fn(static_offset(0x11947b0))]
 /*
-#[riri_hook_fn(static_offset(0x11947b0))]
+#[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn ngrGetRasterizer(p_state: *mut u8, p_key: *mut u8) -> *mut u8 {
+    let state = &mut &*(p_state as *mut RasterizerState);
     let renderer = globals::get_ngr_dx11_renderer_unchecked_mut();
     let key = &mut *(p_key as *mut RasterizerKey);
-    let mutex_guard = (&mut **renderer.mutexes.get_unchecked_mut(1)).lock();
-    match renderer.try_get_rasterizer_state(key) {
-        Some(n) => (),
-        None => ()
+    // have a way to keep this in scope? wrap the type in here?
+    let mut renderer_mutex = (&mut **renderer.mutexes.get_unchecked_mut(1)).lock(renderer);
+    match (*renderer_mutex).try_get_rasterizer_state(key) {
+        Some(n) => {
+            *state = n;
+            GfdRc::clone_from_raw(n, globals::get_ngr_allocator_unchecked());
+        },
+        None => {
+
+        }
     };
-    std::ptr::null_mut()
+    p_state
 }
 */
 /*

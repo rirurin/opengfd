@@ -7,7 +7,8 @@ use crate::{
         renderer::state::{ RasterizerKey, RasterizerState },
         structures::{ CriticalSection, CrcHash, PointerList }
     },
-    globals
+    globals,
+    utility::reference::GfdRcType
 };
 use std::alloc::Layout;
 use riri_mod_tools_proc::ensure_layout;
@@ -228,6 +229,10 @@ impl ngrDX11Renderer {
     pub fn try_get_rasterizer_state(&mut self, key: &RasterizerKey) -> Option<&RasterizerState> {
         let hash = CrcHash::new(key);
         self.rasterizers.find_by_predicate(|f| f == key && f == &hash)
+    }
+    pub fn add_to_rasterizer_list(&mut self, state: &mut RasterizerState) -> i32 {
+        // state.add
+        0
     }
 }
 

@@ -11,11 +11,12 @@ use crate::{
     object::{ mesh::Mesh, node::Node },
     utility::{ 
         misc::RGBAFloat,
-        reference::Reference
+        reference::{ Reference, GfdRcType }
     }
 };
 use glam::Mat4;
 use std::hash::Hash;
+use opengfd_proc::GfdRcAuto;
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
     core::Interface,
@@ -558,7 +559,7 @@ impl PartialEq<RasterizerKey> for RasterizerState {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, GfdRcAuto)]
 pub struct RasterizerState {
     _cpp_vtable: *mut u8,
     ref_count: Reference,
@@ -580,6 +581,13 @@ impl RasterizerState {
         }
     }
 }
+/*
+impl GfdRcType for RasterizerState {
+    fn count(&self) -> u32 { self.ref_count.count() }
+    fn add_ref(&self) -> u32 { self.ref_count.add_ref() }
+    fn release(&self) -> u32 { self.ref_count.release() }
+}
+*/
 
 #[repr(C)]
 #[derive(Debug, Clone)]

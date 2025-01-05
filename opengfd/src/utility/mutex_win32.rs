@@ -1,6 +1,7 @@
 use std::{
     mem::MaybeUninit,
-    sync::atomic::AtomicU32
+    sync::atomic::AtomicU32,
+    ops::{ Deref, DerefMut }
 };
 use windows::Win32::System::Threading::{ 
     CRITICAL_SECTION, 
@@ -11,16 +12,30 @@ use windows::Win32::System::Threading::{
 };
 
 #[derive(Debug)]
-pub struct RecursiveMutexGuard<'a>(&'a mut RecursiveMutex);
-impl<'a> RecursiveMutexGuard<'a> {
-    fn new(mutex: &'a mut RecursiveMutex) -> Self {
+pub struct RecursiveMutexGuard<'a, T>{
+    mutex: &'a mut RecursiveMutex,
+    data: &'a mut T
+}
+impl<'a, T> RecursiveMutexGuard<'a, T> {
+    fn new(mutex: &'a mut RecursiveMutex, data: &'a mut T) -> Self {
         unsafe { EnterCriticalSection(&mut mutex.0 as *mut CRITICAL_SECTION) }
-        Self(mutex)
+        Self { mutex, data }
     }
 }
-impl<'a> Drop for RecursiveMutexGuard<'a> {
+impl<'a, T> Drop for RecursiveMutexGuard<'a, T> {
     fn drop(&mut self) { 
-        unsafe { LeaveCriticalSection(&mut self.0.0 as *mut CRITICAL_SECTION) };
+        unsafe { LeaveCriticalSection(&mut self.mutex.0 as *mut CRITICAL_SECTION) };
+    }
+}
+impl<'a, T> Deref for RecursiveMutexGuard<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+impl<'a, T> DerefMut for RecursiveMutexGuard<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data
     }
 }
 
@@ -35,8 +50,8 @@ impl RecursiveMutex {
         unsafe { InitializeCriticalSectionAndSpinCount(platform.as_mut_ptr(), 1500).unwrap() };
         Self(unsafe { platform.assume_init() })
     }
-    pub fn lock(&mut self) -> RecursiveMutexGuard<'_> {
-        RecursiveMutexGuard::new(self)
+    pub fn lock<'a, T>(&'a mut self, data: &'a mut T) -> RecursiveMutexGuard<'a, T> {
+        RecursiveMutexGuard::new(self, data)
     }
 }
 
