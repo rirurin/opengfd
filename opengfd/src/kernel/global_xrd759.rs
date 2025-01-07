@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code)]
 use bitflags::bitflags;
 use crate::{
-    device::ngr::renderer::{ ps, vs },
+    device::ngr::renderer::shader,
     graphics::{
         cull::CullObject,
         environment,
@@ -103,9 +103,9 @@ pub struct GraphicsGlobal {
     material_array_stack: [*mut ItemArray<usize>; 8],
     material_array_count: u32,
     material_mutex: RecursiveMutex,
-    shader_vtx_head: *mut vs::VertexShader,
+    shader_vtx_head: *mut shader::VertexShader,
     shader_vtx_mutex: Mutex,
-    shader_frg_head: *mut ps::PixelShader,
+    shader_frg_head: *mut shader::PixelShader,
     shader_frg_mutex: Mutex,
     shader_geo_head: *mut u8,
     shader_geo_mutex: Mutex,
@@ -132,12 +132,12 @@ pub struct GraphicsGlobal {
     pub render_state_current: [usize; RENDER_STATES],
     pub render_state_stack: [[usize; 2]; RENDER_STATES],
     shader_source: [[*mut ShaderSource; RENDER_LISTS]; SHADER_SOURCE],
-    pub shader_vertex: [*mut vs::VertexShader; FIXED_VERTEX_SHADERS],
-    pub shader_pixel: [*mut ps::PixelShader; FIXED_PIXEL_SHADERS],
+    pub shader_vertex: [*mut shader::VertexShader; FIXED_VERTEX_SHADERS],
+    pub shader_pixel: [*mut shader::PixelShader; FIXED_PIXEL_SHADERS],
     pub shader_geometry: [*mut u8; FIXED_GEOMETRY_SHADERS],
     pub shader_compute: [*mut u8; FIXED_COMPUTE_SHADERS],
-    pub shader_current_vertex: *mut vs::VertexShader,
-    pub shader_current_fragment: *mut ps::PixelShader,
+    pub shader_current_vertex: *mut shader::VertexShader,
+    pub shader_current_fragment: *mut shader::PixelShader,
     pub shader_current_geometry: *mut u8,
     pub shader_current_compute: *mut u8,
     unk1: [u8; 136],

@@ -3,7 +3,7 @@ use std::{
     alloc::Layout,
     fmt::{ Debug, Display },
     mem::ManuallyDrop,
-    ops::Deref,
+    ops::{ Deref, DerefMut },
     ptr::NonNull,
     sync::atomic::{ AtomicU32, Ordering }
 };
@@ -13,7 +13,7 @@ use std::{
 pub struct Reference(AtomicU32);
 impl Reference {
     pub fn new() -> Self { Reference(1.into()) }
-    pub fn count(&self) -> u32 { unsafe { *self.0.as_ptr() } }
+    pub fn count(&self) -> u32 { self.0.load(Ordering::Relaxed) }
     pub fn add_ref(&self) -> u32 { self.0.fetch_add(1, Ordering::Relaxed) }
     pub fn release(&self) -> u32 { self.0.fetch_sub(1, Ordering::Relaxed) }
 }
@@ -26,7 +26,7 @@ pub trait GfdRcType {
 }
 
 pub struct GfdRc<T, A> 
-where T: GfdRcType,
+where T: GfdRcType + Debug,
       A: Allocator + Clone
 {
     inner: NonNull<T>,
@@ -34,7 +34,7 @@ where T: GfdRcType,
 }
 
 impl<T> GfdRc<T, Global>
-where T: GfdRcType
+where T: GfdRcType + Debug
 {
     pub fn new(val: T) -> Self {
         Self::new_in(val, Global)
@@ -46,12 +46,10 @@ where T: GfdRcType
 // count and implements the GfcRcType trait to allow for GfdRc to manage it.
 // This closely follows the API of Rc<T>.
 impl<T, A> GfdRc<T, A> 
-where T: GfdRcType,
+where T: GfdRcType + Debug,
       A: Allocator + Clone
 {
-    pub fn new_in(val: T, alloc: A) -> Self
-    where A: Allocator
-    {
+    pub fn new_in(val: T, alloc: A) -> Self {
         // :ADAHCI:
         assert!(std::mem::size_of::<T>() >= std::mem::size_of::<Reference>(), 
         "GfdRc box must be for a type large enough to hold a reference!");
@@ -104,7 +102,7 @@ where T: GfdRcType,
 }
 
 impl<T, A> Clone for GfdRc<T, A>
-where T: GfdRcType,
+where T: GfdRcType + Debug,
       A: Allocator + Clone
 {
     fn clone(&self) -> Self {
@@ -117,7 +115,7 @@ where T: GfdRcType,
 }
 
 impl<T, A> Deref for GfdRc<T, A> 
-where T : GfdRcType,
+where T : GfdRcType + Debug,
       A: Allocator + Clone
 {
     type Target = T;
@@ -126,8 +124,17 @@ where T : GfdRcType,
     }
 }
 
+impl<T, A> DerefMut for GfdRc<T, A> 
+where T: GfdRcType + Debug,
+      A: Allocator + Clone
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { self.inner.as_mut() }
+    }
+}
+
 impl<T, A> Drop for GfdRc<T, A> 
-where T: GfdRcType,
+where T: GfdRcType + Debug,
       A: Allocator + Clone
 {
     fn drop(&mut self) {
@@ -140,7 +147,7 @@ where T: GfdRcType,
 
 // Check if inner types are equal, even if they may be stored in different allocations
 impl<T, A> PartialEq for GfdRc<T, A>
-where T: GfdRcType + PartialEq,
+where T: GfdRcType + PartialEq + Debug,
       A: Allocator + Clone
 {
     fn eq(&self, other: &Self) -> bool {
@@ -149,7 +156,7 @@ where T: GfdRcType + PartialEq,
 }
 
 impl<T, A> PartialOrd for GfdRc<T, A>
-where T: GfdRcType + PartialOrd,
+where T: GfdRcType + PartialOrd + Debug,
       A: Allocator + Clone
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -167,11 +174,11 @@ where T: GfdRcType + Debug,
 }
 
 impl<T, A> Display for GfdRc<T, A>
-where T: GfdRcType + Display,
+where T: GfdRcType + Display + Debug,
       A: Allocator + Clone
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        (&**self).fmt(f)
+        std::fmt::Display::fmt(&**self, f)
     }
 }
 

@@ -4,11 +4,29 @@ use bitflags::bitflags;
 use crate::{
         device::ngr::{
         hint::MemHint,
-        renderer::state::{ RasterizerKey, RasterizerState },
+        renderer::{
+            bytecode::ShaderBytecode,
+            cbuffer::ConstantBuffer,
+            shader::{
+                ComputeShaderPlatform,
+                GeometryShaderPlatform,
+                PixelShaderPlatform,
+                ShaderPlatform,
+                VertexShaderPlatform
+            },
+            state::{ 
+                BlendState,
+                DepthStencilState,
+                PipelineStateObject,
+                RasterizerKey, 
+                RasterizerState,
+                SamplerState
+            },
+        },
         structures::{ CriticalSection, CrcHash, PointerList }
     },
     globals,
-    utility::reference::GfdRcType
+    utility::reference::{ GfdRcType, GfdRc }
 };
 use std::alloc::Layout;
 use riri_mod_tools_proc::ensure_layout;
@@ -22,12 +40,19 @@ use windows::{
                 D3D_FEATURE_LEVEL,
             },
             Direct3D11::{
+                D3D11_BLEND_DESC,
                 D3D11_CREATE_DEVICE_FLAG,
+                D3D11_DEPTH_STENCIL_DESC,
                 D3D11_RASTERIZER_DESC,
                 D3D11CreateDeviceAndSwapChain,
+                ID3D11BlendState,
                 ID3D11Device,
                 ID3D11DeviceContext,
-                ID3D11Texture2D
+                ID3D11DepthStencilState,
+                ID3D11RasterizerState,
+                ID3D11SamplerState,
+                ID3D11Texture2D,
+                ID3D11VertexShader
             },
             Dxgi::{
                 Common::{
@@ -221,19 +246,84 @@ impl ngrDX11Renderer {
         println!("ngr: Created DirectX11 renderer");
         out
     }
+    pub fn resize_buffers(&self, width: u64, height: u64, width2: u32, height2: u32) {
+        unsafe {
+            let vtable_offset = self.vtable.add(0x30);
+            let state_func = *std::mem::transmute::<
+                *mut std::ffi::c_void, 
+                *const fn(*mut Self, u64, u64, u32, u32)
+            >(vtable_offset);
+            (state_func)((&raw const *self) as *mut Self, width, height, width2, height2);
+        }
+    }
+    
+    // impl Drop: vtable + 0x38 and vtable + 0x40
+    // 
+
     pub unsafe fn create_resource_views<A: Allocator>(&mut self, alloc: A) {
         // TODO!
         let tex2d = self.swapchain.as_ref().unwrap().GetBuffer::<ID3D11Texture2D>(2).unwrap();
         let rtv = self.device.as_ref().unwrap().CreateRenderTargetView(&tex2d, None, None).unwrap();
     }
-    pub fn try_get_rasterizer_state(&mut self, key: &RasterizerKey) -> Option<&RasterizerState> {
+    pub fn try_get_rasterizer_state(&self, key: &RasterizerKey) -> Option<&RasterizerState> {
         let hash = CrcHash::new(key);
         self.rasterizers.find_by_predicate(|f| f == key && f == &hash)
     }
-    pub fn add_to_rasterizer_list(&mut self, state: &mut RasterizerState) -> i32 {
-        // state.add
+    pub fn try_get_rasterizer_state_mut(&self, key: &RasterizerKey) -> Option<&mut RasterizerState> {
+        let hash = CrcHash::new(key);
+        self.rasterizers.find_by_predicate_mut(|f| f == key && f == &hash)
+    }
+    pub fn add_to_rasterizer_list<A: Allocator + Clone>(&mut self, state: &mut RasterizerState, alloc: A) -> i32 {
+        let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
+        // add to rasterizer table
         0
     }
+
+    // vtable + 0xc0
+    pub fn set_blend_state(&self, state: &mut BlendState) {
+        let desc = state.get_key().clone().into();
+        unsafe { self.device.as_ref().unwrap().CreateBlendState(&raw const desc, state.get_platform_state_ptr()).unwrap(); }
+    }
+    // vtable + 0xc8
+    pub fn set_depth_stencil_state(&mut self, state: &mut DepthStencilState) {
+        let desc = state.get_key().clone().into();
+        unsafe { self.device.as_ref().unwrap().CreateDepthStencilState(&raw const desc, state.get_platform_state_ptr()).unwrap(); }
+    }
+    // vtable + 0xd0
+    pub fn set_rasterizer_state(&self, state: &mut RasterizerState) {
+        let desc = state.get_key().clone().into();
+        unsafe { self.device.as_ref().unwrap().CreateRasterizerState(&raw const desc, state.get_platform_state_ptr()).unwrap(); }
+    }
+    // vtable + 0xd8
+    pub fn set_sampler_state(&mut self, state: &mut SamplerState) {
+        let desc = state.get_key().clone().into();
+        unsafe { self.device.as_ref().unwrap().CreateSamplerState(&raw const desc, state.get_platform_state_ptr()).unwrap(); }
+    }
+    // vtable + 0xe0
+    pub fn create_vertex_shader(&self, shader: &mut VertexShaderPlatform, bytecode: &&ShaderBytecode) {
+        unsafe { self.device.as_ref().unwrap().CreateVertexShader(bytecode.as_slice(), None, shader.get_shader_ptr()).unwrap(); }
+        // shader.create_input_layout(std::ptr::null_mut()); // TODO!
+    }
+    // vtable + 0xe8
+    pub fn create_geometry_shader(&self, shader: &mut GeometryShaderPlatform, bytecode: &&ShaderBytecode) {
+        unsafe { self.device.as_ref().unwrap().CreateGeometryShader(bytecode.as_slice(), None, shader.get_shader_ptr()).unwrap(); }
+    }
+    // vtable + 0xf0
+    pub fn create_pixel_shader(&self, shader: &mut PixelShaderPlatform, bytecode: &&ShaderBytecode) {
+        unsafe { self.device.as_ref().unwrap().CreatePixelShader(bytecode.as_slice(), None, shader.get_shader_ptr()).unwrap(); }
+    }
+    // vtable + 0xf8
+    pub fn create_compute_shader(&self, shader: &mut ComputeShaderPlatform, bytecode: &&ShaderBytecode) {
+        unsafe { self.device.as_ref().unwrap().CreateComputeShader(bytecode.as_slice(), None, shader.get_shader_ptr()).unwrap(); }
+    }
+    // vtable + 0x100
+    pub const fn vtable_32(&self) -> bool { true }
+    // vtable + 0x108
+    pub fn create_constant_buffer(&self, cbuffer: &mut ConstantBuffer) {
+
+    }
+    // vtable + 0x110
+    pub const fn vtable_34(&self) -> bool { false }
 }
 
 // #[ensure_layout(size = 1880)]

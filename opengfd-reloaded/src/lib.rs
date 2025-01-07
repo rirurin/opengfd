@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-
+use allocator_api2::alloc::Allocator;
 use opengfd::{
     device::ngr::{
         structures::CrcHash,
@@ -221,6 +221,53 @@ pub unsafe extern "C" fn set_ngr_sampler_state(ofs: usize) -> Option<std::ptr::N
 ))]
 riri_static!(NGR_SAMPLER_STATE, usize);
 
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_memhint_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x66) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_memhint_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrMemHint vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? C7 44 24 ?? 00 00 00 01",
+    resolve_type = set_ngr_memhint_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_MEMHINT_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_spinlock_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    // scary!!!
+    let inner_fn = match sigscan_resolver::get_indirect_address_short(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    let inner2_fn = match sigscan_resolver::get_indirect_address_short_abs(inner_fn.add(0x2d).as_ptr()) {
+        Some(v) => v,
+        None => return None
+    };
+    let addr = match sigscan_resolver::get_indirect_address_long_abs(inner2_fn.add(0x21).as_ptr()) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_spinlock_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrSpinlock vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 0x1411b061c, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "E8 ?? ?? ?? ?? 48 89 43 ?? 48 0F AF EF",
+    resolve_type = set_ngr_spinlock_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_SPINLOCK_VTABLE, usize);
+
 /*
 #[riri_hook_fn(static_offset(0x1192e20))]
 #[allow(non_snake_case)] // Verified
@@ -308,9 +355,15 @@ pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: 
 }
 */
 
-#[allow(non_snake_case)] // Verified
+#[allow(non_snake_case)] // Verified (currently broken lmao)
 pub unsafe fn ngrSetPixelProgramLoad(ctx: &mut DeferredContextDX11, shader: Option<&VertexShaderPlatform>) {
-    let shader = shader.map(|f| &f.d3d_pixel);
+    let shader = match shader {
+        Some(v) => match v.get_d3d_pixel() {
+            Some(v) => Some(v),
+            None => None
+        },
+        None => None
+    };
     if std::ptr::eq(
         std::mem::transmute::<Option<&ID3D11PixelShader>, *const ID3D11PixelShader>(shader), 
         &raw const ctx.super_.target_pixel_shader
@@ -567,7 +620,6 @@ pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallback(_ot: *mut RenderOt, id
 pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: u32, p_data: *mut u8) {
     original_function!(_ot, id, p_data)
 }
-
 #[riri_hook_fn(static_offset(0x1101600))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdShaderFragmentBind(prio: u32, fragment: *mut u8) {
@@ -596,29 +648,47 @@ pub unsafe extern "C" fn ngrGetRasterizerStateInner(p_renderer: *mut u8, raster_
         None => std::ptr::null_mut()
     }
 }
-
-// #[riri_hook_fn(static_offset(0x11947b0))]
 /*
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn ngrGetRasterizer(p_state: *mut u8, p_key: *mut u8) -> *mut u8 {
-    let state = &mut &*(p_state as *mut RasterizerState);
+pub unsafe extern "C" fn gfdRcTest(raster_key: *mut u8) -> u32 {
+    let key = &*(raster_key as *const RasterizerKey);
+    let ptr = GfdRc::new_in(RasterizerState::new(key), globals::get_ngr_allocator_unchecked());
+    let ptr2 = ptr.clone();
+    (*ptr2).get_field10() as u32
+}
+*/
+
+#[riri_hook_fn(static_offset(0x1cb05d50))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn add_to_rasterizer_list(p_renderer: *mut u8, rasterizer_state: *mut u8) {
+    original_function!(p_renderer, rasterizer_state)
+}
+
+#[riri_hook_fn(static_offset(0x11b56d0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrGetRasterizer(p_state: *mut *mut u8, p_key: *mut u8) -> *mut *mut u8 {
+    let state = &mut *(p_state as *mut *mut RasterizerState);
     let renderer = globals::get_ngr_dx11_renderer_unchecked_mut();
     let key = &mut *(p_key as *mut RasterizerKey);
-    // have a way to keep this in scope? wrap the type in here?
-    let mut renderer_mutex = (&mut **renderer.mutexes.get_unchecked_mut(1)).lock(renderer);
-    match (*renderer_mutex).try_get_rasterizer_state(key) {
+    let renderer_mutex = (&mut **renderer.mutexes.get_unchecked_mut(1)).lock(renderer);
+    match (*renderer_mutex).try_get_rasterizer_state_mut(key) {
         Some(n) => {
-            *state = n;
-            GfdRc::clone_from_raw(n, globals::get_ngr_allocator_unchecked());
+            *state = &raw mut *n;
+            GfdRc::into_raw(GfdRc::clone_from_raw(n, globals::get_ngr_allocator_unchecked()));
         },
         None => {
-
+            let mut new = GfdRc::new_in(RasterizerState::new(key), globals::get_ngr_allocator_unchecked());
+            *state = &raw mut *new;
+            add_to_rasterizer_list((&raw const *renderer_mutex) as *const u8 as *mut u8, (&raw const **state) as *const u8 as *mut u8);
+            (*renderer_mutex).set_rasterizer_state(&mut**state);
+            GfdRc::into_raw(new); // so we don't drop this!
         }
     };
     p_state
 }
-*/
+
+// pub unsafe extern "C" fn ngrCreateRasterizerState()
 /*
 #[riri_hook_fn(static_offset(0x1192f80))]
 #[allow(non_snake_case)]

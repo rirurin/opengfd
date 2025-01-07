@@ -2,32 +2,35 @@
 use bitflags::bitflags;
 use crate::{
     device::ngr::{
-        structures::CrcHash,
+        hint::MemHint,
         renderer::cbuffer::{
             BufferType, ConstantBuffer
-        }
-    },
-    graphics::texture::Texture,
-    object::{ mesh::Mesh, node::Node },
-    utility::{ 
+        }, structures::CrcHash
+    }, globals, graphics::texture::Texture, object::{ mesh::Mesh, node::Node }, utility::{ 
         misc::RGBAFloat,
-        reference::{ Reference, GfdRcType }
+        reference::{ GfdRcType, Reference }
     }
 };
 use glam::Mat4;
-use std::hash::Hash;
+use std::{
+    hash::Hash,
+    ptr::NonNull
+};
 use opengfd_proc::GfdRcAuto;
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
     core::Interface,
     Win32::Graphics::Direct3D11::{
         D3D11_FILL_MODE,
+        ID3D11BlendState,
         ID3D11Buffer,
         ID3D11DeviceContext,
+        ID3D11DepthStencilState,
         ID3D11PixelShader,
         ID3D11VertexShader,
         ID3D11Resource,
-        ID3D11RasterizerState
+        ID3D11RasterizerState,
+        ID3D11SamplerState
     }
 };
 
@@ -249,6 +252,9 @@ pub struct BufferBlendMode {
 bitflags! {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
     pub struct BufferFlags: u32 {
+        const USING_RASTERIZER = 1 << 0;
+        const USING_BLEND = 1 << 1;
+        const USING_DEPTH_STENCIL = 1 << 2;
         const USING_VSCONST_TRANSFORM = 1 << 24;
         const USING_VSCONST_VIEWPROJ = 1 << 25;
         const USING_VSCONST_COLORS = 1 << 26;
@@ -329,12 +335,6 @@ pub struct CbufferFields {
     pub field9_0x10: *mut ::std::os::raw::c_void,
     #[field_offset(40usize)]
     pub field26_0x28: MemHint,
-}
-
-#[ensure_layout(size = 16usize)]
-pub struct MemHint {
-    #[field_offset(0usize)]
-    pub vtable: *mut ::std::os::raw::c_void,
 }
 
 pub trait DeferredContext {
@@ -487,6 +487,18 @@ pub struct PlatformTexture {
     data: [u8; 0xb0]
 }
 
+#[allow(dead_code)]
+pub(crate) trait PipelineStateObject {
+    type PlatformState;
+    type Key;
+
+    fn get_key(&self) -> &Self::Key;
+    fn get_key_hash(&self) -> u32;
+    fn set_platform_state(&mut self, plat: Option<Self::PlatformState>);
+    // to pass into CreateState for D3D
+    fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>>;
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct RasterizerKey {
@@ -505,15 +517,15 @@ pub struct RasterizerKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FillMode {
     Wireframe = 0,
-    Solid = 1
+    Solid
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CullMode {
     None = 0,
-    Front = 1,
-    Back = 2
+    Front,
+    Back
 }
 
 impl Hash for RasterizerKey {
@@ -561,7 +573,7 @@ impl PartialEq<RasterizerKey> for RasterizerState {
 #[repr(C)]
 #[derive(Debug, GfdRcAuto)]
 pub struct RasterizerState {
-    _cpp_vtable: *mut u8,
+    _cpp_vtable: *const u8,
     ref_count: Reference,
     field10: usize,
     key: RasterizerKey,
@@ -572,7 +584,10 @@ pub struct RasterizerState {
 impl RasterizerState {
     pub fn new(key: &RasterizerKey) -> Self {
         Self {
-            _cpp_vtable: std::ptr::null_mut(),
+            _cpp_vtable: match globals::get_ngr_rasterstate_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
             ref_count: Reference::new(),
             field10: 0,
             key: key.clone(),
@@ -580,14 +595,22 @@ impl RasterizerState {
             platform_rasterizer: None
         }
     }
+
+    pub fn get_field10(&self) -> usize { self.field10 }
 }
-/*
-impl GfdRcType for RasterizerState {
-    fn count(&self) -> u32 { self.ref_count.count() }
-    fn add_ref(&self) -> u32 { self.ref_count.add_ref() }
-    fn release(&self) -> u32 { self.ref_count.release() }
+
+impl PipelineStateObject for RasterizerState {
+    type PlatformState = ID3D11RasterizerState;
+    type Key = RasterizerKey;
+    fn get_key(&self) -> &Self::Key { &self.key }
+    fn get_key_hash(&self) -> u32 { self.hash.get_hash() }
+    fn set_platform_state(&mut self, plat: Option<Self::PlatformState>) {
+        self.platform_rasterizer = plat;
+    }
+    fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
+        Some(&raw mut self.platform_rasterizer)
+    }
 }
-*/
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -644,6 +667,49 @@ pub enum BlendTypeOperation {
     Min,
     Max,
 }
+
+#[repr(C)]
+#[derive(Debug, GfdRcAuto)]
+pub struct BlendState {
+    _cpp_vtable: *const u8,
+    ref_count: Reference,
+    field10: usize,
+    key: BlendKey,
+    hash: CrcHash,
+    platform_blend: Option<ID3D11BlendState>
+}
+
+impl BlendState {
+    pub fn new(key: &BlendKey) -> Self {
+        Self {
+            _cpp_vtable: match globals::get_ngr_blendstate_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
+            ref_count: Reference::new(),
+            field10: 0,
+            key: key.clone(),
+            hash: CrcHash::new(key),
+            platform_blend: None
+        }
+    }
+
+    pub fn get_field10(&self) -> usize { self.field10 }
+}
+
+impl PipelineStateObject for BlendState {
+    type PlatformState = ID3D11BlendState;
+    type Key = BlendKey;
+    fn get_key(&self) -> &Self::Key { &self.key }
+    fn get_key_hash(&self) -> u32 { self.hash.get_hash() }
+    fn set_platform_state(&mut self, plat: Option<Self::PlatformState>) {
+        self.platform_blend = plat;
+    }
+    fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
+        Some(&raw mut self.platform_blend)
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct DepthStencilDescriptions {
@@ -724,4 +790,190 @@ pub enum ComparisonFunc {
     NotEqual,
     GreaterEqual,
     Always,
+}
+
+#[repr(C)]
+#[derive(Debug, GfdRcAuto)]
+pub struct DepthStencilState {
+    _cpp_vtable: *const u8,
+    ref_count: Reference,
+    field10: usize,
+    key: DepthStencilKey,
+    hash: CrcHash,
+    platform_stencil: Option<ID3D11DepthStencilState>
+}
+
+impl DepthStencilState {
+    pub fn new(key: &DepthStencilKey) -> Self {
+        Self {
+            _cpp_vtable: match globals::get_ngr_depthstencilstate_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
+            ref_count: Reference::new(),
+            field10: 0,
+            key: key.clone(),
+            hash: CrcHash::new(key),
+            platform_stencil: None
+        }
+    }
+
+    pub fn get_field10(&self) -> usize { self.field10 }
+}
+
+impl PipelineStateObject for DepthStencilState {
+    type PlatformState = ID3D11DepthStencilState;
+    type Key = DepthStencilKey;
+    fn get_key(&self) -> &Self::Key { &self.key }
+    fn get_key_hash(&self) -> u32 { self.hash.get_hash() }
+    fn set_platform_state(&mut self, plat: Option<Self::PlatformState>) {
+        self.platform_stencil = plat;
+    }
+    fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
+        Some(&raw mut self.platform_stencil)
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FilterMode {
+    CmpMinMagMipPoint = 0,
+    CmpMinMagPointMipLinear,
+    CmpMinPointMagLinearMipPoint,
+    MinPointMagMipLinear,
+    MinLinearMagMipPoint,
+    MinMagLinearMipPoint,
+    MinMagMipLinear,
+    Anisotropic
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FilterModeComparison {
+    CmpMinMagMipPoint = 0,
+    CmpMinMagPointMipLinear,
+    CmpMinPointMagLinearMipPoint,
+    MinPointMagMipLinear,
+    MinLinearMagMipPoint,
+    MinMagLinearMipPoint,
+    MinMagMipLinear,
+    Anisotropic
+}
+
+impl From<FilterMode> for FilterModeComparison {
+    fn from(value: FilterMode) -> Self {
+        // SAFETY: They are exactly the same in memory layout and valid discriminants. The only
+        // difference is their implementation of Into<D3D_FILTER>
+        unsafe { std::mem::transmute(value) }
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TextureAddressMode {
+    Wrap = 0,
+    Mirror,
+    Clamp,
+    Border,
+    MirrorOnce
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BorderColor {
+    Clear = 0,
+    Black,
+    White
+}
+
+impl From<BorderColor> for RGBAFloat {
+    fn from(value: BorderColor) -> Self {
+        match value {
+            BorderColor::Clear => RGBAFloat::from_rgba_array_f32([0f32; 4]),
+            BorderColor::Black => RGBAFloat::from_rgba_array_f32([0f32, 0f32, 0f32, 1f32]),
+            BorderColor::White => RGBAFloat::from_rgba_array_f32([1f32; 4]),
+        }
+    }
+}
+impl From<BorderColor> for [f32; 4] {
+    fn from(value: BorderColor) -> Self {
+        match value {
+            BorderColor::Clear => [0f32; 4],
+            BorderColor::Black => [0f32, 0f32, 0f32, 1f32],
+            BorderColor::White => [1f32; 4],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct SamplerKey {
+    pub(crate) filter: FilterMode,
+    pub(crate) address_u: TextureAddressMode,
+    pub(crate) address_v: TextureAddressMode,
+    pub(crate) address_w: TextureAddressMode,
+    pub(crate) mip_lod_bias: f32,
+    pub(crate) max_anistropy: u32,
+    pub(crate) min_lod: f32,
+    pub(crate) max_lod: f32,
+    pub(crate) comparison: ComparisonFunc,
+    pub(crate) border_color: BorderColor
+}
+
+// 0x1411cdb00
+impl Hash for SamplerKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u8(self.filter as u8);
+        state.write_u8(self.address_u as u8);
+        state.write_u8(self.address_v as u8);
+        state.write_u8(self.address_w as u8);
+        state.write_u32(self.mip_lod_bias as u32);
+        state.write_u32(self.max_anistropy);
+        state.write_u32(self.min_lod as u32);
+        state.write_u32(self.max_lod as u32);
+        state.write_u8(self.comparison as u8);
+        state.write_u8(self.border_color as u8);
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, GfdRcAuto)]
+pub struct SamplerState {
+    _cpp_vtable: *const u8,
+    ref_count: Reference,
+    field10: usize,
+    key: SamplerKey,
+    hash: CrcHash,
+    platform_sampler: Option<ID3D11SamplerState>
+}
+
+impl SamplerState {
+    pub fn new(key: &SamplerKey) -> Self {
+        Self {
+            _cpp_vtable: match globals::get_ngr_depthstencilstate_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
+            ref_count: Reference::new(),
+            field10: 0,
+            key: key.clone(),
+            hash: CrcHash::new(key),
+            platform_sampler: None
+        }
+    }
+
+    pub fn get_field10(&self) -> usize { self.field10 }
+}
+
+impl PipelineStateObject for SamplerState {
+    type PlatformState = ID3D11SamplerState;
+    type Key = SamplerKey;
+    fn get_key(&self) -> &Self::Key { &self.key }
+    fn get_key_hash(&self) -> u32 { self.hash.get_hash() }
+    fn set_platform_state(&mut self, plat: Option<Self::PlatformState>) {
+        self.platform_sampler = plat;
+    }
+    fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
+        Some(&raw mut self.platform_sampler)
+    }
 }

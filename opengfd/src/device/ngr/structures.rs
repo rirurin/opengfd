@@ -1,7 +1,13 @@
-#![allow(unused_imports)]
-use allocator_api2::alloc::Allocator;
+#![allow(unused_imports, dead_code)]
+use allocator_api2::{
+    alloc::Allocator,
+    boxed::Box as Box2,
+};
 use crate::{
-    device::ngr::hint::MemHint,
+    device::ngr::{
+        allocator::AllocatorHook,
+        hint::MemHint
+    },
     globals,
     utility::{
         mutex::{ RecursiveMutex, RecursiveMutexGuard },
@@ -9,8 +15,12 @@ use crate::{
     }
 };
 use std::{
+    alloc::Layout,
+    fmt::Debug,
     mem::{ align_of, size_of },
-    ptr::NonNull
+    ops::{ Deref, DerefMut },
+    ptr::NonNull,
+    sync::atomic::AtomicI32
 };
 use opengfd_proc::GfdRcAuto;
 use windows::Win32::System::{
@@ -36,22 +46,48 @@ pub struct List {
 }
 #[repr(C)]
 #[derive(Debug)]
-pub struct PointerList<V> 
+pub struct PointerList<V, A = AllocatorHook>
+where A: Allocator + Clone
 {
-    _cpp_vtable: *mut u8,
+    _cpp_vtable: *const u8,
     _head: Option<NonNull<PointerListEntry<V>>>,
     _tail: Option<NonNull<PointerListEntry<V>>>,
     size: usize,
-    hint: MemHint
+    hint: MemHint,
+    _allocator: A
 }
+
 // vtable: 0x1422a7430
-impl<V> PointerList<V> {
+impl<V> PointerList<V, AllocatorHook> 
+{
+    pub fn new() -> Self {
+        Self::new_in(AllocatorHook)
+    }
+}
+
+impl<V, A> PointerList<V, A>
+where A: Allocator + Clone
+{
+    pub fn new_in(alloc: A) -> Self {
+        assert!(size_of::<A>() == 0, "Allocator must be a zero sized type!");
+        Self {
+            // would have to define vtable for each type - C++ monomorphizes too!
+            _cpp_vtable: std::ptr::null(),
+            _head: None,
+            _tail: None,
+            size: 0,
+            hint: MemHint::new_value(0xb000004),
+            _allocator: alloc
+        }
+    }
     pub fn find_by_predicate<F>(&self, entry: F) -> Option<&V>
         where F: Fn(&V) -> bool {
         let mut current = self._head;
         while let Some(e) = current {
             let data = unsafe { e.as_ref().data.as_ref() };
-            if entry(data) { return Some(data); }
+            if entry(data) { 
+                return Some(data); 
+            }
             let next = unsafe { e.as_ref().next };
             current = match next {
                 Some(v) => Some(v),
@@ -60,6 +96,35 @@ impl<V> PointerList<V> {
         }
         None
     }
+    pub fn find_by_predicate_mut<F>(&self, entry: F) -> Option<&mut V>
+        where F: Fn(&mut V) -> bool {
+        let mut current = self._head;
+        while let Some(mut e) = current {
+            let data = unsafe { e.as_mut().data.as_mut() };
+            if entry(data) { 
+                return Some(data); 
+            }
+            let next = unsafe { e.as_ref().next };
+            current = match next {
+                Some(v) => Some(v),
+                None => break
+            }
+        }
+        None
+    }
+    pub fn add(&self, entry: &V) {
+
+    }
+}
+
+impl<V> PointerList<V>
+where V: GfdRcType + Debug
+{
+    /*
+    pub fn add_in_rc<A: Allocator>(&mut self, entry: &V, alloc: A) {
+        let a = GfdRc::clone_from_raw(entry);
+    }
+    */
 }
 
 impl<V> PointerList<V> 
@@ -80,7 +145,9 @@ impl<V> PointerList<V>
     }
 }
 // 0x14118bb30
-impl<V> Drop for PointerList<V> {
+impl<V, A> Drop for PointerList<V, A> 
+where A: Allocator + Clone
+{
     fn drop(&mut self) {
         let mut current = self._head;
         while let Some(e) = current {
@@ -96,12 +163,42 @@ impl<V> Drop for PointerList<V> {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct PointerListEntry<V> 
+pub struct PointerListEntry<V, A = AllocatorHook>
+where A: Allocator + Clone
     // where V: PartialEq
 {
     next: Option<NonNull<PointerListEntry<V>>>,
     prev: Option<NonNull<PointerListEntry<V>>>,
     data: NonNull<V>,
+    _allocator: A
+}
+/*
+impl<V, A> PointerListEntry<V, A>
+where A: Allocator + Clone
+{
+    fn new(entry: &V) -> Self {
+        Self {
+
+        }
+    }
+}
+*/
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct String<A = AllocatorHook> {
+    _cpp_vtable: *const u8,
+    text: *const u8,
+    hint: MemHint,
+    _allocator: A
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct StringHashed<A = AllocatorHook> {
+    _cpp_vtable: *const u8,
+    name: String<A>,
+    hash: CrcHash
 }
 
 #[repr(C)]
@@ -141,9 +238,9 @@ impl CrcHash {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct ListNodeFreeList {
+pub struct ListNodeFreeList<T> {
     _cpp_vtable: *const u8,
-    list: *mut FreeList<PointerListEntryTypeless>,
+    list: *mut FreeList<T>,
 }
 
 #[repr(C)]
@@ -162,7 +259,10 @@ impl ngr_1422ecad8 {
     // 0x1411e7b90
     pub fn new() -> Self {
         let mut out = Self {
-            _cpp_vtable: std::ptr::null(),
+            _cpp_vtable: match globals::get_ngr_1422ecad8_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
             field08: 0,
             field10: 0,
             counter: 0,
@@ -174,103 +274,192 @@ impl ngr_1422ecad8 {
     }
 }
 
+// ngrFreeList.cpp
 #[repr(C)]
 #[derive(Debug, GfdRcAuto)]
-pub struct FreeList<T> {
+pub struct FreeList<T, A = AllocatorHook> 
+where A: Allocator + Clone
+{
     _cpp_vtable: *const u8,
     ref_: Reference,
-    block_size_as_pointer: usize,
+    free_indices_section_size: usize,
     element_size: usize,
-    aligned_element_size: usize,
+    block_entry_size: usize,
     entries_per_block: usize,
     alignment: usize,
     hint: MemHint,
-    hint2: *mut MemHint,
+    lock: *mut SpinLock,
     field50: i32,
-    block_start: Option<NonNull<FreeListBlockLink<T>>>,
     block_end: Option<NonNull<FreeListBlockLink<T>>>,
-    field68: ngr_1422ecad8
+    block_start: Option<NonNull<FreeListBlockLink<T>>>,
+    field68: ngr_1422ecad8,
+    _allocator: A
 }
 
 const FREE_LIST_ENTRIES_PER_BLOCK: usize = 0x400;
 const FREE_LIST_BLOCKS: usize = 1;
-
-impl<T> FreeList<T> {
-    // 0x1411b0540
-    pub fn new() -> Self {
-        Self::new_inner(align_of::<T>(), FREE_LIST_ENTRIES_PER_BLOCK, FREE_LIST_BLOCKS, 2)
+impl<T> FreeList<T, AllocatorHook>
+where T: GfdRcType + Debug
+{
+    pub fn new() -> GfdRc<Self, AllocatorHook> {
+        Self::new_with_alignment(align_of::<T>())
     }
-    pub fn new_with_alignment(alignment: usize) -> Self {
-        Self::new_inner(alignment, FREE_LIST_ENTRIES_PER_BLOCK, FREE_LIST_BLOCKS, 2)
+    pub fn new_with_alignment(alignment: usize) -> GfdRc<Self, AllocatorHook> {
+        Self::new_inner(alignment, FREE_LIST_ENTRIES_PER_BLOCK, FREE_LIST_BLOCKS, 2, AllocatorHook)
+    }
+}
+impl<T, A> FreeList<T, A> 
+where T: GfdRcType + Debug,
+      A: Allocator + Clone + Debug
+{
+    // 0x1411b0540
+    pub fn new_in(alloc: A) -> GfdRc<Self, A> {
+        Self::new_in_with_alignment(alloc, align_of::<T>())
+    }
+    pub fn new_in_with_alignment(alloc: A, alignment: usize) -> GfdRc<Self, A> {
+        Self::new_inner(alignment, FREE_LIST_ENTRIES_PER_BLOCK, FREE_LIST_BLOCKS, 2, alloc)
     }
     fn new_inner(
         alignment: usize, 
         entries_per_block: usize,
         blocks: usize,
-        field50: i32
-    ) -> Self {
+        field50: i32,
+        alloc: A
+    ) -> GfdRc<Self, A> {
         let alignment = if alignment > align_of::<T>() { alignment } else { align_of::<T>() };
-        Self {
+        let free_indices_section_size = size_of::<T>() + 7 >> 3; // alignof(usize)
+        let block_entry_size = size_of::<T>() - 1 + alignment & !(alignment - 1); // alignof
+        let block_layout = unsafe { 
+            Layout::from_size_align_unchecked(
+                // originally was + 0x17, but that gets rounded up to 0x18 due to alignment anyway
+                free_indices_section_size + size_of::<FreeListBlockLink<T>>() + 
+                entries_per_block * block_entry_size + alignment,
+                alignment
+            ) 
+        };
+        let mut block_start = None;
+        let mut block_end = None;
+        for _ in 0..blocks {
+            let mut new_block: NonNull<FreeListBlockLink<T>> = alloc.allocate_zeroed(block_layout).unwrap().cast();
+            unsafe { new_block.as_mut().is_init = true; }
+            if block_end.is_none() {
+                block_start = Some(new_block);
+                unsafe { new_block.as_mut().next = None; }
+            } else {
+                unsafe { 
+                    new_block.as_mut().next = block_end; 
+                    block_end.unwrap().as_mut().prev = Some(new_block);
+                }
+            }
+            block_end = Some(new_block);
+        } 
+        GfdRc::new_in(Self {
             _cpp_vtable: std::ptr::null(),
             ref_: Reference::new(),
-            block_size_as_pointer: size_of::<T>() + 7 >> 3,
+            free_indices_section_size,
             element_size: size_of::<T>(),
-            aligned_element_size: size_of::<T>() - 1 + alignment & !(alignment - 1),
+            block_entry_size,
             entries_per_block,
             alignment,
             hint: MemHint::new(),
-            hint2: std::ptr::null_mut(),
+            lock: Box2::into_raw(Box2::new_in(SpinLock::new(), alloc.clone())),
             field50,
-            block_start: None,
-            block_end: None,
-            field68: ngr_1422ecad8::new()
+            block_end,
+            block_start,
+            field68: ngr_1422ecad8::new(),
+            _allocator: alloc.clone()
+        }, alloc.clone())
+    }
+    pub fn add(&mut self) {
+        let this = (unsafe { &mut *self.lock }).get_lock(self);
+        if (&*this).block_start.is_none() {
+        } else {
+
         }
     }
 }
-/*
-impl<T> FreeList<T> {
-    fn new_inner_with_allocator<A>(
-        alignment: usize,
-        entries_per_block: usize,
-        blocks: usize,
-        field50: i32,
-        alloc: A
-    ) -> GfdRc<Self, A> 
-    where A: Allocator
-    {
-        let alignment = if alignment > align_of::<T>() { alignment } else { align_of::<T>() };
-        GfdRc::new(Self {
-            _cpp_vtable: std::ptr::null(),
-            ref_: Reference::new(),
-            block_size_as_pointer: size_of::<T>() + 7 >> 3,
-            element_size: size_of::<T>(),
-            aligned_element_size: size_of::<T>() - 1 + alignment & !(alignment - 1),
-            entries_per_block,
-            alignment,
-            hint: MemHint::new(),
-            hint2: std::ptr::null_mut(),
-            field50,
-            block_start: None,
-            block_end: None,
-            field68: ngr_1422ecad8::new()
-        })
-    }
-}
-*/
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct FreeListBlockLink<T> {
+pub struct FreeListBlockLink<T> 
+{
     prev: Option<NonNull<FreeListBlockLink<T>>>,
     next: Option<NonNull<FreeListBlockLink<T>>>,
-    field10: u8,
-    data: std::marker::PhantomData<T>
+    is_init: bool,
+    // structure: 
+    // free_indices: 
+    _data: std::marker::PhantomData<T>
 }
 
 #[repr(C)]
 #[derive(Debug)]
 struct PointerListEntryTypeless {
 
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct SpinLock {
+    _cpp_vtable: *const u8,
+    lock: AtomicI32,
+}
+
+pub const SPIN_COUNT_BEFORE_YIELDING: usize = 1500;
+
+impl SpinLock {
+    // 0x141207930
+    pub fn new() -> Self {
+        Self {
+            _cpp_vtable: match globals::get_ngr_spinlock_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
+            lock: 0.into()
+        }
+    }
+    // 0x141207980
+    // https://marabos.nl/atomics/memory-ordering.html
+    pub fn get_lock<'a, T>(&'a mut self, item: &'a mut T) -> SpinLockGuard<'a, T> {
+        loop {
+            let mut count = SPIN_COUNT_BEFORE_YIELDING;
+            while count > 0 {
+                match self.lock.compare_exchange_weak(0, 1, std::sync::atomic::Ordering::Acquire, std::sync::atomic::Ordering::Relaxed) {
+                    Ok(_) => return SpinLockGuard {
+                        owner: self,
+                        data: item
+                    },
+                    Err(_) => ()
+                };
+                count -= 1;
+            }
+            std::thread::yield_now();
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SpinLockGuard<'a, T> {
+    owner: &'a mut SpinLock,
+    data: &'a mut T
+}
+
+impl<'a, T> Drop for SpinLockGuard<'a, T> {
+    // 0x1412079d0
+    fn drop(&mut self) {
+        self.owner.lock.store(0, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+impl<'a, T> Deref for SpinLockGuard<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+impl<'a, T> DerefMut for SpinLockGuard<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data
+    }
 }
 
 #[cfg(test)]

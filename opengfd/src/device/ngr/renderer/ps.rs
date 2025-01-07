@@ -1,3 +1,4 @@
+/*
 use crate::{
     device::ngr::renderer::vs::VertexShaderPlatform,
     graphics::shader::shader::ShaderID,
@@ -16,3 +17,4 @@ pub struct PixelShader {
     next: *mut PixelShader,
     _pinned: PhantomPinned
 }
+*/

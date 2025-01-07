@@ -66,11 +66,28 @@ fn build_derive_impl(field: &ReferenceField, item: &syn::ItemStruct) -> syn::Res
     let impl_start = match item.generics.params.len() {
         0 => quote! { impl GfdRcType for #struct_name },
         _ => {
-            let mut generics_no_where = item.generics.clone();
-            generics_no_where.where_clause = None;
-            let generics_no_where = generics_no_where.to_token_stream();
-            let generics_full = item.generics.to_token_stream();
-            quote! { impl #generics_no_where GfdRcType for #struct_name #generics_full }
+            // Even if the generic contains a where clause, it's not added to the token
+            // stream when to_token_stream is called. This is probably a bug!
+            let mut generics_impl = item.generics.clone();
+            for generic_arg in &mut generics_impl.params {
+                match generic_arg {
+                    syn::GenericParam::Type(t) => {
+                        // remove the default argument, we don't need that
+                        t.eq_token = None;
+                        t.default = None;
+                    },
+                    _ => continue
+                }
+            }
+            let generics_impl = generics_impl.to_token_stream();
+            let generics_impl_full = match &item.generics.where_clause {
+                Some(v) => {
+                    let where_clause = v.to_token_stream();
+                    quote! { #generics_impl #where_clause }
+                },
+                None => generics_impl.clone()
+            };
+            quote! { impl #generics_impl GfdRcType for #struct_name #generics_impl_full }
         }
     };
     let body = quote! {
@@ -99,6 +116,7 @@ pub fn gfd_rc_type_derive(item: TokenStream) -> TokenStream {
         Ok(n) => n,
         Err(e) => return TokenStream::from(e.to_compile_error())
     };
+    // println!("{}", tokens.to_string());
     tokens
 }
 

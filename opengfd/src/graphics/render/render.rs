@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_imports)]
 
 use crate::{
-    device::ngr::renderer::vs::VertexShader,
+    device::ngr::renderer::shader::VertexShader,
     graphics::render_ot::RenderOt,
     kernel::global::{ Global, GraphicsGlobal },
     globals

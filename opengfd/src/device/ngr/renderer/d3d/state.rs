@@ -3,14 +3,19 @@ use crate::device::ngr::renderer::state::{
     BlendKey,
     BlendType,
     BlendTypeOperation,
+    BorderColor,
     ComparisonFunc,
     DepthStencilDescriptions,
     DepthStencilKey,
     DepthWriteMask,
     CullMode,
     FillMode,
+    FilterMode,
+    FilterModeComparison,
+    SamplerKey,
     StencilOperation,
-    RasterizerKey
+    RasterizerKey,
+    TextureAddressMode 
 };
 use windows::Win32::{
     Foundation::BOOL,
@@ -23,10 +28,13 @@ use windows::Win32::{
         D3D11_DEPTH_STENCIL_DESC,
         D3D11_DEPTH_STENCILOP_DESC,
         D3D11_DEPTH_WRITE_MASK,
-        D3D11_FILL_MODE, 
+        D3D11_FILL_MODE,
+        D3D11_FILTER,
         D3D11_RASTERIZER_DESC,
+        D3D11_SAMPLER_DESC,
         D3D11_STENCIL_OP,
-        D3D11_RENDER_TARGET_BLEND_DESC
+        D3D11_RENDER_TARGET_BLEND_DESC,
+        D3D11_TEXTURE_ADDRESS_MODE
     }
 };
 
@@ -217,6 +225,74 @@ impl From<DepthWriteMask> for D3D11_DEPTH_WRITE_MASK {
         match value {
             DepthWriteMask::MaskNone => windows::Win32::Graphics::Direct3D11::D3D11_DEPTH_WRITE_MASK_ZERO,
             DepthWriteMask::MaskAll => windows::Win32::Graphics::Direct3D11::D3D11_DEPTH_WRITE_MASK_ALL,
+        }
+    }
+}
+
+impl From<TextureAddressMode> for D3D11_TEXTURE_ADDRESS_MODE {
+    fn from(value: TextureAddressMode) -> Self {
+        match value {
+            TextureAddressMode::Wrap => windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE_ADDRESS_WRAP,
+            TextureAddressMode::Mirror => windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE_ADDRESS_MIRROR,
+            TextureAddressMode::Clamp => windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE_ADDRESS_CLAMP,
+            TextureAddressMode::Border => windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE_ADDRESS_BORDER,
+            TextureAddressMode::MirrorOnce => windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE_ADDRESS_MIRROR_ONCE,
+        }
+    }
+}
+// 0x1422a8900
+impl From<FilterMode> for D3D11_FILTER {
+    fn from(value: FilterMode) -> Self {
+        match value {
+            FilterMode::CmpMinMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_MIP_POINT,
+            FilterMode::CmpMinMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_POINT_MIP_LINEAR,
+            FilterMode::CmpMinPointMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT,
+            FilterMode::MinPointMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_POINT_MAG_MIP_LINEAR,
+            FilterMode::MinLinearMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT,
+            FilterMode::MinMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
+            FilterMode::MinMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+            FilterMode::Anisotropic => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_ANISOTROPIC
+        }
+    }
+}
+
+// 0x1422a8928
+impl From<FilterModeComparison> for D3D11_FILTER {
+    fn from(value: FilterModeComparison) -> Self {
+        match value {
+            FilterModeComparison::CmpMinMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT,
+            FilterModeComparison::CmpMinMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
+            FilterModeComparison::CmpMinPointMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT,
+            FilterModeComparison::MinPointMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR,
+            FilterModeComparison::MinLinearMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT,
+            FilterModeComparison::MinMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+            FilterModeComparison::MinMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
+            FilterModeComparison::Anisotropic => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_ANISOTROPIC
+        }
+    }
+}
+
+impl From<SamplerKey> for D3D11_SAMPLER_DESC {
+    // 0x141181d30
+    fn from(value: SamplerKey) -> Self {
+        let border_color = value.border_color.into();
+        let filter = if value.comparison == ComparisonFunc::Never {
+            value.filter.into()
+        } else {
+            let cmp_filter: FilterModeComparison = value.filter.into();
+            cmp_filter.into()
+        };
+        Self {
+            Filter: filter,
+            AddressU: value.address_u.into(),
+            AddressV: value.address_v.into(),
+            AddressW: value.address_w.into(),
+            MipLODBias: value.mip_lod_bias,
+            MaxAnisotropy: value.max_anistropy,
+            ComparisonFunc: value.comparison.into(),
+            BorderColor: border_color,
+            MinLOD: value.min_lod,
+            MaxLOD: value.max_lod
         }
     }
 }

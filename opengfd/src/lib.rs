@@ -39,6 +39,7 @@ pub mod device {
         }
         pub mod renderer { 
             pub mod blend;
+            pub mod bytecode;
             pub mod cbuffer;
             #[cfg(target_os = "windows")]
             #[path = "d3d"]
@@ -49,6 +50,7 @@ pub mod device {
             pub mod hint;
             pub mod ps;
             pub mod render;
+            pub mod shader;
             pub mod state;
             pub mod vs;
         } 
@@ -126,6 +128,7 @@ pub mod graphics {
     pub mod texture;
 }
 pub mod kernel {
+    pub mod allocator;
     pub mod asset;
     #[cfg(feature = "v1-core")]
     #[path = "global_xrd744.rs"]
