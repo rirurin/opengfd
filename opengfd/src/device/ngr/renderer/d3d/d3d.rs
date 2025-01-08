@@ -2,7 +2,8 @@
 use allocator_api2::alloc::{ Allocator, Global };
 use bitflags::bitflags;
 use crate::{
-        device::ngr::{
+    device::ngr::{
+        allocator::AllocatorHook,
         hint::MemHint,
         renderer::{
             bytecode::ShaderBytecode,
@@ -23,7 +24,11 @@ use crate::{
                 SamplerState
             },
         },
-        structures::{ CriticalSection, CrcHash, PointerList }
+        structures::{ 
+            CriticalSection, 
+            CrcHash, 
+            PointerList 
+        }
     },
     globals,
     utility::reference::{ GfdRcType, GfdRc }
@@ -132,7 +137,9 @@ bitflags! {
 #[repr(C)]
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct ngrDX11Renderer {
+pub struct ngrDX11Renderer<A = AllocatorHook>
+where A: Allocator + Clone
+{
     vtable: *mut ::std::os::raw::c_void,
     flags0: Flags0,
     field2_0xc: i32,
@@ -155,6 +162,7 @@ pub struct ngrDX11Renderer {
     flags: Flags1,
     presentSyncInterval: i32,
     field59_0x170: i32,
+    _allocator: A
 }
 
 pub static NGR_FEATURE_LEVEL: [D3D_FEATURE_LEVEL; 6] = [
@@ -196,8 +204,10 @@ pub static DXGI_FORMAT_TABLE1: [DXGI_FORMAT; 12] = [
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D32_FLOAT,
 ];
 
-impl ngrDX11Renderer {
-    pub unsafe fn new_in<A: Allocator>(params: &InitParams, alloc: A) -> &'static mut Self {
+impl<A> ngrDX11Renderer<A>
+where A: Allocator + Clone
+{
+    pub unsafe fn new_in(params: &InitParams, alloc: A) -> &'static mut Self {
         let hwnd = globals::get_ngr_window_unchecked();
         let out = &mut* (alloc.allocate_zeroed(Layout::new::<Self>()).unwrap().as_ptr() as *mut Self);
         let desc = DXGI_SWAP_CHAIN_DESC {
@@ -242,10 +252,38 @@ impl ngrDX11Renderer {
         out.factory.MakeWindowAssociation(hwnd.hwnd, DXGI_MWA_NO_WINDOW_CHANGES).unwrap();
         out.flags0 = Flags0::Flag2;
         out.flags = Flags1::Flag0 | Flags1::Flag1 | Flags1::Flag2 | Flags1::Flag3 | Flags1::Flag4 | Flags1::Flag5;
-        let res = out.create_resource_views(alloc);
+        out._allocator = alloc;
+        let res = out.create_resource_views();
         println!("ngr: Created DirectX11 renderer");
         out
     }
+
+    // VTABLE ENTRIES
+    pub fn try_get_rasterizer_state(&self, key: &RasterizerKey) -> Option<&RasterizerState> {
+        let hash = CrcHash::new(key);
+        self.rasterizers.find_by_predicate(|f| f == key && f == &hash)
+    }
+    pub fn try_get_rasterizer_state_mut(&self, key: &RasterizerKey) -> Option<&mut RasterizerState> {
+        let hash = CrcHash::new(key);
+        self.rasterizers.find_by_predicate_mut(|f| f == key && f == &hash)
+    }
+    pub fn get_or_create_rasterizer(&mut self, key: &RasterizerKey) -> GfdRc<RasterizerState, AllocatorHook> {
+        let mut lock = unsafe { (&mut **self.mutexes.get_unchecked_mut(1)).lock(self) };
+        match (*lock).try_get_rasterizer_state_mut(key) {
+            Some(n) => GfdRc::clone_from_raw(n, AllocatorHook),
+            None => {
+                let mut new = GfdRc::new_in(RasterizerState::new(key), AllocatorHook);
+                (*lock).add_to_rasterizer_list(&mut *new, AllocatorHook);
+                (*lock).set_rasterizer_state(&mut *new);
+                new
+            }
+        }
+    }
+    pub fn add_to_rasterizer_list(&mut self, state: &mut RasterizerState, alloc: AllocatorHook) {
+        let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
+        self.rasterizers.add_in_rc(state_rc);
+    }
+
     pub fn resize_buffers(&self, width: u64, height: u64, width2: u32, height2: u32) {
         unsafe {
             let vtable_offset = self.vtable.add(0x30);
@@ -260,23 +298,10 @@ impl ngrDX11Renderer {
     // impl Drop: vtable + 0x38 and vtable + 0x40
     // 
 
-    pub unsafe fn create_resource_views<A: Allocator>(&mut self, alloc: A) {
+    pub unsafe fn create_resource_views(&mut self) {
         // TODO!
         let tex2d = self.swapchain.as_ref().unwrap().GetBuffer::<ID3D11Texture2D>(2).unwrap();
         let rtv = self.device.as_ref().unwrap().CreateRenderTargetView(&tex2d, None, None).unwrap();
-    }
-    pub fn try_get_rasterizer_state(&self, key: &RasterizerKey) -> Option<&RasterizerState> {
-        let hash = CrcHash::new(key);
-        self.rasterizers.find_by_predicate(|f| f == key && f == &hash)
-    }
-    pub fn try_get_rasterizer_state_mut(&self, key: &RasterizerKey) -> Option<&mut RasterizerState> {
-        let hash = CrcHash::new(key);
-        self.rasterizers.find_by_predicate_mut(|f| f == key && f == &hash)
-    }
-    pub fn add_to_rasterizer_list<A: Allocator + Clone>(&mut self, state: &mut RasterizerState, alloc: A) -> i32 {
-        let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
-        // add to rasterizer table
-        0
     }
 
     // vtable + 0xc0

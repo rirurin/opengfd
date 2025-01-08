@@ -3,10 +3,18 @@ use bitflags::bitflags;
 use crate::{
     device::ngr::{
         hint::MemHint,
-        renderer::cbuffer::{
-            BufferType, ConstantBuffer
-        }, structures::CrcHash
-    }, globals, graphics::texture::Texture, object::{ mesh::Mesh, node::Node }, utility::{ 
+        renderer::{
+            blend::BufferBlendMode,
+            cbuffer::{
+                BufferType, ConstantBuffer
+            }
+        },
+        structures::CrcHash
+    },
+    globals, 
+    graphics::texture::Texture, 
+    object::{ mesh::Mesh, node::Node }, 
+    utility::{ 
         misc::RGBAFloat,
         reference::{ GfdRcType, Reference }
     }
@@ -238,17 +246,6 @@ pub struct DrawState {
     pub basicBuffers: [BasicBuffers; 4usize],
 }
 
-#[repr(C)]
-#[derive(PartialEq)]
-pub struct BufferBlendMode {
-    pub(super) field00: i32,
-    pub(super) field04: i32,
-    pub(super) field08: i32,
-    pub(super) field0c: i32,
-    pub(super) field10: i32,
-    pub(super) field14: i32
-}
-
 bitflags! {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
     pub struct BufferFlags: u32 {
@@ -280,13 +277,16 @@ pub struct BasicBuffers {
     pub vatBoundingBoxMin: f32,
     #[field_offset(84usize)]
     pub vatBoundingBoxMax: f32,
-    #[field_offset(0x5c)] pub cull_mode: i32,
-    #[field_offset(0x74)] pub alpha_blend_enable: bool,
-    #[field_offset(0x78)] pub blend_mode: BufferBlendMode,
-    #[field_offset(0x90)] pub color_write_enable: i32,
-    #[field_offset(0x98)] pub z_enable: bool,
-    #[field_offset(0x9c)] pub z_write_enable: i32,
-    #[field_offset(0xa0)] pub z_func: i32,
+    #[field_offset(0x58)] pub rasterizer_key: RasterizerKey,
+    //#[field_offset(0x5c)] pub cull_mode: i32,
+    #[field_offset(0x74)] pub blend_key: BlendKey,
+    //#[field_offset(0x74)] pub alpha_blend_enable: bool,
+    //#[field_offset(0x78)] pub blend_mode: BufferBlendMode,
+    //#[field_offset(0x90)] pub color_write_enable: i32,
+    #[field_offset(0x98)] pub depth_stencil_key: DepthStencilKey,
+    //#[field_offset(0x98)] pub z_enable: bool,
+    //#[field_offset(0x9c)] pub z_write_enable: i32,
+    //#[field_offset(0xa0)] pub z_func: i32,
     #[field_offset(200usize)]
     pub field167_0xc8: u32,
     #[field_offset(204usize)]
@@ -322,7 +322,7 @@ pub struct BasicBuffers {
     #[field_offset(880usize)]
     pub field711_0x370: Mat4,
     #[field_offset(944usize)]
-    pub flags: u32,
+    pub flags: BufferFlags,
     #[field_offset(948usize)]
     pub field713_0x3b4: u32,
 }
@@ -503,7 +503,7 @@ pub(crate) trait PipelineStateObject {
 #[derive(Debug, Clone)]
 pub struct RasterizerKey {
     pub(crate) field_mode: FillMode,
-    pub(crate) cull_mode: CullMode,
+    pub cull_mode: CullMode, // pub(crate)
     pub(crate) is_front_counter_clockwise: bool,
     pub(crate) scissor_enable: bool,
     pub(crate) antialiased_line_enable: bool,
@@ -552,7 +552,7 @@ impl RasterizerKey {
 
 impl PartialEq<CrcHash> for RasterizerState {
     fn eq(&self, other: &CrcHash) -> bool {
-        self.key.crc_hash() == other.get_hash()
+        self.hash.get_hash() == other.get_hash()
     }
 }
 
@@ -615,14 +615,14 @@ impl PipelineStateObject for RasterizerState {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct BlendKey {
-    pub(crate) enable_blending: bool,
+    pub enable_blending: bool, // crate
     pub(crate) source_blend: BlendType,
     pub(crate) dest_blend: BlendType,
     pub(crate) blend_op: BlendTypeOperation,
     pub(crate) source_blend_alpha: BlendType,
     pub(crate) dest_blend_alpha: BlendType,
     pub(crate) blend_op_alpha: BlendTypeOperation,
-    pub(crate) render_mask: u32,
+    pub render_mask: u32, // crate
     pub(crate) blend_state: bool
 }
 
@@ -731,9 +731,9 @@ impl Hash for DepthStencilDescriptions {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct DepthStencilKey {
-    pub(crate) depth_enable: bool,
-    pub(crate) depth_write_mask: DepthWriteMask,
-    pub(crate) depth_func: ComparisonFunc,
+    pub depth_enable: bool, // crate
+    pub depth_write_mask: DepthWriteMask, // crate
+    pub depth_func: ComparisonFunc, // crate
     pub(crate) stencil_enable: bool,
     pub(crate) stencil_read_mask: u8,
     pub(crate) stencil_write_mask: u8,
@@ -766,6 +766,17 @@ pub enum DepthWriteMask {
     MaskAll
 }
 
+impl TryFrom<u32> for DepthWriteMask {
+    type Error = ();
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(DepthWriteMask::MaskNone),
+            1 => Ok(DepthWriteMask::MaskAll),
+            _ => Err(())
+        }
+    }
+}
+
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StencilOperation {
@@ -790,6 +801,17 @@ pub enum ComparisonFunc {
     NotEqual,
     GreaterEqual,
     Always,
+}
+
+impl TryFrom<u32> for ComparisonFunc {
+    type Error = ();
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value <= ComparisonFunc::Always as u32 {
+            Ok(unsafe{std::mem::transmute(value)})
+        } else {
+            Err(())
+        }
+    }
 }
 
 #[repr(C)]
@@ -975,5 +997,106 @@ impl PipelineStateObject for SamplerState {
     }
     fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
         Some(&raw mut self.platform_sampler)
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[allow(non_camel_case_types)]
+pub enum RenderStateTable {
+    PS3RS_ZENABLE = 1,
+    PS3RS_FILLMODE,
+    PS3RS_ZWRITEENABLE,
+    PS3RS_ALPHATESTENABLE,
+    PS3RS_CULLMODE,
+    PS3RS_ZFUNC,
+    PS3RS_ALPHAREF,
+    PS3RS_ALPHAFUNC,
+    PS3RS_ALPHABLENDENABLE,
+    PS3RS_STENCILENABLE,
+    PS3RS_STENCILFAIL,
+    PS3RS_STENCILZFAIL,
+    PS3RS_STENCILPASS,
+    PS3RS_STENCILFUNC,
+    PS3RS_STENCILREF,
+    PS3RS_STENCILMASK,
+    PS3RS_STENCILWRITEMASK,
+    PS3RS_WRAP0,
+    PS3RS_WRAP1,
+    PS3RS_WRAP2,
+    PS3RS_WRAP3,
+    PS3RS_WRAP4,
+    PS3RS_WRAP5,
+    PS3RS_WRAP6,
+    PS3RS_WRAP7,
+    PS3RS_POINTSIZE,
+    PS3RS_POINTSIZE_MIN,
+    PS3RS_POINTSPRITEENABLE,
+    PS3RS_MULTISAMPLEANTIALIAS,
+    PS3RS_MULTISAMPLEMASK,
+    PS3RS_POINTSIZE_MAX,
+    PS3RS_COLORWRITEENABLE,
+}
+
+impl TryFrom<u32> for RenderStateTable {
+    type Error = ();
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value <= RenderStateTable::PS3RS_COLORWRITEENABLE as u32 {
+            Ok(unsafe{std::mem::transmute(value)})
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl DrawState {
+    pub unsafe fn set_state(&mut self, buffer: usize, fun: RenderStateTable, value: *const u8) {
+        match fun {        
+            RenderStateTable::PS3RS_ZENABLE => {
+                if self.basicBuffers.get_unchecked(buffer).depth_stencil_key.depth_enable != value.is_null() {
+                    self.basicBuffers.get_unchecked_mut(buffer).depth_stencil_key.depth_enable = value.is_null();
+                    self.basicBuffers.get_unchecked_mut(buffer).flags |= BufferFlags::USING_DEPTH_STENCIL;
+                }
+            },
+            RenderStateTable::PS3RS_ZWRITEENABLE => {
+                let depth_write = (value as u32 & 1).try_into().unwrap();
+                if self.basicBuffers.get_unchecked(buffer).depth_stencil_key.depth_write_mask != depth_write {
+                    self.basicBuffers.get_unchecked_mut(buffer).depth_stencil_key.depth_write_mask = depth_write;
+                    self.basicBuffers.get_unchecked_mut(buffer).flags |= BufferFlags::USING_DEPTH_STENCIL;
+                }
+            },
+            RenderStateTable::PS3RS_CULLMODE => {
+                let cull_type = match value as u16 {
+                    1 => CullMode::None,
+                    2 => CullMode::Front,
+                    _ => CullMode::Back
+                };
+                if self.basicBuffers.get_unchecked(buffer).rasterizer_key.cull_mode != cull_type {
+                    self.basicBuffers.get_unchecked_mut(buffer).rasterizer_key.cull_mode = cull_type;
+                    self.basicBuffers.get_unchecked_mut(buffer).flags |= BufferFlags::USING_RASTERIZER;
+                }
+            },
+            RenderStateTable::PS3RS_ZFUNC => {
+                let value = (value as u32).try_into().unwrap();
+                if self.basicBuffers.get_unchecked(buffer).depth_stencil_key.depth_func != value {
+                    self.basicBuffers.get_unchecked_mut(buffer).depth_stencil_key.depth_func = value;
+                    self.basicBuffers.get_unchecked_mut(buffer).flags |= BufferFlags::USING_DEPTH_STENCIL;
+                }
+            },
+            RenderStateTable::PS3RS_ALPHABLENDENABLE => {
+                if self.basicBuffers.get_unchecked(buffer).blend_key.enable_blending != !value.is_null() {
+                    self.basicBuffers.get_unchecked_mut(buffer).blend_key.enable_blending = !value.is_null();
+                    self.basicBuffers.get_unchecked_mut(buffer).flags |= BufferFlags::USING_BLEND;
+                }
+            },
+            RenderStateTable::PS3RS_COLORWRITEENABLE => {
+                let val = value as u32;
+                if self.basicBuffers.get_unchecked(buffer).blend_key.render_mask != val {
+                    self.basicBuffers.get_unchecked_mut(buffer).blend_key.render_mask = val;
+                    self.basicBuffers.get_unchecked_mut(buffer).flags |= BufferFlags::USING_BLEND;
+                }
+            },
+            _ => ()
+        }
     }
 }

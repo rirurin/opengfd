@@ -2,17 +2,34 @@
 use allocator_api2::alloc::Allocator;
 use opengfd::{
     device::ngr::{
-        structures::CrcHash,
+        allocator::AllocatorHook,
+        structures::{ 
+            CrcHash,
+            ListNodeFreeList,
+            FreeList,
+            FreeListBlockLink,
+            PointerListEntry
+        },
         renderer::{
             blend::BlendModePkt,
             cbuffer::ConstantBuffer,
             platform::d3d::ngrDX11Renderer,
-            ps::PixelShader, 
-            state::{ 
-                DeferredContext, DeferredContextBase, DeferredContextDX11,
-                RasterizerKey, RasterizerState
+            shader::{
+                PixelShader,
+                PixelShaderPlatform,
+                ShaderPlatform,
+                VertexShader,
+                VertexShaderPlatform
+            },
+            state::{
+                CullMode,
+                DeferredContext, 
+                DeferredContextBase, 
+                DeferredContextDX11,
+                DepthWriteMask,
+                RasterizerKey, 
+                RasterizerState
             }, 
-            vs::{ VertexShader, VertexShaderPlatform }
         }
     },
     globals,
@@ -223,7 +240,7 @@ riri_static!(NGR_SAMPLER_STATE, usize);
 
 #[no_mangle]
 pub unsafe extern "C" fn set_ngr_memhint_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
-    let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x66) {
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
     };
@@ -267,6 +284,81 @@ pub unsafe extern "C" fn set_ngr_spinlock_vtable(ofs: usize) -> Option<std::ptr:
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_SPINLOCK_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_pointer_freelist(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v.add(1),
+        None => return None
+    };
+    globals::set_ngr_pointer_freelist(addr.as_ptr() as 
+        *mut *mut ListNodeFreeList<PointerListEntry<u8>>);
+    logln!(Information, "got ngrFreeList pointer: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 9D 64 24 08",
+    resolve_type = set_ngr_pointer_freelist,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_POINTER_FREELIST, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_string_freelist(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v.add(1),
+        None => return None
+    };
+    globals::set_ngr_string_freelist(addr.as_ptr() as 
+        *mut *mut ListNodeFreeList<u8>);
+    logln!(Information, "got ngrFreeList string: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 10 00 00 00 E8 ?? ?? ?? ?? 48 89 44 24 ??",
+    resolve_type = set_ngr_string_freelist,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_STRING_FREELIST, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_freelist_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_freelist_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngrFreeList vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 48 89 4B ?? 44 89 6B ??",
+    resolve_type = set_ngr_freelist_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_FREELIST_VTABLE, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_1422ecad8_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_1422ecad8_vtable(addr.as_ptr() as 
+        *mut u8);
+    logln!(Information, "got ngr1422ecad8 vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 01 48 8B D9 48 89 79 ?? 48 89 79 ??",
+    resolve_type = set_ngr_1422ecad8_vtable,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_1422ECAD8_VTABLE, usize);
 
 /*
 #[riri_hook_fn(static_offset(0x1192e20))]
@@ -356,12 +448,9 @@ pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: 
 */
 
 #[allow(non_snake_case)] // Verified (currently broken lmao)
-pub unsafe fn ngrSetPixelProgramLoad(ctx: &mut DeferredContextDX11, shader: Option<&VertexShaderPlatform>) {
+pub unsafe fn ngrSetPixelProgramLoad(ctx: &mut DeferredContextDX11, shader: Option<&PixelShaderPlatform>) {
     let shader = match shader {
-        Some(v) => match v.get_d3d_pixel() {
-            Some(v) => Some(v),
-            None => None
-        },
+        Some(v) => v.get_shader_ref(),
         None => None
     };
     if std::ptr::eq(
@@ -377,7 +466,7 @@ pub unsafe fn ngrSetPixelProgramLoad(ctx: &mut DeferredContextDX11, shader: Opti
 }
 
 #[allow(non_snake_case)] // Verified
-pub unsafe fn gfdDeviceShaderPixelBind(id: i32, shader: Option<&VertexShaderPlatform>) {
+pub unsafe fn gfdDeviceShaderPixelBind(id: i32, shader: Option<&PixelShaderPlatform>) {
     let draw = globals::get_ngr_draw_state_unchecked();
     ngrSetPixelProgramLoad(
         &mut **draw.basicBuffers.get_unchecked(id as usize).deferredContexts.get_unchecked(draw.otFrameId as usize),
@@ -422,120 +511,11 @@ pub unsafe extern "C" fn gfdShaderPixelBindOtPreCallback(_ot: *mut RenderOt, id:
     }
 }
 
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[allow(non_camel_case_types)]
-pub enum RenderStateTable {
-    PS3RS_ZENABLE = 1,
-    PS3RS_FILLMODE,
-    PS3RS_ZWRITEENABLE,
-    PS3RS_ALPHATESTENABLE,
-    PS3RS_CULLMODE,
-    PS3RS_ZFUNC,
-    PS3RS_ALPHAREF,
-    PS3RS_ALPHAFUNC,
-    PS3RS_ALPHABLENDENABLE,
-    PS3RS_STENCILENABLE,
-    PS3RS_STENCILFAIL,
-    PS3RS_STENCILZFAIL,
-    PS3RS_STENCILPASS,
-    PS3RS_STENCILFUNC,
-    PS3RS_STENCILREF,
-    PS3RS_STENCILMASK,
-    PS3RS_STENCILWRITEMASK,
-    PS3RS_WRAP0,
-    PS3RS_WRAP1,
-    PS3RS_WRAP2,
-    PS3RS_WRAP3,
-    PS3RS_WRAP4,
-    PS3RS_WRAP5,
-    PS3RS_WRAP6,
-    PS3RS_WRAP7,
-    PS3RS_POINTSIZE,
-    PS3RS_POINTSIZE_MIN,
-    PS3RS_POINTSPRITEENABLE,
-    PS3RS_MULTISAMPLEANTIALIAS,
-    PS3RS_MULTISAMPLEMASK,
-    PS3RS_POINTSIZE_MAX,
-    PS3RS_COLORWRITEENABLE,
-}
-
-impl TryFrom<u32> for RenderStateTable {
-    type Error = ();
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value <= RenderStateTable::PS3RS_COLORWRITEENABLE as u32 {
-            Ok(unsafe{std::mem::transmute(value)})
-        } else {
-            Err(())
-        }
-    }
-}
-
-// FUN_1410982f0
-#[riri_hook_fn(static_offset(0x10a1cf0))]
+// 0x14108f3a0
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn ngrRenderStateTable(p_buffer: i32, p_fun: u32, value: *const u8) {
-    let buffer = p_buffer as usize;
-    let fun: RenderStateTable = p_fun.try_into().unwrap();
+pub unsafe fn gfdDeviceRenderSetState(p_buffer: i32, p_fun: u32, value: *const u8) {
     let draw = globals::get_ngr_draw_state_unchecked_mut();
-    // logln!(Information, "Function {:?}", fun);
-    match fun {
-        RenderStateTable::PS3RS_ZENABLE => {
-            // This makes the camp menu category names disappear
-            // logln!(Information, "ZENABLE, value is {:?}", value.is_null());
-            if draw.basicBuffers.get_unchecked(buffer).z_enable != value.is_null() {
-                draw.basicBuffers.get_unchecked_mut(buffer).z_enable = value.is_null();
-                draw.basicBuffers.get_unchecked_mut(buffer).flags |= 4;
-            }
-        },
-        RenderStateTable::PS3RS_ZWRITEENABLE => {
-            if draw.basicBuffers.get_unchecked(buffer).z_write_enable != value.is_null() as i32 {
-                // logln!(Information, "ZWRITEENABLE, value is {:?}", value.is_null());
-                draw.basicBuffers.get_unchecked_mut(buffer).z_write_enable = value.is_null() as i32;
-                draw.basicBuffers.get_unchecked_mut(buffer).flags |= 4;
-            }
-        },
-        RenderStateTable::PS3RS_CULLMODE => {
-            let cull_type = match value as u16 {
-                1 => 0,
-                2 => 1,
-                _ => 2
-            };
-            if draw.basicBuffers.get_unchecked(buffer).cull_mode != cull_type {
-                draw.basicBuffers.get_unchecked_mut(buffer).cull_mode = cull_type;
-                draw.basicBuffers.get_unchecked_mut(buffer).flags |= 1;
-            }
-        },
-        RenderStateTable::PS3RS_ZFUNC => {
-            if draw.basicBuffers.get_unchecked(buffer).z_func != value as i32 {
-                draw.basicBuffers.get_unchecked_mut(buffer).z_func = value as i32;
-                draw.basicBuffers.get_unchecked_mut(buffer).flags |= 4;
-            }
-        },
-        /*
-        // (Very broken)
-        RenderStateTable::PS3RS_ALPHABLENDENABLE => {
-            if draw.basicBuffers.get_unchecked(buffer).alpha_blend_enable != value.is_null() {
-                draw.basicBuffers.get_unchecked_mut(buffer).alpha_blend_enable = value.is_null();
-                draw.basicBuffers.get_unchecked_mut(buffer).flags |= 2;
-            }
-        },
-        */
-        RenderStateTable::PS3RS_COLORWRITEENABLE => {
-            let val = value as i32;
-            if draw.basicBuffers.get_unchecked(buffer).color_write_enable != val {
-                draw.basicBuffers.get_unchecked_mut(buffer).color_write_enable = val;
-                draw.basicBuffers.get_unchecked_mut(buffer).flags |= 2;
-            }
-        },
-        _ => original_function!(p_buffer, p_fun, value),
-        // _ => (),
-    }
-}
-
-#[allow(non_snake_case)]
-pub unsafe fn gfdDeviceRenderSetState(p_buffer: i32, p_fun: u32, value: *mut u8) {
-    ngrRenderStateTable(p_buffer, p_fun, value);
+    draw.set_state(p_buffer as usize, p_fun.try_into().unwrap(), value);
     *globals::get_gfd_global_unchecked_mut().graphics.render_state_current.get_unchecked_mut(p_fun as usize) = value as usize;
 }
 
@@ -648,20 +628,11 @@ pub unsafe extern "C" fn ngrGetRasterizerStateInner(p_renderer: *mut u8, raster_
         None => std::ptr::null_mut()
     }
 }
-/*
-#[no_mangle]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRcTest(raster_key: *mut u8) -> u32 {
-    let key = &*(raster_key as *const RasterizerKey);
-    let ptr = GfdRc::new_in(RasterizerState::new(key), globals::get_ngr_allocator_unchecked());
-    let ptr2 = ptr.clone();
-    (*ptr2).get_field10() as u32
-}
-*/
 
 #[riri_hook_fn(static_offset(0x1cb05d50))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn add_to_rasterizer_list(p_renderer: *mut u8, rasterizer_state: *mut u8) {
+    println!("renderer: 0x{:x}, state: 0x{:x}", p_renderer as usize, rasterizer_state as usize);
     original_function!(p_renderer, rasterizer_state)
 }
 
@@ -671,22 +642,42 @@ pub unsafe extern "C" fn ngrGetRasterizer(p_state: *mut *mut u8, p_key: *mut u8)
     let state = &mut *(p_state as *mut *mut RasterizerState);
     let renderer = globals::get_ngr_dx11_renderer_unchecked_mut();
     let key = &mut *(p_key as *mut RasterizerKey);
-    let renderer_mutex = (&mut **renderer.mutexes.get_unchecked_mut(1)).lock(renderer);
-    match (*renderer_mutex).try_get_rasterizer_state_mut(key) {
-        Some(n) => {
-            *state = &raw mut *n;
-            GfdRc::into_raw(GfdRc::clone_from_raw(n, globals::get_ngr_allocator_unchecked()));
-        },
-        None => {
-            let mut new = GfdRc::new_in(RasterizerState::new(key), globals::get_ngr_allocator_unchecked());
-            *state = &raw mut *new;
-            add_to_rasterizer_list((&raw const *renderer_mutex) as *const u8 as *mut u8, (&raw const **state) as *const u8 as *mut u8);
-            (*renderer_mutex).set_rasterizer_state(&mut**state);
-            GfdRc::into_raw(new); // so we don't drop this!
-        }
-    };
+    *state = GfdRc::into_raw(renderer.get_or_create_rasterizer(key)) as *mut RasterizerState;
     p_state
 }
+#[riri_hook_fn(static_offset(0x11ba3c0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrFreeListCreate(
+    p_list: *mut *const u8, 
+    element_size: usize, 
+    entries_per_block: usize,
+    alignment: usize,
+    block_count: usize,
+    a6: i32,
+    p_hint: *const u8
+) -> *mut *const u8 {
+    let new_list: GfdRc<FreeList<FreeListBlockLink<u8>>, AllocatorHook> = 
+        FreeList::new_inner(alignment, entries_per_block, block_count, a6, AllocatorHook);
+    let p_newlist = GfdRc::into_raw(new_list);
+    *p_list = p_newlist as *const u8;
+    p_list
+}
+
+/*
+#[riri_hook_fn(static_offset(0x1cbed7a0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrFreeListAllocate(p_list: *mut u8, hint: *const u8) -> *const u8 {
+    let list = p_list as *mut 
+}
+*/
+
+/*
+#[riri_hook_fn(static_offset(0x1121340))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrUpdateVertexBuffers(p_state: *mut u8, buffer_index: i32) {
+
+}
+*/
 
 // pub unsafe extern "C" fn ngrCreateRasterizerState()
 /*

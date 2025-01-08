@@ -22,9 +22,10 @@ pub struct ShaderPlatformBase {
     field50: usize,
 }
 
-pub(crate) trait ShaderPlatform {
+pub trait ShaderPlatform {
     type Shader;
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>>;
+    fn get_shader_ref(&self) -> Option<&Self::Shader>;
 }
 
 #[repr(C)]
@@ -56,6 +57,9 @@ impl ShaderPlatform for VertexShaderPlatform {
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>> {
         Some(&raw mut self.d3d_vertex)
     }
+    fn get_shader_ref(&self) -> Option<&Self::Shader> {
+        self.d3d_vertex.as_ref()
+    }
 }
 
 #[repr(C)]
@@ -84,6 +88,9 @@ impl ShaderPlatform for PixelShaderPlatform {
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>> {
         Some(&raw mut self.d3d_pixel)
     }
+    fn get_shader_ref(&self) -> Option<&Self::Shader> {
+        self.d3d_pixel.as_ref()
+    }
 }
 
 #[repr(C)]
@@ -100,6 +107,9 @@ impl ShaderPlatform for GeometryShaderPlatform {
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>> {
         Some(&raw mut self.d3d_geo)
     }
+    fn get_shader_ref(&self) -> Option<&Self::Shader> {
+        self.d3d_geo.as_ref()
+    }
 }
 
 #[repr(C)]
@@ -114,5 +124,8 @@ impl ShaderPlatform for ComputeShaderPlatform {
     type Shader = ID3D11ComputeShader;
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>> {
         Some(&raw mut self.d3d_cmp)
+    }
+    fn get_shader_ref(&self) -> Option<&Self::Shader> {
+        self.d3d_cmp.as_ref()
     }
 }
