@@ -94,13 +94,31 @@ impl BlendKey {
 }
 
 pub unsafe fn set_blend_mode_pkt(this: *mut BlendModePktSetParams) {
-    let draw_state = globals::get_ngr_draw_state_unchecked_mut();
-    let blend_type = *((&*this).data.add(8) as *mut i32) as usize;
-    let new_blend = BufferBlendMode::from_pkt_id(blend_type);
-    let buf_id = (&*this).buffer_index as usize;
-    if new_blend != draw_state.basicBuffers[buf_id].blend_key {
-        draw_state.basicBuffers[buf_id].blend_key.set_from_pkt(new_blend);
-        draw_state.basicBuffers[buf_id].flags |= BufferFlags::USING_BLEND;
-    }
+    set_blend_key_preset((&*this).buffer_index as usize, *((&*this).data.add(8) as *mut i32) as usize);
     (&mut *this).data = (&*this).data.add(16);
+}
+
+pub unsafe fn set_blend_key_preset(buf_id: usize, blend_id: usize) {
+    let draw_state = globals::get_ngr_draw_state_unchecked_mut();
+    let new_blend = BufferBlendMode::from_pkt_id(blend_id);
+    if new_blend != draw_state.basicBuffers[buf_id].blend_key {
+        draw_state.basicBuffers.get_unchecked_mut(buf_id).blend_key.set_from_pkt(new_blend);
+        draw_state.basicBuffers.get_unchecked_mut(buf_id).flags |= BufferFlags::USING_BLEND;
+    }
+}
+
+// 0x141090b90
+// see gfdDeviceRenderEffectBrushStrokeFiltering
+pub unsafe fn set_blend_key_preset2(buf_id: usize, blend_id: usize, set_blend_key: bool) {
+    let draw_state = globals::get_ngr_draw_state_unchecked_mut();
+    if set_blend_key {
+        set_blend_key_preset(buf_id, blend_id); 
+    }
+    let buf = &mut draw_state.basicBuffers.get_unchecked_mut(buf_id);
+    if buf.blend_key.enable_blending != set_blend_key {
+        buf.flags |= BufferFlags::USING_BLEND;
+        buf.blend_key.enable_blending = set_blend_key;
+    }
+    let global = globals::get_gfd_global_unchecked_mut();
+    if buf_id == 3 { *global.graphics.render_state_current.get_unchecked_mut(9) = set_blend_key as usize }
 }

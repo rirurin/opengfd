@@ -7,6 +7,11 @@ use crate::{
             blend::BufferBlendMode,
             cbuffer::{
                 BufferType, ConstantBuffer
+            },
+            platform::d3d::{
+                ResourceView,
+                ResourceView2,
+                TextureResource
             }
         },
         structures::CrcHash
@@ -28,17 +33,23 @@ use opengfd_proc::GfdRcAuto;
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
     core::Interface,
-    Win32::Graphics::Direct3D11::{
-        D3D11_FILL_MODE,
-        ID3D11BlendState,
-        ID3D11Buffer,
-        ID3D11DeviceContext,
-        ID3D11DepthStencilState,
-        ID3D11PixelShader,
-        ID3D11VertexShader,
-        ID3D11Resource,
-        ID3D11RasterizerState,
-        ID3D11SamplerState
+    Win32::Graphics::{
+        Direct3D::D3D_PRIMITIVE_TOPOLOGY,
+        Direct3D11::{
+            D3D11_FILL_MODE,
+            ID3D11BlendState,
+            ID3D11Buffer,
+            ID3D11DeviceContext,
+            ID3D11DepthStencilState,
+            ID3D11DepthStencilView,
+            ID3D11PixelShader,
+            ID3D11VertexShader,
+            ID3D11Resource,
+            ID3D11RasterizerState,
+            ID3D11RenderTargetView,
+            ID3D11SamplerState,
+            ID3D11ShaderResourceView
+        }
     }
 };
 
@@ -236,8 +247,10 @@ pub struct DrawState {
     pub field911_0x6b0: _142236508,
     #[field_offset(1936usize)]
     pub field912_0x790: _142236510,
+    #[field_offset(0x820)] pub effect_scale_adjust: bool,
     #[field_offset(2088usize)]
     pub Field828: [*mut ::std::os::raw::c_void; 2usize],
+    #[field_offset(0x888)] pub effect_scale_index: u32,
     #[field_offset(2224usize)]
     pub sampler8B0: *mut ::std::os::raw::c_void,
     #[field_offset(2248usize)]
@@ -278,19 +291,11 @@ pub struct BasicBuffers {
     #[field_offset(84usize)]
     pub vatBoundingBoxMax: f32,
     #[field_offset(0x58)] pub rasterizer_key: RasterizerKey,
-    //#[field_offset(0x5c)] pub cull_mode: i32,
     #[field_offset(0x74)] pub blend_key: BlendKey,
-    //#[field_offset(0x74)] pub alpha_blend_enable: bool,
-    //#[field_offset(0x78)] pub blend_mode: BufferBlendMode,
-    //#[field_offset(0x90)] pub color_write_enable: i32,
     #[field_offset(0x98)] pub depth_stencil_key: DepthStencilKey,
-    //#[field_offset(0x98)] pub z_enable: bool,
-    //#[field_offset(0x9c)] pub z_write_enable: i32,
-    //#[field_offset(0xa0)] pub z_func: i32,
-    #[field_offset(200usize)]
-    pub field167_0xc8: u32,
-    #[field_offset(204usize)]
-    pub field168_0xcc: u32,
+    #[field_offset(0xc8)] pub sampler_flag: u32,
+    #[field_offset(0xcc)] pub sampler_mask: u32,
+    #[field_offset(0xd0)] pub sampler_keys: [ SamplerKey; 13 ],
     #[field_offset(728usize)]
     pub deferredContexts: [*mut DeferredContextDX11; 3usize],
     #[field_offset(752usize)]
@@ -341,66 +346,187 @@ pub trait DeferredContext {
     unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32);
     unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8);
     unsafe fn rs_set_state(&mut self, rasterizer: *mut u8);
+
+    unsafe fn set_shader_sample(&mut self, ty: BufferType, id: usize, state: Option<&SamplerState>);
+    unsafe fn set_shader_resource_view(&mut self, ty: BufferType, id: usize, state: Option<&TextureResource>);
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IATopology {
+    Undefined = 0,
+    PointList,
+    LineList,
+    LineStrip,
+    TriangleList,
+    TriangleStrip,
+}
+
+impl TryFrom<u32> for IATopology {
+    type Error = ();
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value <= Self::TriangleStrip as u32 {
+            Ok(unsafe { std::mem::transmute(value) })
+        } else {
+            Err(())
+        }
+    }
 }
 
 #[derive(Debug)]
-#[ensure_layout(size = 1800usize)]
+#[ensure_layout(size = 0x708)]
 pub struct DeferredContextBase {
     #[field_offset(0)] vtable: *const std::ffi::c_void,
     #[field_offset(8)] pub device_context: ID3D11DeviceContext,
-    #[field_offset(0x90)] pub rasterizer: ID3D11RasterizerState,
+    #[field_offset(0x38)] render_target_view: Option<ID3D11RenderTargetView>,
+    #[field_offset(0x40)] field40: [*mut u8; 7],
+    #[field_offset(0x78)] depth_stencil_view: Option<ID3D11DepthStencilView>,
+    #[field_offset(0x90)] pub rasterizer: Option<ID3D11RasterizerState>,
     #[field_offset(0xa0)] pub target_vertex_shader: ID3D11VertexShader,
     #[field_offset(0xb0)] pub target_pixel_shader: ID3D11PixelShader,
-    #[field_offset(0x108)] field108: [DeferredContext108; 4]
+    #[field_offset(0xc0)] ia_topology: D3D_PRIMITIVE_TOPOLOGY,
+    #[field_offset(0x108)] resources: [DeferredContextResources; 4],
 }
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct DeferredContext108 {
-    buffer: [ID3D11Buffer; 4],
-    _unk: [u8; 0x160]
+pub struct DeferredContextResources {
+    pub buffer: [Option<ID3D11Buffer>; 14],
+    pub samplers: [Option<ID3D11SamplerState>; 17],
+    pub shader_resource_views: [Option<ID3D11ShaderResourceView>; 17]
 }
 
 impl DeferredContextBase {
-    // unsafe fn set_rasterizer_state(&mut self)
+    pub unsafe fn get_buffer(&self, ty: BufferType, buf: &ConstantBuffer) -> Option<&ID3D11Buffer> {
+        self.resources.get_unchecked(ty as usize).buffer
+            .get_unchecked(buf.get_slot()).as_ref()
+    }
+    pub unsafe fn get_buffer_ptr_raw(&self, ty: BufferType, buf: &ConstantBuffer) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11Buffer>, *mut *mut std::ffi::c_void>(
+            self.resources.get_unchecked(ty as usize).buffer.get_unchecked(buf.get_slot()))
+    }
+    fn are_buffers_equal(&self, ty: BufferType, buf: &ConstantBuffer) -> bool {
+        let pexist = unsafe { match self.get_buffer(ty, buf) {
+                Some(v) => v.as_raw(),
+                None => std::ptr::null()
+            }};
+        let pbuf = unsafe { match buf.get_buffer().as_ref() {
+                Some(v) => v.as_raw(),
+                None => std::ptr::null()
+            }};
+        pexist == pbuf
+    }
+
+    unsafe fn set_constant_buffers_inner(&self, ty: BufferType, buf: &ConstantBuffer) {
+        let ctx = &self.device_context;
+        let slice = buf.get_buffer_as_slice();
+        match ty {
+            BufferType::Vertex => ctx.VSSetConstantBuffers(buf.slot as u32, Some(slice)),
+            BufferType::Geometry => ctx.GSSetConstantBuffers(buf.slot as u32, Some(slice)),
+            BufferType::Pixel => ctx.PSSetConstantBuffers(buf.slot as u32, Some(slice)),
+            BufferType::Compute => ctx.CSSetConstantBuffers(buf.slot as u32, Some(slice)),
+        };
+    }
+
+    pub fn draw(&mut self, topology: IATopology, vtx_count: u32, vtx_start: u32) {
+        let d3d_topology = topology.into();
+        if self.ia_topology != d3d_topology {
+            unsafe { self.device_context.IASetPrimitiveTopology(d3d_topology); }
+            self.ia_topology = d3d_topology;
+        }
+        unsafe { self.device_context.Draw(vtx_count, vtx_start); }
+    }
+
+    unsafe fn set_shader_sampler_inner(&mut self, ty: BufferType, id: usize, state: Option<&SamplerState>) {
+        let ctx = &self.device_context;
+        let slice = state.map(|f| f.get_sampler_as_slice());
+        match ty {
+            BufferType::Vertex => ctx.VSSetSamplers(id as u32, slice),
+            BufferType::Geometry => ctx.GSSetSamplers(id as u32, slice),
+            BufferType::Pixel => ctx.PSSetSamplers(id as u32, slice),
+            BufferType::Compute => ctx.CSSetSamplers(id as u32, slice),
+        };
+    }
+
+    unsafe fn get_sampler_ptr_raw(&self, ty: BufferType, id: usize) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11SamplerState>, *mut *mut std::ffi::c_void>(
+            self.resources.get_unchecked(ty as usize).samplers.get_unchecked(id)
+        )
+    }
+
+    unsafe fn set_shader_resource_view_inner(&mut self, ty: BufferType, id: usize, state: Option<&TextureResource>) {
+        let ctx = &self.device_context;
+        let slice = state.map(|f| f.get_shader_resource_view_as_slice());
+        match ty {
+            BufferType::Vertex => ctx.VSSetShaderResources(id as u32, slice),
+            BufferType::Geometry => ctx.GSSetShaderResources(id as u32, slice),
+            BufferType::Pixel => ctx.PSSetShaderResources(id as u32, slice),
+            BufferType::Compute => ctx.CSSetShaderResources(id as u32, slice),
+        };
+    }
+
+    unsafe fn get_shader_resource_view_ptr(&self, ty: BufferType, id: usize) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11ShaderResourceView>, *mut *mut std::ffi::c_void>(
+            self.resources.get_unchecked(ty as usize).shader_resource_views.get_unchecked(id)
+        )
+    }
+    /*
+    unsafe fn check_set_render_targets(&mut self) -> bool {
+        let rtv_exist = match self.render_target_view {
+            Some(v) => v.as_raw(),
+            None => std::ptr::null()
+        };
+        false
+    }
+    */
+
+    unsafe fn get_render_target_view_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11RenderTargetView>, *mut *mut std::ffi::c_void>(&self.render_target_view)
+    }
+
+    unsafe fn get_depth_stencil_view_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11DepthStencilView>, *mut *mut std::ffi::c_void>(&self.depth_stencil_view)
+    }
+
+    pub unsafe fn om_set_render_targets(&mut self, rtv: Option<&ResourceView>, dsv: Option<&ResourceView2>) {
+        let p_rtv = rtv.map(|f| f.get_render_target_view_as_slice());
+        let p_dsv = match dsv {
+            Some(v) => v.get_depth_stencil_view(),
+            None => None
+        };
+        let e_rtv = self.get_render_target_view_ptr();
+        let e_dsv = self.get_depth_stencil_view_ptr();
+        let a_rtv = match rtv {
+            Some(v) => v.get_render_target_view_as_raw(),
+            None => std::ptr::null_mut()
+        };
+        // let a_rtv = (&raw const *p_rtv) as *const std::ffi::c_void as *mut std::ffi::c_void;
+        let a_dsv = match p_dsv { Some(v) => v.as_raw(), None => std::ptr::null_mut() };
+        if *e_rtv != a_rtv || *e_dsv != a_dsv {
+            *e_rtv = a_rtv;
+            *e_dsv = a_dsv;
+            self.device_context.OMSetRenderTargets(p_rtv, p_dsv);
+        }
+        for i in 0..7 {
+            if *self.field40.get_unchecked(i) == std::ptr::null_mut() { return; }
+            *self.field40.get_unchecked_mut(i) = std::ptr::null_mut();
+        }
+    }
 }
 
 impl DeferredContext for DeferredContextBase {
-    // 0x141188f80 (Metaphor: Refantazio Prologue Demo, Steam 1.01)
-    // 0x141192f80 (Metaphor: Refantazio, Steam 1.02)
-    // TODO: Fix this! Flickering!
     unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32) {
-        let ctx = &self.device_context;
-        let first = buf.get_buffer();
-        let update_flags = if !buf.has_resources() { 1 } else { 1 << (upd & 0x1f) };
+        let update_flags = buf.get_resource_flag(upd);
         if (buf.active_buffers & update_flags) != 0 { 
-            ctx.UpdateSubresource(
-                first.map(|f| f.into()), 
-                0, 
-                None, 
-                buf.get_resource(upd),
-                0, 
-                0);
+            self.device_context.UpdateSubresource(buf.get_buffer().map(|f| f.into()), 0, None, buf.get_resource(upd), 0, 0);
             buf.active_buffers &= !update_flags; 
         }
-        if !std::ptr::eq(
-            self.field108.get_unchecked(ty as usize)
-            .buffer.get_unchecked(buf.slot as usize)
-            , std::mem::transmute(buf.get_buffer())
-        ) {
-            let slice = buf.get_buffer_as_slice();
-            match ty {
-                BufferType::Vertex => ctx.VSSetConstantBuffers(buf.slot as u32, Some(slice)),
-                BufferType::Geometry => ctx.GSSetConstantBuffers(buf.slot as u32, Some(slice)),
-                BufferType::Pixel => ctx.PSSetConstantBuffers(buf.slot as u32, Some(slice)),
-                BufferType::Compute => ctx.CSSetConstantBuffers(buf.slot as u32, Some(slice)),
-            };
-            let old_buf = self.field108.get_unchecked(ty as usize);
+        if !self.are_buffers_equal(ty, buf) {
+            unsafe { self.set_constant_buffers_inner(ty, buf) };
+            let ppexist = self.get_buffer_ptr_raw(ty, buf);
             match buf.get_buffer() {
-                Some(v) => *&mut old_buf.buffer.get_unchecked(buf.slot as usize) = v,
-                None => 
-            *&mut (old_buf.buffer.get_unchecked(buf.slot as usize) as *const ID3D11Buffer) 
-            = std::ptr::null()
+                Some(v) => std::ptr::write(ppexist, v.as_raw()),
+                None => std::ptr::write(ppexist, std::ptr::null_mut())
             };
         }
     }
@@ -410,10 +536,25 @@ impl DeferredContext for DeferredContextBase {
     unsafe fn rs_set_state(&mut self, rasterizer: *mut u8) {
 
     }
-    // GetRasterizerState
-    // GetBlendState
+
+    unsafe fn set_shader_sample(&mut self, ty: BufferType, id: usize, state: Option<&SamplerState>) {
+        self.set_shader_sampler_inner(ty, id, state);
+        let ppexist = self.get_sampler_ptr_raw(ty, id);
+        match state {
+            Some(v) => std::ptr::write(ppexist, v.get_sampler_as_raw()),
+            None => std::ptr::write(ppexist, std::ptr::null_mut())
+        }
+    }
+
+    unsafe fn set_shader_resource_view(&mut self, ty: BufferType, id: usize, state: Option<&TextureResource>) {
+        self.set_shader_resource_view_inner(ty, id, state);
+        let ppexist = self.get_shader_resource_view_ptr(ty, id);
+        match state {
+            Some(v) => std::ptr::write(ppexist, v.get_shader_resource_view_as_raw()),
+            None => std::ptr::write(ppexist, std::ptr::null_mut())
+        }
+    }
     // OMSetBlendState
-    // SetShaderSampler
 }
 
 #[derive(Debug)]
@@ -776,6 +917,15 @@ impl TryFrom<u32> for DepthWriteMask {
         }
     }
 }
+impl TryFrom<bool> for DepthWriteMask {
+    type Error = ();
+    fn try_from(value: bool) -> Result<Self, Self::Error> {
+        match value {
+            true => Ok(DepthWriteMask::MaskAll),
+            false => Ok(DepthWriteMask::MaskNone)
+        }
+    }
+}
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -900,6 +1050,17 @@ pub enum TextureAddressMode {
     MirrorOnce
 }
 
+impl TryFrom<u8> for TextureAddressMode {
+    type Error = ();
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value <= Self::MirrorOnce as u8 {
+            Ok(unsafe{std::mem::transmute(value as u32)})
+        } else {
+            Err(())
+        }
+    }
+}
+
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BorderColor {
@@ -985,6 +1146,18 @@ impl SamplerState {
     }
 
     pub fn get_field10(&self) -> usize { self.field10 }
+    pub fn get_sampler(&self) -> Option<&ID3D11SamplerState> {
+        self.platform_sampler.as_ref()
+    }
+    pub unsafe fn get_sampler_as_slice(&self) -> &[Option<ID3D11SamplerState>] {
+        std::slice::from_raw_parts(&self.platform_sampler, 1)
+    }
+    pub unsafe fn get_sampler_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.platform_sampler {
+            Some(v) => v.as_raw(),
+            None => std::ptr::null_mut()
+        }
+    }
 }
 
 impl PipelineStateObject for SamplerState {
@@ -1097,6 +1270,60 @@ impl DrawState {
                 }
             },
             _ => ()
+        }
+    }
+}
+
+impl BasicBuffers {
+    pub fn set_depth_stencil_depth_enable(&mut self, new: bool) {
+        if self.depth_stencil_key.depth_enable != new {
+            self.depth_stencil_key.depth_enable = new;
+            self.flags |= BufferFlags::USING_DEPTH_STENCIL;
+        }
+    }
+    pub fn set_depth_stencil_depth_func(&mut self, new: ComparisonFunc) {
+        if self.depth_stencil_key.depth_func != new {
+            self.depth_stencil_key.depth_func = new;
+            self.flags |= BufferFlags::USING_DEPTH_STENCIL;
+        }
+    }
+    pub fn set_depth_stencil_depth_write_mask(&mut self, new: DepthWriteMask) {
+        if self.depth_stencil_key.depth_write_mask != new {
+            self.depth_stencil_key.depth_write_mask = new;
+            self.flags |= BufferFlags::USING_DEPTH_STENCIL;
+        }
+    }
+    pub fn set_depth_stencil_stencil_enable(&mut self, new: bool) {
+        if self.depth_stencil_key.stencil_enable != new {
+            self.depth_stencil_key.stencil_enable = new;
+            self.flags |= BufferFlags::USING_DEPTH_STENCIL;
+        }
+    }
+    pub fn set_sampler_mask(&mut self, index: usize) {
+        let mask = self.get_sampler_mask_for_index(index);
+        if (self.sampler_mask & mask) == 0 {
+            self.sampler_flag |= mask;
+            self.sampler_mask |= mask;
+        }
+    }
+
+    pub fn get_sampler_mask_for_index(&self, index: usize) -> u32 {
+        1 << (index & (u32::BITS-1) as usize)
+    }
+
+    pub fn set_sampler_filter(&mut self, index: usize, new: FilterMode) {
+        let sampler = unsafe { self.sampler_keys.get_unchecked_mut(index) };
+        if sampler.filter != new {
+            sampler.filter = new;
+            self.sampler_flag |= self.get_sampler_mask_for_index(index);
+        }
+    }
+    pub fn set_sampler_address2d(&mut self, index: usize, addru: TextureAddressMode, addrv: TextureAddressMode) {
+        let sampler = unsafe { self.sampler_keys.get_unchecked_mut(index) };
+        if sampler.address_u != addru || sampler.address_v != addrv {
+            sampler.address_u = addru;
+            sampler.address_v = addrv;
+            self.sampler_flag |= self.get_sampler_mask_for_index(index);
         }
     }
 }

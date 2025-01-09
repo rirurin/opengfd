@@ -27,12 +27,14 @@ use crate::{
         structures::{ 
             CriticalSection, 
             CrcHash, 
-            PointerList 
+            PointerList,
+            StringHashed
         }
     },
     globals,
-    utility::reference::{ GfdRcType, GfdRc }
+    utility::reference::{ GfdRcType, GfdRc, Reference }
 };
+use opengfd_proc::GfdRcAuto;
 use std::alloc::Layout;
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
@@ -48,15 +50,26 @@ use windows::{
                 D3D11_BLEND_DESC,
                 D3D11_CREATE_DEVICE_FLAG,
                 D3D11_DEPTH_STENCIL_DESC,
+                D3D11_DEPTH_STENCIL_VIEW_DESC,
                 D3D11_RASTERIZER_DESC,
+                D3D11_SHADER_RESOURCE_VIEW_DESC,
+                D3D11_TEXTURE1D_DESC,
+                D3D11_TEXTURE2D_DESC,
+                D3D11_TEXTURE3D_DESC,
                 D3D11CreateDeviceAndSwapChain,
                 ID3D11BlendState,
                 ID3D11Device,
                 ID3D11DeviceContext,
                 ID3D11DepthStencilState,
+                ID3D11DepthStencilView,
                 ID3D11RasterizerState,
+                ID3D11RenderTargetView,
+                ID3D11Resource,
                 ID3D11SamplerState,
+                ID3D11ShaderResourceView,
+                ID3D11Texture1D,
                 ID3D11Texture2D,
+                ID3D11Texture3D,
                 ID3D11VertexShader
             },
             Dxgi::{
@@ -151,18 +164,68 @@ where A: Allocator + Clone
     pub mutexes: [*mut CriticalSection; 4],
     field13_0xf8: ngr_1420f21d0,
     cmdBuffer: *mut ngrCmdBuffer,
-    unk0: [u8; 0x18],
+    unk0: [u8; 0x8],
+    use_srgb: u32,
+    unk2: [u8; 0xc],
     field39_0x128: ngr_1420f21d0,
     device: Option<ID3D11Device>,
     device_context: Option<ID3D11DeviceContext>,
     swapchain: Option<IDXGISwapChain>,
     factory: IDXGIFactory,
     feature_level: D3D_FEATURE_LEVEL,
-    unk1: [u8; 0xc],
+    unk1: [u8; 0x4],
+    resource_view: *mut ResourceView3,
     flags: Flags1,
     presentSyncInterval: i32,
     field59_0x170: i32,
     _allocator: A
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ResourceView3 {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    view: *mut ResourceView,
+    view2: *mut ResourceView2
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ResourceView {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    render_target_view: Option<ID3D11RenderTargetView>,
+    texture_resource: *mut TextureResource,
+    field28: u32
+}
+
+impl ResourceView {
+    pub unsafe fn get_render_target_view_as_slice(&self) -> &[Option<ID3D11RenderTargetView>] {
+        std::slice::from_raw_parts(&self.render_target_view, 1)
+    }
+    pub unsafe fn get_render_target_view_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.render_target_view { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ResourceView2 {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    depth_stencil_view: Option<ID3D11DepthStencilView>,
+    texture_resources: [ *mut TextureResource; 2 ],
+    field30: u32
+}
+
+impl ResourceView2 {
+    pub fn get_depth_stencil_view(&self) -> Option<&ID3D11DepthStencilView> {
+        self.depth_stencil_view.as_ref()
+    }
 }
 
 pub static NGR_FEATURE_LEVEL: [D3D_FEATURE_LEVEL; 6] = [
@@ -191,7 +254,7 @@ pub static DXGI_FORMAT_TABLE0: [DXGI_FORMAT; 12] = [
 
 pub static DXGI_FORMAT_TABLE1: [DXGI_FORMAT; 12] = [
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN,
-    windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM ,
+    windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R32_FLOAT,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R16_FLOAT,
@@ -202,6 +265,11 @@ pub static DXGI_FORMAT_TABLE1: [DXGI_FORMAT; 12] = [
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D24_UNORM_S8_UINT,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D16_UNORM,
     windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D32_FLOAT,
+];
+
+static EFFECT_SCALE: [f32; 8] = [
+    0.5f32, 0.5714286f32, 0.66666f32, 0.8f32,
+    1.0f32, 1.3333333f32, 2.0f32, 0.0f32
 ];
 
 impl<A> ngrDX11Renderer<A>
@@ -253,12 +321,11 @@ where A: Allocator + Clone
         out.flags0 = Flags0::Flag2;
         out.flags = Flags1::Flag0 | Flags1::Flag1 | Flags1::Flag2 | Flags1::Flag3 | Flags1::Flag4 | Flags1::Flag5;
         out._allocator = alloc;
-        let res = out.create_resource_views();
+        out.create_resource_views(0, 0);
         println!("ngr: Created DirectX11 renderer");
         out
     }
 
-    // VTABLE ENTRIES
     pub fn try_get_rasterizer_state(&self, key: &RasterizerKey) -> Option<&RasterizerState> {
         let hash = CrcHash::new(key);
         self.rasterizers.find_by_predicate(|f| f == key && f == &hash)
@@ -283,6 +350,51 @@ where A: Allocator + Clone
         let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
         self.rasterizers.add_in_rc(state_rc);
     }
+ 
+    // 0x14108a820
+    // pub fn get_scaled_height(&self) -> usize {
+    //     if 
+    // }
+    
+    // VTABLE ENTRIES
+    
+    pub fn get_window_width(&self) -> usize {
+        unsafe {
+            let vtable_offset = self.vtable.add(0x8);
+            let state_func = *std::mem::transmute::<
+                *mut std::ffi::c_void, 
+                *const fn(*mut Self) -> usize
+            >(vtable_offset);
+            (state_func)((&raw const *self) as *mut Self)
+        }
+    }
+
+    pub fn get_window_height(&self) -> usize {
+        unsafe {
+            let vtable_offset = self.vtable.add(0x10);
+            let state_func = *std::mem::transmute::<
+                *mut std::ffi::c_void, 
+                *const fn(*mut Self) -> usize
+            >(vtable_offset);
+            (state_func)((&raw const *self) as *mut Self)
+        }
+    }
+
+    pub fn get_effect_scale_width(&self) -> usize {
+        let draw_state = unsafe { globals::get_ngr_draw_state_unchecked_mut() };
+        match draw_state.effect_scale_adjust {
+            true => (self.get_window_width() as f32 * unsafe { *EFFECT_SCALE.get_unchecked(draw_state.effect_scale_index as usize)}) as usize,
+            false => self.get_window_width()
+        }
+    }
+
+    pub fn get_effect_scale_height(&self) -> usize {
+        let draw_state = unsafe { globals::get_ngr_draw_state_unchecked_mut() };
+        match draw_state.effect_scale_adjust {
+            true => (self.get_window_height() as f32 * unsafe { *EFFECT_SCALE.get_unchecked(draw_state.effect_scale_index as usize)}) as usize,
+            false => self.get_window_height()
+        }
+    }
 
     pub fn resize_buffers(&self, width: u64, height: u64, width2: u32, height2: u32) {
         unsafe {
@@ -298,10 +410,11 @@ where A: Allocator + Clone
     // impl Drop: vtable + 0x38 and vtable + 0x40
     // 
 
-    pub unsafe fn create_resource_views(&mut self) {
+    pub unsafe fn create_resource_views(&mut self, width: usize, height: usize) {
         // TODO!
-        let tex2d = self.swapchain.as_ref().unwrap().GetBuffer::<ID3D11Texture2D>(2).unwrap();
-        let rtv = self.device.as_ref().unwrap().CreateRenderTargetView(&tex2d, None, None).unwrap();
+        let tex2d = self.swapchain.as_ref().unwrap().GetBuffer::<ID3D11Texture2D>(0).unwrap();
+        let mut rtv: Option<ID3D11RenderTargetView> = None;
+        self.device.as_ref().unwrap().CreateRenderTargetView(&tex2d, None, Some(&raw mut rtv)).unwrap();
     }
 
     // vtable + 0xc0
@@ -391,4 +504,209 @@ pub struct ngr_142ed6270 {
     #[field_offset(0x10)] count1: usize,
     #[field_offset(0xa30)] hint: MemHint,
     #[field_offset(0xa48)] hwnd: HWND,
+}
+
+#[repr(C)]
+#[derive(Debug, GfdRcAuto)]
+pub struct TextureResource<A = AllocatorHook>
+where A: Allocator + Clone
+{
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    name: StringHashed<AllocatorHook>,
+    field50: u32,
+    field58: usize,
+    shader_view: Option<ID3D11ShaderResourceView>,
+    field68: usize,
+    resource: Option<ID3D11Resource>,
+    field78: usize,
+    field80: usize,
+    field88: usize,
+    desc: TextureResourceDescription,
+    _allocator: A
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TextureResourceType {
+    Texture1D = 0,
+    Texture2D,
+    Texture3D
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TextureResourceFormat {
+    Unknown = 0,
+    U8RGBA,
+    U8BGRA,
+    F32R,
+    F16R,
+    F16RG,
+    F11RGB,
+    F16RGBA,
+    F32RGBA,
+    U8R,
+    U8A,
+    S8D24,
+    U8D16,
+    F32D,
+    U8BC1,
+    U8BC2,
+    U8BC3,
+    U8BC4,
+    U8BC5,
+    U8BC7,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextureResourceDescription {
+    ty: TextureResourceType,
+    width: u32,
+    height: u32,
+    depth: u32,
+    mip_levels: u32,
+    array_size: u32,
+    format: TextureResourceFormat,
+    field1c: u32
+}
+
+impl From<D3D11_TEXTURE1D_DESC> for TextureResourceDescription {
+    fn from(value: D3D11_TEXTURE1D_DESC) -> Self {
+        Self {
+            ty: TextureResourceType::Texture1D,
+            width: value.Width,
+            height: 0,
+            depth: 0,
+            mip_levels: value.MipLevels,
+            array_size: 0,
+            format: value.Format.into(),
+            field1c: 0
+        }
+    }
+}
+
+impl From<D3D11_TEXTURE2D_DESC> for TextureResourceDescription {
+    fn from(value: D3D11_TEXTURE2D_DESC) -> Self {
+        Self {
+            ty: TextureResourceType::Texture2D,
+            width: value.Width,
+            height: value.Height,
+            depth: 0,
+            mip_levels: value.MipLevels,
+            array_size: 0,
+            format: value.Format.into(),
+            field1c: 0
+        }
+    }
+}
+
+impl From<D3D11_TEXTURE3D_DESC> for TextureResourceDescription {
+    fn from(value: D3D11_TEXTURE3D_DESC) -> Self {
+        Self {
+            ty: TextureResourceType::Texture3D,
+            width: value.Width,
+            height: value.Height,
+            depth: value.Depth,
+            mip_levels: value.MipLevels,
+            array_size: 0,
+            format: value.Format.into(),
+            field1c: 0
+        }
+    }
+}
+
+impl From<DXGI_FORMAT> for TextureResourceFormat {
+    fn from(value: DXGI_FORMAT) -> Self {
+        match value {
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM => TextureResourceFormat::U8RGBA,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM_SRGB => TextureResourceFormat::U8RGBA,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM  => TextureResourceFormat::U8BGRA,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R32_FLOAT   => TextureResourceFormat::F32R,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R16_FLOAT    => TextureResourceFormat::F16R,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R16G16_FLOAT    => TextureResourceFormat::F16RG,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R11G11B10_FLOAT    => TextureResourceFormat::F11RGB,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R16G16B16A16_FLOAT    => TextureResourceFormat::F16RGBA,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R32G32B32A32_FLOAT    => TextureResourceFormat::F32RGBA,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8_UNORM  => TextureResourceFormat::U8R,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_A8_UNORM  => TextureResourceFormat::U8A,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D24_UNORM_S8_UINT    => TextureResourceFormat::S8D24,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R24G8_TYPELESS    => TextureResourceFormat::S8D24,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D16_UNORM  => TextureResourceFormat::U8D16,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_D32_FLOAT  => TextureResourceFormat::F32D,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_BC1_UNORM  => TextureResourceFormat::U8BC1,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_BC2_UNORM  => TextureResourceFormat::U8BC2,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_BC3_UNORM  => TextureResourceFormat::U8BC3,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_BC4_UNORM  => TextureResourceFormat::U8BC4,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_BC5_UNORM  => TextureResourceFormat::U8BC5,
+            windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_BC7_UNORM  => TextureResourceFormat::U8BC7,
+            _ => TextureResourceFormat::Unknown
+        }
+    }
+}
+/*
+impl TextureResource<AllocatorHook> {
+    pub fn new() -> GfdRc<Self, AllocatorHook> {
+        Self::new_in(AllocatorHook)
+    }
+}
+*/
+impl<A> TextureResource<A>
+where A: Allocator + Clone
+{
+    /*
+    pub fn new_in(alloc: A, desc: ID3D11Resource) -> GfdRc<Self, A> {
+        GfdRc::new_in(Self {
+            _cpp_vtable: std::ptr::null(),
+            ref_: Reference::new(),
+            field10: 0,
+            name: StringHashed::new_in(alloc),
+            field50: 0,
+            field58: 0,
+            field60: 0,
+            field68: 0,
+            resource: None,
+            field78: 0,
+            field80: 0,
+            field88: 0,
+            _allocator: alloc
+        }, alloc)
+    }
+    */
+    pub fn set_desc(&mut self, resource: ID3D11Resource) {
+        self.resource = Some(resource);
+        let dimension = unsafe { self.resource.as_ref().unwrap().GetType() };
+        match dimension {
+            windows::Win32::Graphics::Direct3D11::D3D11_RESOURCE_DIMENSION_TEXTURE1D => {
+                let tex = &self.resource.as_ref().unwrap().cast::<ID3D11Texture1D>().unwrap();
+                let desc: *const *mut D3D11_TEXTURE1D_DESC = std::ptr::null();
+                unsafe { tex.GetDesc(*desc) };
+                self.desc = unsafe { (**desc).into() };
+            },
+            windows::Win32::Graphics::Direct3D11::D3D11_RESOURCE_DIMENSION_TEXTURE2D => {
+                let tex = &self.resource.as_ref().unwrap().cast::<ID3D11Texture2D>().unwrap();
+                let desc: *const *mut D3D11_TEXTURE2D_DESC = std::ptr::null();
+                unsafe { tex.GetDesc(*desc) };
+                self.desc = unsafe { (**desc).into() };
+            },
+            windows::Win32::Graphics::Direct3D11::D3D11_RESOURCE_DIMENSION_TEXTURE3D => {
+                let tex = &self.resource.as_ref().unwrap().cast::<ID3D11Texture3D>().unwrap();
+                let desc: *const *mut D3D11_TEXTURE3D_DESC = std::ptr::null();
+                unsafe { tex.GetDesc(*desc) };
+                self.desc = unsafe { (**desc).into() };
+            },
+            _ => ()
+        };
+    }
+    pub unsafe fn get_shader_resource_view_as_slice(&self) -> &[Option<ID3D11ShaderResourceView>] {
+        std::slice::from_raw_parts(&self.shader_view, 1)
+    }
+    pub unsafe fn get_shader_resource_view_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.shader_view {
+            Some(v) => v.as_raw(),
+            None => std::ptr::null_mut()
+        }
+    }
 }

@@ -13,7 +13,12 @@ use opengfd::{
         renderer::{
             blend::BlendModePkt,
             cbuffer::ConstantBuffer,
-            platform::d3d::ngrDX11Renderer,
+            platform::d3d::{ 
+                ngrDX11Renderer, 
+                TextureResource,
+                ResourceView,
+                ResourceView2
+            },
             shader::{
                 PixelShader,
                 PixelShaderPlatform,
@@ -24,11 +29,13 @@ use opengfd::{
             state::{
                 CullMode,
                 DeferredContext, 
-                DeferredContextBase, 
+                DeferredContextBase,
                 DeferredContextDX11,
+                DeferredContextResources,
                 DepthWriteMask,
                 RasterizerKey, 
-                RasterizerState
+                RasterizerState,
+                SamplerState
             }, 
         }
     },
@@ -42,6 +49,7 @@ use opengfd::{
 use windows::{
     core::Interface,
     Win32::Graphics::Direct3D11::{ 
+        ID3D11Buffer,
         ID3D11PixelShader, 
         ID3D11VertexShader,
         ID3D11Resource
@@ -680,7 +688,6 @@ pub unsafe extern "C" fn ngrUpdateVertexBuffers(p_state: *mut u8, buffer_index: 
 */
 
 // pub unsafe extern "C" fn ngrCreateRasterizerState()
-/*
 #[riri_hook_fn(static_offset(0x1192f80))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn ngrSetConstantBuffers(p_this: *mut u8, p_ty: u32, p_buf: *mut u8, upd: u32) {
@@ -689,7 +696,78 @@ pub unsafe extern "C" fn ngrSetConstantBuffers(p_this: *mut u8, p_ty: u32, p_buf
     let buf = &mut *(p_buf as *mut ConstantBuffer);
     this.set_constant_buffers(ty, buf, upd);
 }
-*/
+
+#[riri_hook_fn(static_offset(0x1193240))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrDeferredContextDraw(p_this: *mut u8, ia_topo: u32, vtx_count: u32, vtx_start: u32) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let topo = ia_topo.try_into().unwrap();
+    this.draw(topo, vtx_count, vtx_start);
+}
+
+#[riri_hook_fn(static_offset(0x109a590))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetBlendKeyPreset2(buf_id: u32, blend_id: u32, set_blend_key: bool) {
+    opengfd::device::ngr::renderer::blend::set_blend_key_preset2(buf_id as usize, blend_id as usize, set_blend_key);
+}
+
+#[riri_hook_fn(static_offset(0x109a4f0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetDepthStencilKeyLessEqual(buf_id: u32, set_depth_stencil: bool, set_depth_write_mask: bool) {
+    opengfd::device::ngr::renderer::render::set_depth_stencil_key_less_equal(
+        buf_id as usize, set_depth_stencil, set_depth_write_mask.try_into().unwrap()
+    );
+}
+
+#[riri_hook_fn(static_offset(0x109a6e0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetSamplerKeyValues(buf_id: u32, sampler_id: u32, a3: bool, a4: bool, addru: u8, addrv: u8) {
+    opengfd::device::ngr::renderer::render::set_sampler_key_values(
+        buf_id as usize, sampler_id as usize, a3, a4, addru.try_into().unwrap(), addrv.try_into().unwrap()
+    );
+}
+
+#[riri_hook_fn(static_offset(0x1094060))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrGetEffectScaleWidth() -> usize {
+    globals::get_ngr_dx11_renderer_unchecked().get_effect_scale_width()
+}
+
+#[riri_hook_fn(static_offset(0x10940d0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrGetEffectScaleHeight() -> usize {
+    globals::get_ngr_dx11_renderer_unchecked().get_effect_scale_height()
+}
+
+#[riri_hook_fn(static_offset(0x1192ae0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetShaderSampler(p_this: *mut u8, p_ty: u32, p_id: u32, p_state: *mut u8) {
+    let ty:opengfd::device::ngr::renderer::cbuffer::BufferType = p_ty.try_into().unwrap();
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let state = if p_state.is_null() { None } else { Some(&*(p_state as *mut SamplerState)) };
+    this.set_shader_sample(ty, p_id as usize, state);
+}
+
+#[riri_hook_fn(static_offset(0x1193130))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrSetShaderResources(p_this: *mut u8, p_ty: u32, p_id: u32, p_state: *mut u8) {
+    let ty:opengfd::device::ngr::renderer::cbuffer::BufferType = p_ty.try_into().unwrap();
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let state = if p_state.is_null() { None } else { Some(&*(p_state as *mut TextureResource)) };
+    this.set_shader_resource_view(ty, p_id as usize, state);
+}
+
+#[riri_hook_fn(static_offset(0x1192530))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrOMSetRenderTargets(p_this: *mut u8, p_rv: *const u8, p_rv2: *const u8) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let rv = if !p_rv.is_null() { Some(&*(p_rv as *const ResourceView)) } else { None };
+    let rv2 = if !p_rv.is_null() { Some(&*(p_rv2 as *const ResourceView2)) } else { None };
+    this.om_set_render_targets(rv, rv2);
+}
+
+// pub unsafe extern "C" fn ngrUpdateVertexBuffers
+
 /*
 #[riri_hook_fn(static_offset(0x112ad60))]
 #[allow(non_snake_case)]

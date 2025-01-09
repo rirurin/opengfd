@@ -42,9 +42,16 @@ pub struct ConstantBuffer {
 }
 
 impl ConstantBuffer {
-    pub fn has_resources(&self) -> bool { self.resource_count == 0 }
+    pub fn has_resources(&self) -> bool { self.resource_count != 0 }
+    pub fn get_resource_flag(&self, upd: u32) -> u32 {
+        if self.has_resources() {
+            1 << (upd & 0x1f)
+        } else {
+            1
+        }
+    }
     pub unsafe fn get_resource(&self, index: u32) -> *const std::ffi::c_void {
-        let real_index = if self.has_resources() { 0 } else { index } as usize;
+        let real_index = if self.has_resources() { index } else { 0 } as usize;
         unsafe { *self.resources.get_unchecked(real_index) }
     }
     pub unsafe fn get_buffer(&self) -> Option<&ID3D11Buffer> {
@@ -54,6 +61,7 @@ impl ConstantBuffer {
         std::slice::from_raw_parts(&self.buffer, 1)
     }
     pub fn get_active_buffers(&self) -> u32 { self.active_buffers }
+    pub fn get_slot(&self) -> usize { self.slot as usize }
 }
 
 #[repr(C)]

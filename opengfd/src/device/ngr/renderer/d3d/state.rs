@@ -12,6 +12,7 @@ use crate::device::ngr::renderer::state::{
     FillMode,
     FilterMode,
     FilterModeComparison,
+    IATopology,
     SamplerKey,
     StencilOperation,
     RasterizerKey,
@@ -19,22 +20,25 @@ use crate::device::ngr::renderer::state::{
 };
 use windows::Win32::{
     Foundation::BOOL,
-    Graphics::Direct3D11::{
-        D3D11_BLEND,
-        D3D11_BLEND_DESC,
-        D3D11_BLEND_OP,
-        D3D11_COMPARISON_FUNC,
-        D3D11_CULL_MODE,
-        D3D11_DEPTH_STENCIL_DESC,
-        D3D11_DEPTH_STENCILOP_DESC,
-        D3D11_DEPTH_WRITE_MASK,
-        D3D11_FILL_MODE,
-        D3D11_FILTER,
-        D3D11_RASTERIZER_DESC,
-        D3D11_SAMPLER_DESC,
-        D3D11_STENCIL_OP,
-        D3D11_RENDER_TARGET_BLEND_DESC,
-        D3D11_TEXTURE_ADDRESS_MODE
+    Graphics::{
+        Direct3D::D3D_PRIMITIVE_TOPOLOGY,
+        Direct3D11::{
+            D3D11_BLEND,
+            D3D11_BLEND_DESC,
+            D3D11_BLEND_OP,
+            D3D11_COMPARISON_FUNC,
+            D3D11_CULL_MODE,
+            D3D11_DEPTH_STENCIL_DESC,
+            D3D11_DEPTH_STENCILOP_DESC,
+            D3D11_DEPTH_WRITE_MASK,
+            D3D11_FILL_MODE,
+            D3D11_FILTER,
+            D3D11_RASTERIZER_DESC,
+            D3D11_SAMPLER_DESC,
+            D3D11_STENCIL_OP,
+            D3D11_RENDER_TARGET_BLEND_DESC,
+            D3D11_TEXTURE_ADDRESS_MODE
+        }
     }
 };
 
@@ -293,6 +297,19 @@ impl From<SamplerKey> for D3D11_SAMPLER_DESC {
             BorderColor: border_color,
             MinLOD: value.min_lod,
             MaxLOD: value.max_lod
+        }
+    }
+}
+// 0x1422a8840
+impl From<IATopology> for D3D_PRIMITIVE_TOPOLOGY {
+    fn from(value: IATopology) -> Self {
+        match value {
+            IATopology::Undefined => windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_UNDEFINED,
+            IATopology::PointList => windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_POINTLIST,
+            IATopology::LineList => windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_LINELIST,
+            IATopology::LineStrip => windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_LINESTRIP,
+            IATopology::TriangleList => windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
+            IATopology::TriangleStrip => windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP,
         }
     }
 }

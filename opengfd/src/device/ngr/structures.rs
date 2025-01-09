@@ -216,21 +216,65 @@ where A: Allocator + Clone
 }
 */
 
+/// Null terminated UTF-8 string
 #[repr(C)]
 #[derive(Debug)]
-pub struct String<A = AllocatorHook> {
+pub struct String<A = AllocatorHook> 
+where A: Allocator + Clone
+{
     _cpp_vtable: *const u8,
     text: *const u8,
     hint: MemHint,
     _allocator: A
 }
 
+impl String {
+    pub fn new() -> Self {
+        Self::new_in(AllocatorHook)
+    }
+}
+
+impl<A> String<A>
+where A: Allocator + Clone
+{
+    pub fn new_in(alloc: A) -> Self {
+        Self {
+            _cpp_vtable: std::ptr::null(),
+            text: std::ptr::null(),
+            hint: MemHint::new_value(0x1000000),
+            _allocator: alloc
+        }
+    }
+    pub fn from_c_string(text: *const std::ffi::c_char, alloc: A) -> Self {
+        Self {
+            _cpp_vtable: std::ptr::null(),
+            text: std::ptr::null(),
+            hint: MemHint::new_value(0x1000000),
+            _allocator: alloc
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug)]
-pub struct StringHashed<A = AllocatorHook> {
+pub struct StringHashed<A = AllocatorHook>
+where A: Allocator + Clone
+{
     _cpp_vtable: *const u8,
     name: String<A>,
     hash: CrcHash
+}
+
+impl<A> StringHashed<A>
+where A: Allocator + Clone
+{
+    pub fn new_in(alloc: A) -> Self {
+        Self {
+            _cpp_vtable: std::ptr::null(),
+            name: String::new_in(alloc),
+            hash: CrcHash::new_empty()
+        }
+    }
 }
 
 #[repr(C)]
@@ -254,6 +298,15 @@ pub struct CrcHash {
 }
 
 impl CrcHash {
+    pub fn new_empty() -> Self {
+        Self {
+            _cpp_vtable: match globals::get_ngr_crchash_vtable() {
+                Some(v) => &raw const *v,
+                None => std::ptr::null()
+            },
+            hash: u32::MAX
+        }
+    }
     pub fn new<T: std::hash::Hash>(val: &T) -> Self {
         let mut hasher = crc32fast::Hasher::new();
         val.hash(&mut hasher); 
