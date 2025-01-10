@@ -16,11 +16,14 @@ use crate::{
                 VertexShaderPlatform
             },
             state::{ 
+                BlendKey,
                 BlendState,
+                DepthStencilKey,
                 DepthStencilState,
                 PipelineStateObject,
                 RasterizerKey, 
                 RasterizerState,
+                SamplerKey,
                 SamplerState
             },
         },
@@ -157,10 +160,10 @@ where A: Allocator + Clone
     flags0: Flags0,
     field2_0xc: i32,
     deferred_context: *mut DeferredContextSpecial,
-    pub blends: PointerList<usize>,
-    pub depth_stencils: PointerList<usize>,
+    pub blends: PointerList<BlendState>,
+    pub depth_stencils: PointerList<DepthStencilState>,
     pub rasterizers: PointerList<RasterizerState>,
-    pub samplers: PointerList<usize>,
+    pub samplers: PointerList<SamplerState>,
     pub mutexes: [*mut CriticalSection; 4],
     field13_0xf8: ngr_1420f21d0,
     cmdBuffer: *mut ngrCmdBuffer,
@@ -225,6 +228,9 @@ pub struct ResourceView2 {
 impl ResourceView2 {
     pub fn get_depth_stencil_view(&self) -> Option<&ID3D11DepthStencilView> {
         self.depth_stencil_view.as_ref()
+    }
+    pub fn get_depth_stencil_view_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.depth_stencil_view { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
     }
 }
 
@@ -349,6 +355,75 @@ where A: Allocator + Clone
     pub fn add_to_rasterizer_list(&mut self, state: &mut RasterizerState, alloc: AllocatorHook) {
         let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
         self.rasterizers.add_in_rc(state_rc);
+    }
+
+    fn try_get_blend_state_mut(&self, key: &BlendKey) -> Option<&mut BlendState> {
+        let hash = CrcHash::new(key);
+        self.blends.find_by_predicate_mut(|f| f == key && f == &hash)
+    }
+
+    fn add_to_blend_list(&mut self, state: &mut BlendState, alloc: AllocatorHook) {
+        let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
+        self.blends.add_in_rc(state_rc);
+    }
+
+    pub fn get_or_create_blend_state(&mut self, key: &BlendKey) -> GfdRc<BlendState, AllocatorHook> {
+        let mut lock = unsafe { (&mut **self.mutexes.get_unchecked_mut(1)).lock(self) };
+        match (*lock).try_get_blend_state_mut(key) {
+            Some(n) => GfdRc::clone_from_raw(n, AllocatorHook),
+            None => {
+                let mut new = GfdRc::new_in(BlendState::new(key), AllocatorHook);
+                (*lock).add_to_blend_list(&mut *new, AllocatorHook);
+                (*lock).set_blend_state(&mut *new);
+                new
+            }
+        }
+    }
+
+    fn try_get_depth_stencil_state_mut(&self, key: &DepthStencilKey) -> Option<&mut DepthStencilState> {
+        let hash = CrcHash::new(key);
+        self.depth_stencils.find_by_predicate_mut(|f| f == key && f == &hash)
+    }
+
+    fn add_to_depth_stencil_list(&mut self, state: &mut DepthStencilState, alloc: AllocatorHook) {
+        let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
+        self.depth_stencils.add_in_rc(state_rc);
+    }
+
+    pub fn get_or_create_depth_stencil_state(&mut self, key: &DepthStencilKey) -> GfdRc<DepthStencilState, AllocatorHook> {
+        let mut lock = unsafe { (&mut **self.mutexes.get_unchecked_mut(1)).lock(self) };
+        match (*lock).try_get_depth_stencil_state_mut(key) {
+            Some(n) => GfdRc::clone_from_raw(n, AllocatorHook),
+            None => {
+                let mut new = GfdRc::new_in(DepthStencilState::new(key), AllocatorHook);
+                (*lock).add_to_depth_stencil_list(&mut *new, AllocatorHook);
+                (*lock).set_depth_stencil_state(&mut *new);
+                new
+            }
+        }
+    }
+
+    fn try_get_sampler_mut(&self, key: &SamplerKey) -> Option<&mut SamplerState> {
+        let hash = CrcHash::new(key);
+        self.samplers.find_by_predicate_mut(|f| f == key && f == &hash)
+    }
+
+    fn add_to_sampler_list(&mut self, state: &mut SamplerState, alloc: AllocatorHook) {
+        let state_rc = GfdRc::clone_from_raw(&raw const *state, alloc);
+        self.samplers.add_in_rc(state_rc);
+    }
+
+    pub fn get_or_create_sampler_state(&mut self, key: &SamplerKey) -> GfdRc<SamplerState, AllocatorHook> {
+        let mut lock = unsafe { (&mut **self.mutexes.get_unchecked_mut(1)).lock(self) };
+        match (*lock).try_get_sampler_mut(key) {
+            Some(n) => GfdRc::clone_from_raw(n, AllocatorHook),
+            None => {
+                let mut new = GfdRc::new_in(SamplerState::new(key), AllocatorHook);
+                (*lock).add_to_sampler_list(&mut *new, AllocatorHook);
+                (*lock).set_sampler_state(&mut *new);
+                new
+            }
+        }
     }
  
     // 0x14108a820

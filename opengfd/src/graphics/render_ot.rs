@@ -176,6 +176,30 @@ unsafe impl<const D: usize> RenderOtBase for RenderOtEx<D> {
     }
 }
 
+/// Original function: gfdRenderStateSetOtPreCallback
+pub(super) unsafe extern "C" fn set_state_pre_callback(_ot: *mut RenderOt, buffer: *mut u8, data: *mut u8) {
+    let draw_state = globals::get_ngr_draw_state_unchecked_mut();
+    draw_state.set_ot_state(buffer as i32, *(data as *const u32), data.add(8));
+}
+/// Original function: gfdRenderStatePushOtPreCallback
+pub(super) unsafe extern "C" fn push_state_pre_callback(_ot: *mut RenderOt, _buffer: *mut u8, stack: *mut u8) {
+    let stack = stack as u32;
+    let global = globals::get_gfd_global_unchecked_mut();
+    global.graphics.render_state_stack[stack as usize][1] = global.graphics.render_state_stack[stack as usize][0];
+    global.graphics.render_state_stack[stack as usize][0] = global.graphics.render_state_current[stack as usize];
+}
+/// Original function: gfdRenderStatePopOtPreCallback
+pub(super) unsafe extern "C" fn pop_state_pre_callback(_ot: *mut RenderOt, buffer: *mut u8, fun: *mut u8) {
+    let fun = fun as u32;
+    let buffer = buffer as i32;
+    let global = globals::get_gfd_global_unchecked_mut();
+    let popped = *global.graphics.render_state_stack.get_unchecked(fun as usize).get_unchecked(0);
+    *global.graphics.render_state_stack.get_unchecked_mut(fun as usize).get_unchecked_mut(0) = 
+        *global.graphics.render_state_stack.get_unchecked(fun as usize).get_unchecked(1);
+    let draw_state = globals::get_ngr_draw_state_unchecked_mut();
+    draw_state.set_ot_state(buffer, fun, popped as *mut u8);
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct RenderOtGroup {

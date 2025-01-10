@@ -2,6 +2,7 @@
 use bitflags::bitflags;
 use crate::{
     device::ngr::{
+        allocator::AllocatorHook,
         hint::MemHint,
         renderer::{
             blend::BufferBlendMode,
@@ -21,7 +22,7 @@ use crate::{
     object::{ mesh::Mesh, node::Node }, 
     utility::{ 
         misc::RGBAFloat,
-        reference::{ GfdRcType, Reference }
+        reference::{ GfdRcType, GfdRc, Reference }
     }
 };
 use glam::Mat4;
@@ -37,6 +38,7 @@ use windows::{
         Direct3D::D3D_PRIMITIVE_TOPOLOGY,
         Direct3D11::{
             D3D11_FILL_MODE,
+            D3D11_VIEWPORT,
             ID3D11BlendState,
             ID3D11Buffer,
             ID3D11DeviceContext,
@@ -250,6 +252,7 @@ pub struct DrawState {
     #[field_offset(0x820)] pub effect_scale_adjust: bool,
     #[field_offset(2088usize)]
     pub Field828: [*mut ::std::os::raw::c_void; 2usize],
+    #[field_offset(0x870)] pub mip_lod_bias: f32,
     #[field_offset(0x888)] pub effect_scale_index: u32,
     #[field_offset(2224usize)]
     pub sampler8B0: *mut ::std::os::raw::c_void,
@@ -265,6 +268,7 @@ bitflags! {
         const USING_RASTERIZER = 1 << 0;
         const USING_BLEND = 1 << 1;
         const USING_DEPTH_STENCIL = 1 << 2;
+        const SET_DEPTH_STENCIL_WITHOUT_REPLACING = 1 << 3;
         const USING_VSCONST_TRANSFORM = 1 << 24;
         const USING_VSCONST_VIEWPROJ = 1 << 25;
         const USING_VSCONST_COLORS = 1 << 26;
@@ -273,6 +277,28 @@ bitflags! {
         const USING_VSCONST_UV_TRANSFORM2 = 1 << 29;
         const USING_VSCONST_VAT = 1 << 30;
         const USING_REG_8_BUF_360 = 1 << 31;
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct BufferFlags2: u32 {
+        const FLAG0 = 1 << 0;
+        const FLAG1 = 1 << 1;
+        const FLAG2 = 1 << 2;
+        const FLAG3 = 1 << 3;
+        const FLAG4 = 1 << 4;
+        const FLAG5 = 1 << 5;
+        const FLAG6 = 1 << 6;
+        const FLAG7 = 1 << 7;
+        const FLAG8 = 1 << 8;
+        const FLAG9 = 1 << 9;
+        const FLAG10 = 1 << 10;
+        const FLAG11 = 1 << 11;
+        const FLAG12 = 1 << 12;
+        const FLAG13 = 1 << 13;
+        const FLAG14 = 1 << 14;
+        const FLAG15 = 1 << 15;
     }
 }
 
@@ -286,10 +312,11 @@ pub struct BasicBuffers {
     pub field10_0x18: u32,
     #[field_offset(32usize)]
     pub field12_0x20: *mut ::std::os::raw::c_void,
-    #[field_offset(72usize)]
-    pub vatBoundingBoxMin: f32,
-    #[field_offset(84usize)]
-    pub vatBoundingBoxMax: f32,
+    #[field_offset(0x3c)] pub depth_stencil_state_ref: u8,
+    // #[field_offset(0x40)] pub depth_stencil: *mut DepthStencilState,
+    #[field_offset(0x40)] pub depth_stencil: Option<GfdRc<DepthStencilState, AllocatorHook>>,
+    #[field_offset(0x48)] pub vatBoundingBoxMin: f32,
+    #[field_offset(0x54)] pub vatBoundingBoxMax: f32,
     #[field_offset(0x58)] pub rasterizer_key: RasterizerKey,
     #[field_offset(0x74)] pub blend_key: BlendKey,
     #[field_offset(0x98)] pub depth_stencil_key: DepthStencilKey,
@@ -324,12 +351,11 @@ pub struct BasicBuffers {
     pub GFD_VSCONST_VAT: *mut ConstantBuffer,
     #[field_offset(864usize)]
     pub REG_8_BUF_360: *mut ConstantBuffer,
+    #[field_offset(0x368)] pub field_368: u32,
     #[field_offset(880usize)]
     pub field711_0x370: Mat4,
-    #[field_offset(944usize)]
-    pub flags: BufferFlags,
-    #[field_offset(948usize)]
-    pub field713_0x3b4: u32,
+    #[field_offset(0x3b0)] pub flags: BufferFlags,
+    #[field_offset(0x3b4)] pub flags2: BufferFlags2,
 }
 
 #[ensure_layout(size = 56usize)]
@@ -344,8 +370,8 @@ pub struct CbufferFields {
 
 pub trait DeferredContext {
     unsafe fn set_constant_buffers(&mut self, ty: BufferType, buf: &mut ConstantBuffer, upd: u32);
-    unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8);
-    unsafe fn rs_set_state(&mut self, rasterizer: *mut u8);
+    unsafe fn set_constant_buffers_ptr(&mut self, ty: BufferType, buf: *mut ConstantBuffer, upd: u32);
+    unsafe fn rs_set_state(&mut self, rasterizer: &RasterizerState);
 
     unsafe fn set_shader_sample(&mut self, ty: BufferType, id: usize, state: Option<&SamplerState>);
     unsafe fn set_shader_resource_view(&mut self, ty: BufferType, id: usize, state: Option<&TextureResource>);
@@ -378,10 +404,14 @@ impl TryFrom<u32> for IATopology {
 pub struct DeferredContextBase {
     #[field_offset(0)] vtable: *const std::ffi::c_void,
     #[field_offset(8)] pub device_context: ID3D11DeviceContext,
+    #[field_offset(0x10)] viewport: D3D11_VIEWPORT,
     #[field_offset(0x38)] render_target_view: Option<ID3D11RenderTargetView>,
-    #[field_offset(0x40)] field40: [*mut u8; 7],
+    #[field_offset(0x40)] secondary_rtvs: [Option<ID3D11RenderTargetView>; 7],
     #[field_offset(0x78)] depth_stencil_view: Option<ID3D11DepthStencilView>,
+    #[field_offset(0x80)] om_blend_state: Option<ID3D11BlendState>,
+    #[field_offset(0x88)] om_depth_stencil: Option<ID3D11DepthStencilState>,
     #[field_offset(0x90)] pub rasterizer: Option<ID3D11RasterizerState>,
+    #[field_offset(0x98)] om_depth_stencil_ref: u8,
     #[field_offset(0xa0)] pub target_vertex_shader: ID3D11VertexShader,
     #[field_offset(0xb0)] pub target_pixel_shader: ID3D11PixelShader,
     #[field_offset(0xc0)] ia_topology: D3D_PRIMITIVE_TOPOLOGY,
@@ -470,15 +500,6 @@ impl DeferredContextBase {
             self.resources.get_unchecked(ty as usize).shader_resource_views.get_unchecked(id)
         )
     }
-    /*
-    unsafe fn check_set_render_targets(&mut self) -> bool {
-        let rtv_exist = match self.render_target_view {
-            Some(v) => v.as_raw(),
-            None => std::ptr::null()
-        };
-        false
-    }
-    */
 
     unsafe fn get_render_target_view_ptr(&self) -> *mut *mut std::ffi::c_void {
         std::mem::transmute::<&Option<ID3D11RenderTargetView>, *mut *mut std::ffi::c_void>(&self.render_target_view)
@@ -489,28 +510,85 @@ impl DeferredContextBase {
     }
 
     pub unsafe fn om_set_render_targets(&mut self, rtv: Option<&ResourceView>, dsv: Option<&ResourceView2>) {
-        let p_rtv = rtv.map(|f| f.get_render_target_view_as_slice());
-        let p_dsv = match dsv {
-            Some(v) => v.get_depth_stencil_view(),
-            None => None
-        };
         let e_rtv = self.get_render_target_view_ptr();
         let e_dsv = self.get_depth_stencil_view_ptr();
-        let a_rtv = match rtv {
-            Some(v) => v.get_render_target_view_as_raw(),
-            None => std::ptr::null_mut()
-        };
-        // let a_rtv = (&raw const *p_rtv) as *const std::ffi::c_void as *mut std::ffi::c_void;
-        let a_dsv = match p_dsv { Some(v) => v.as_raw(), None => std::ptr::null_mut() };
+        let a_rtv = match rtv { Some(v) => v.get_render_target_view_as_raw(), None => std::ptr::null_mut() };
+        let a_dsv = match dsv { Some(v) => v.get_depth_stencil_view_as_raw(), None => std::ptr::null_mut() };
+        // if !std::ptr::eq(*e_rtv, a_rtv) || !std::ptr::eq(*e_dsv, a_dsv) {
         if *e_rtv != a_rtv || *e_dsv != a_dsv {
-            *e_rtv = a_rtv;
-            *e_dsv = a_dsv;
-            self.device_context.OMSetRenderTargets(p_rtv, p_dsv);
+            std::ptr::write(e_rtv, a_rtv);
+            std::ptr::write(e_dsv, a_dsv);
+            self.device_context.OMSetRenderTargets(
+                rtv.map(|f| f.get_render_target_view_as_slice()), 
+                match dsv { Some(v) => v.get_depth_stencil_view(), None => None }
+            );
         }
         for i in 0..7 {
-            if *self.field40.get_unchecked(i) == std::ptr::null_mut() { return; }
-            *self.field40.get_unchecked_mut(i) = std::ptr::null_mut();
+            if self.secondary_rtvs.get_unchecked(i).is_none() { return; }
+            *self.secondary_rtvs.get_unchecked_mut(i) = None;
         }
+    }
+
+    unsafe fn get_om_blend_state_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11BlendState>, *mut *mut std::ffi::c_void>(&self.om_blend_state)
+    }
+
+    // 0x1411889d0
+    pub unsafe fn om_clear_blend_state(&mut self, blend: &BlendState) {
+        let pblend = self.get_om_blend_state_ptr();
+        if *pblend != blend.get_platform_state_as_raw() {
+            self.device_context.OMSetBlendState(blend.get_platform_state(), Some(&[0f32; 4]), u32::MAX);
+            std::ptr::write(pblend, blend.get_platform_state_as_raw());
+        }
+    }
+
+    unsafe fn get_om_depth_stencil_state_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11DepthStencilState>, *mut *mut std::ffi::c_void>(&self.om_depth_stencil)
+    }
+
+    // 0x141188a20
+    pub unsafe fn om_depth_stencil_state(&mut self, depth_stencil: &DepthStencilState, stencil_ref: u8) {
+        let pstate = self.get_om_depth_stencil_state_ptr();
+        if *pstate != depth_stencil.get_platform_stencil_as_raw() || self.om_depth_stencil_ref != stencil_ref {
+            self.device_context.OMSetDepthStencilState(depth_stencil.get_platform_stencil(), stencil_ref as u32);
+            std::ptr::write(pstate, depth_stencil.get_platform_stencil_as_raw());
+            self.om_depth_stencil_ref = stencil_ref;
+        }
+    }
+
+    pub unsafe fn set_viewports(&mut self, viewport: &D3D11_VIEWPORT) {
+        if self.viewport != *viewport {
+            self.device_context.RSSetViewports(Some(std::slice::from_raw_parts(viewport, 1)));
+            self.viewport = *viewport;
+        }
+    }
+
+    pub unsafe fn clear_depth_stencil_or_render_target_view(&mut self, flags: u32, colors: &[f32; 4], depth: f32, clear_stencil: bool) {
+        if flags & 1 != 0 &&  self.render_target_view.is_some() {
+            self.device_context.ClearRenderTargetView(self.render_target_view.as_ref(), colors);
+            for i in 0..7 {
+                if self.secondary_rtvs.get_unchecked(i).is_none() { return; }
+                self.device_context.ClearRenderTargetView(self.secondary_rtvs.get_unchecked_mut(i).as_ref(), colors);
+            }
+        }
+        if self.depth_stencil_view.is_some() {
+            let depth_flags = flags >> 1;
+            if depth_flags != 0 {
+                let depth_clamped = f32::clamp(depth, 0f32, 1f32); 
+                self.device_context.ClearDepthStencilView(self.depth_stencil_view.as_ref(), depth_flags, depth_clamped, clear_stencil as u8);
+            }
+        }
+    }
+
+    unsafe fn get_rasterizer_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11RasterizerState>, *mut *mut std::ffi::c_void>(&self.rasterizer)
+    }
+
+    pub unsafe fn set_vertex_shader(&mut self) {
+
+    }
+    pub unsafe fn set_pixel_shader(&mut self) {
+
     }
 }
 
@@ -530,11 +608,15 @@ impl DeferredContext for DeferredContextBase {
             };
         }
     }
-    unsafe fn set_depth_stencil_state(&mut self, a2: usize, a3: u8) {
-        
+    unsafe fn set_constant_buffers_ptr(&mut self, ty: BufferType, buf: *mut ConstantBuffer, upd: u32) {
+        self.set_constant_buffers(ty, &mut *buf, upd);
     }
-    unsafe fn rs_set_state(&mut self, rasterizer: *mut u8) {
-
+    // 0x141188a90
+    unsafe fn rs_set_state(&mut self, rasterizer: &RasterizerState) {
+        if *self.get_rasterizer_ptr() != rasterizer.get_platform_state_as_raw() {
+            self.device_context.RSSetState(rasterizer.get_platform_state());
+            std::ptr::write(self.get_rasterizer_ptr(), rasterizer.get_platform_state_as_raw());
+        }
     }
 
     unsafe fn set_shader_sample(&mut self, ty: BufferType, id: usize, state: Option<&SamplerState>) {
@@ -638,10 +720,12 @@ pub(crate) trait PipelineStateObject {
     fn set_platform_state(&mut self, plat: Option<Self::PlatformState>);
     // to pass into CreateState for D3D
     fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>>;
+    fn get_platform_state(&self) -> Option<&Self::PlatformState>;
+    fn get_platform_state_as_raw(&self) -> *mut std::ffi::c_void;
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RasterizerKey {
     pub(crate) field_mode: FillMode,
     pub cull_mode: CullMode, // pub(crate)
@@ -699,15 +783,7 @@ impl PartialEq<CrcHash> for RasterizerState {
 
 impl PartialEq<RasterizerKey> for RasterizerState {
     fn eq(&self, other: &RasterizerKey) -> bool {
-        self.key.field_mode == other.field_mode &&
-        self.key.cull_mode == other.cull_mode &&
-        self.key.is_front_counter_clockwise == other.is_front_counter_clockwise &&
-        self.key.scissor_enable == other.scissor_enable &&
-        self.key.antialiased_line_enable == other.antialiased_line_enable &&
-        self.key.depth_bias              == other.depth_bias &&
-        self.key.depth_bias_clamp        == other.depth_bias_clamp &&
-        self.key.slope_scaled_depth_bias == other.slope_scaled_depth_bias &&
-        self.key.depth_clip_enable       == other.depth_clip_enable
+        &self.key == other
     }
 }
 
@@ -751,10 +827,16 @@ impl PipelineStateObject for RasterizerState {
     fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
         Some(&raw mut self.platform_rasterizer)
     }
+    fn get_platform_state(&self) -> Option<&Self::PlatformState> { 
+        self.platform_rasterizer.as_ref() 
+    }
+    fn get_platform_state_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.platform_rasterizer { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BlendKey {
     pub enable_blending: bool, // crate
     pub(crate) source_blend: BlendType,
@@ -838,6 +920,18 @@ impl BlendState {
     pub fn get_field10(&self) -> usize { self.field10 }
 }
 
+impl PartialEq<CrcHash> for BlendState {
+    fn eq(&self, other: &CrcHash) -> bool {
+        self.hash.get_hash() == other.get_hash()
+    }
+}
+
+impl PartialEq<BlendKey> for BlendState {
+    fn eq(&self, other: &BlendKey) -> bool {
+        &self.key == other
+    }
+}
+
 impl PipelineStateObject for BlendState {
     type PlatformState = ID3D11BlendState;
     type Key = BlendKey;
@@ -849,10 +943,16 @@ impl PipelineStateObject for BlendState {
     fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
         Some(&raw mut self.platform_blend)
     }
+    fn get_platform_state(&self) -> Option<&Self::PlatformState> { 
+        self.platform_blend.as_ref() 
+    }
+    fn get_platform_state_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.platform_blend { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DepthStencilDescriptions {
     pub(crate) stencil_fall_op: StencilOperation,
     pub(crate) stencil_depth_fall_op: StencilOperation,
@@ -870,7 +970,7 @@ impl Hash for DepthStencilDescriptions {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DepthStencilKey {
     pub depth_enable: bool, // crate
     pub depth_write_mask: DepthWriteMask, // crate
@@ -991,6 +1091,22 @@ impl DepthStencilState {
     }
 
     pub fn get_field10(&self) -> usize { self.field10 }
+    pub fn get_platform_stencil(&self) -> Option<&ID3D11DepthStencilState> { self.platform_stencil.as_ref() }
+    pub fn get_platform_stencil_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.platform_stencil { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
+}
+
+impl PartialEq<CrcHash> for DepthStencilState {
+    fn eq(&self, other: &CrcHash) -> bool {
+        self.hash.get_hash() == other.get_hash()
+    }
+}
+
+impl PartialEq<DepthStencilKey> for DepthStencilState {
+    fn eq(&self, other: &DepthStencilKey) -> bool {
+        &self.key == other
+    }
 }
 
 impl PipelineStateObject for DepthStencilState {
@@ -1003,6 +1119,12 @@ impl PipelineStateObject for DepthStencilState {
     }
     fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
         Some(&raw mut self.platform_stencil)
+    }
+    fn get_platform_state(&self) -> Option<&Self::PlatformState> { 
+        self.platform_stencil.as_ref() 
+    }
+    fn get_platform_state_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.platform_stencil { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
     }
 }
 
@@ -1089,7 +1211,7 @@ impl From<BorderColor> for [f32; 4] {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SamplerKey {
     pub(crate) filter: FilterMode,
     pub(crate) address_u: TextureAddressMode,
@@ -1117,6 +1239,10 @@ impl Hash for SamplerKey {
         state.write_u8(self.comparison as u8);
         state.write_u8(self.border_color as u8);
     }
+}
+
+impl SamplerKey {
+    pub fn set_mip_lod_bias(&mut self, new: f32) { self.mip_lod_bias = new; }
 }
 
 #[repr(C)]
@@ -1160,6 +1286,18 @@ impl SamplerState {
     }
 }
 
+impl PartialEq<CrcHash> for SamplerState {
+    fn eq(&self, other: &CrcHash) -> bool {
+        self.hash.get_hash() == other.get_hash()
+    }
+}
+
+impl PartialEq<SamplerKey> for SamplerState {
+    fn eq(&self, other: &SamplerKey) -> bool {
+        &self.key == other
+    }
+}
+
 impl PipelineStateObject for SamplerState {
     type PlatformState = ID3D11SamplerState;
     type Key = SamplerKey;
@@ -1170,6 +1308,12 @@ impl PipelineStateObject for SamplerState {
     }
     fn get_platform_state_ptr(&mut self) -> Option<*mut Option<Self::PlatformState>> {
         Some(&raw mut self.platform_sampler)
+    }
+    fn get_platform_state(&self) -> Option<&Self::PlatformState> { 
+        self.platform_sampler.as_ref() 
+    }
+    fn get_platform_state_as_raw(&self) -> *mut std::ffi::c_void {
+        match &self.platform_sampler { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
     }
 }
 
@@ -1223,7 +1367,7 @@ impl TryFrom<u32> for RenderStateTable {
 }
 
 impl DrawState {
-    pub unsafe fn set_state(&mut self, buffer: usize, fun: RenderStateTable, value: *const u8) {
+    pub unsafe fn set_render_state(&mut self, buffer: usize, fun: RenderStateTable, value: *const u8) {
         match fun {        
             RenderStateTable::PS3RS_ZENABLE => {
                 if self.basicBuffers.get_unchecked(buffer).depth_stencil_key.depth_enable != value.is_null() {
@@ -1272,6 +1416,98 @@ impl DrawState {
             _ => ()
         }
     }
+
+    pub unsafe fn set_ot_state(&mut self, buffer: i32, fun: u32, value: *const u8) {
+        self.set_render_state(buffer as usize, fun.try_into().unwrap(), value);
+        *globals::get_gfd_global_unchecked_mut().graphics
+            .render_state_current.get_unchecked_mut(fun as usize) = value as usize;
+    }
+
+    // 0x141121340
+    pub unsafe fn update_vertex_buffers(&mut self, buffer_index: usize) {
+        let renderer = globals::get_ngr_dx11_renderer_unchecked_mut();
+        let frame_id = self.otFrameId as usize;
+        let buffer = self.basicBuffers.get_unchecked_mut(buffer_index);
+        if !buffer.flags.is_empty() {
+            if buffer.flags.contains(BufferFlags::USING_RASTERIZER) {
+                let rasterizer = renderer.get_or_create_rasterizer(&buffer.rasterizer_key);
+                buffer.get_deferred_context_mut(frame_id).rs_set_state(&*rasterizer)
+            }
+            if buffer.flags.contains(BufferFlags::USING_BLEND) {
+                let uVar10 = buffer.blend_key.render_mask & 0xf;
+                buffer.blend_key.render_mask = {
+                    if buffer.flags2.contains(BufferFlags2::FLAG11) { uVar10 } 
+                    else if buffer.flags2.contains(BufferFlags2::FLAG12) { uVar10 | 0xc0 }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG9) { uVar10 | 0xfff0 }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG0) { buffer.field_368 }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG1) { uVar10 | 0xffc0 }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG4) {
+                        uVar10 | if buffer.flags2.contains(BufferFlags2::FLAG5) { 0xf00c0 } else { 0xfffc0 } }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG2) { uVar10 | (!(buffer.flags2.bits() >> 1) & 0x80 | 0x40) }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG6) { uVar10 | 0x40 }
+                    else if buffer.flags2.contains(BufferFlags2::FLAG5) {
+                        let uVar13 = if buffer.blend_key.enable_blending { uVar10 } else { buffer.blend_key.render_mask & 7 };
+                        uVar13 | 0xf0
+                    }
+                    else { uVar10 }
+                };
+                let blend_state = renderer.get_or_create_blend_state(&buffer.blend_key);
+                buffer.get_deferred_context_mut(frame_id).om_clear_blend_state(&*blend_state);
+            }
+            if buffer.flags.contains(BufferFlags::USING_DEPTH_STENCIL) {
+                let depth_stencil = renderer.get_or_create_depth_stencil_state(&buffer.depth_stencil_key);
+                buffer.depth_stencil = Some(depth_stencil.clone());
+                // buffer.get_deferred_context_mut(frame_id).om_depth_stencil_state(&*depth_stencil, stencil_ref);
+            }
+            if buffer.flags.intersects(BufferFlags::USING_DEPTH_STENCIL | BufferFlags::SET_DEPTH_STENCIL_WITHOUT_REPLACING) {
+                let depth_stencil_to_set = &*buffer.depth_stencil.as_ref().unwrap().as_ptr();
+                let stencil_ref = buffer.depth_stencil_state_ref;
+                buffer.get_deferred_context_mut(frame_id).om_depth_stencil_state(depth_stencil_to_set, stencil_ref);
+            }
+            if buffer.flags.contains(BufferFlags::USING_VSCONST_TRANSFORM) {
+                let cbuffer = &mut *buffer.GFD_VSCONST_TRANSFORM;
+                buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Vertex, cbuffer, frame_id as u32);
+            }
+            if buffer.flags.contains(BufferFlags::USING_VSCONST_VIEWPROJ) {
+                let cbuffer = &mut *buffer.GFD_VSCONST_VIEWPROJ;
+                buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Vertex, cbuffer, frame_id as u32);
+            }
+            if buffer.flags.contains(BufferFlags::USING_VSCONST_COLORS) {
+                let cbuffer = &mut *buffer.GFD_VSCONST_COLORS;
+                buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Vertex, cbuffer, frame_id as u32);
+            }
+            for i in 0..3 {
+                if buffer.flags.contains(BufferFlags::from_bits(BufferFlags::USING_VSCONST_UV_TRANSFORM0.bits() << i).unwrap()) {
+                    let cbuffer = &mut **buffer.GFD_VSCONST_UVX_TRANSFORM.get_unchecked_mut(i);
+                    buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Vertex, cbuffer, frame_id as u32);
+                }
+            }
+            if buffer.flags.contains(BufferFlags::USING_VSCONST_VAT) {
+                let cbuffer = &mut *buffer.GFD_VSCONST_VIEWPROJ;
+                buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Pixel, cbuffer, frame_id as u32);
+            }
+            if buffer.flags.contains(BufferFlags::USING_REG_8_BUF_360) {
+                let cbuffer = &mut *buffer.REG_8_BUF_360;
+                buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Pixel, cbuffer, frame_id as u32);
+            }
+            buffer.flags = BufferFlags::empty();
+        }
+        let mut sampler_flag = buffer.sampler_flag;
+        while sampler_flag != 0 {
+            let slot = sampler_flag.trailing_zeros();
+            let current_flag = 1 << slot;
+            if (buffer.sampler_mask & current_flag) == 0 {
+                buffer.get_deferred_context_mut(frame_id).set_shader_sample(BufferType::Pixel, slot as usize, None);
+            } else {
+                buffer.sampler_keys.get_unchecked_mut(slot as usize).set_mip_lod_bias(self.mip_lod_bias);
+                let sampler = renderer.get_or_create_sampler_state(buffer.sampler_keys.get_unchecked(slot as usize));
+                buffer.get_deferred_context_mut(frame_id).set_shader_sample(BufferType::Pixel, slot as usize, Some(&*sampler));
+            }
+            sampler_flag ^= current_flag;
+        }
+        buffer.sampler_flag = sampler_flag;
+    }
+
 }
 
 impl BasicBuffers {
@@ -1325,5 +1561,15 @@ impl BasicBuffers {
             sampler.address_v = addrv;
             self.sampler_flag |= self.get_sampler_mask_for_index(index);
         }
+    }
+
+    pub fn get_deferred_context(&self, index: usize) -> &DeferredContextBase {
+        let ctx_dx11 = unsafe { &**self.deferredContexts.get_unchecked(index) };
+        &ctx_dx11.super_
+    }
+
+    pub fn get_deferred_context_mut(&mut self, index: usize) -> &mut DeferredContextBase {
+        let ctx_dx11 = unsafe { &mut **self.deferredContexts.get_unchecked_mut(index) };
+        &mut ctx_dx11.super_
     }
 }

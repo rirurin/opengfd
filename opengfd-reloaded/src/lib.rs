@@ -12,7 +12,7 @@ use opengfd::{
         },
         renderer::{
             blend::BlendModePkt,
-            cbuffer::ConstantBuffer,
+            cbuffer::{ BufferType, ConstantBuffer },
             platform::d3d::{ 
                 ngrDX11Renderer, 
                 TextureResource,
@@ -27,12 +27,17 @@ use opengfd::{
                 VertexShaderPlatform
             },
             state::{
+                BlendState,
+                BufferFlags,
+                BufferFlags2,
                 CullMode,
                 DeferredContext, 
                 DeferredContextBase,
                 DeferredContextDX11,
                 DeferredContextResources,
+                DepthStencilState,
                 DepthWriteMask,
+                DrawState,
                 RasterizerKey, 
                 RasterizerState,
                 SamplerState
@@ -41,7 +46,10 @@ use opengfd::{
     },
     globals,
     graphics::{
-        render::cmd_buffer::CmdBuffer, 
+        render::{
+            cmd_buffer::CmdBuffer,
+            render::Render
+        },
         render_ot::{ RenderOt, RenderOtBase, RenderOtEx }
     },
     utility::reference::{ GfdRc, GfdRcType }
@@ -49,6 +57,7 @@ use opengfd::{
 use windows::{
     core::Interface,
     Win32::Graphics::Direct3D11::{ 
+        D3D11_VIEWPORT,
         ID3D11Buffer,
         ID3D11PixelShader, 
         ID3D11VertexShader,
@@ -519,79 +528,33 @@ pub unsafe extern "C" fn gfdShaderPixelBindOtPreCallback(_ot: *mut RenderOt, id:
     }
 }
 
-// 0x14108f3a0
-#[allow(non_snake_case)]
-pub unsafe fn gfdDeviceRenderSetState(p_buffer: i32, p_fun: u32, value: *const u8) {
-    let draw = globals::get_ngr_draw_state_unchecked_mut();
-    draw.set_state(p_buffer as usize, p_fun.try_into().unwrap(), value);
-    *globals::get_gfd_global_unchecked_mut().graphics.render_state_current.get_unchecked_mut(p_fun as usize) = value as usize;
-}
-
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStateSetOtPreCallback
-(_render_ot: *mut RenderOt, buffer: *mut u8, data: *mut u8) {
-    gfdDeviceRenderSetState(buffer as i32, *(data as *const u32), data.add(8));
-}
-
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStatePushOtPreCallback(_ot: *mut RenderOt, _a2: *mut u8, stack: *mut u8) {
-    let stack = stack as u32;
-    let global = globals::get_gfd_global_unchecked_mut();
-    global.graphics.render_state_stack[stack as usize][1] = global.graphics.render_state_stack[stack as usize][0];
-    global.graphics.render_state_stack[stack as usize][0] = global.graphics.render_state_current[stack as usize];
-}
-
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStatePopOtPreCallback(_ot: *mut RenderOt, buffer: *mut u8, fun: *mut u8) {
-    let fun = fun as u32;
-    let buffer = buffer as i32;
-    let global = globals::get_gfd_global_unchecked_mut();
-    let popped = *global.graphics.render_state_stack.get_unchecked(fun as usize).get_unchecked(0);
-    *global.graphics.render_state_stack.get_unchecked_mut(fun as usize).get_unchecked_mut(0) = 
-        *global.graphics.render_state_stack.get_unchecked(fun as usize).get_unchecked(1);
-    gfdDeviceRenderSetState(buffer, fun, popped as *mut u8);
-}
-
 #[riri_hook_fn(static_offset(0x1072960))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStateSet(prio: u32, state: u32, value: *mut u8) {
-    let ot = RenderOtEx::<16>::new();
-    ot.set::<u32>(0, state).unwrap();
-    ot.set::<*mut u8>(8, value).unwrap();
-    ot.set_pre_cb(gfdRenderStateSetOtPreCallback);
-    ot.set_pre_cb_data(ot.data_raw());
-    ot.link(prio)
+pub unsafe extern "C" fn gfdRenderStateSetHook(prio: u32, state: u32, value: *mut u8) {
+    Render::set_state(prio, state, value);
 }
 
 #[riri_hook_fn(static_offset(0x1072a50))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStatePop(prio: u32, state: u32) {
-    let ot = RenderOtEx::<0>::new();
-    ot.set_pre_cb(gfdRenderStatePopOtPreCallback);
-    ot.set_pre_cb_data(state as *mut u8);
-    ot.link(prio)
+pub unsafe extern "C" fn gfdRenderStatePopHook(prio: u32, state: u32) {
+    Render::pop_state(prio, state);
 }
 
 #[riri_hook_fn(static_offset(0x10729e0))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderStatePush(prio: u32, state: u32) {
-    let ot = RenderOtEx::<0>::new();
-    ot.set_pre_cb(gfdRenderStatePushOtPreCallback);
-    ot.set_pre_cb_data(state as *mut u8);
-    ot.link(prio)
+pub unsafe extern "C" fn gfdRenderStatePushHook(prio: u32, state: u32) {
+    Render::push_state(prio, state);
 }
 
 #[riri_hook_fn(static_offset(0x1072d40))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdRenderSetBlendMode(prio: u32, blend: u32) {
-    let ot = RenderOtEx::<0>::new();
-    ot.set_data(&raw const *BlendModePkt::new(blend));
-    ot.link(prio);
+pub unsafe extern "C" fn gfdRenderSetBlendModeHook(prio: u32, blend: u32) {
+    Render::set_blend_mode(prio, blend);
 }
 
 #[riri_hook_fn(static_offset(0x1101030))]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdShaderVertexBind(prio: u32, vertex: *mut u8) {
+pub unsafe extern "C" fn gfdShaderVertexBindHook(prio: u32, vertex: *mut u8) {
     let ot = RenderOtEx::<0>::new();
     ot.set_pre_cb_data(vertex);
     ot.set_pre_cb(gfdShaderVertexBindOtPreCallback);
@@ -608,6 +571,7 @@ pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallback(_ot: *mut RenderOt, id
 pub unsafe extern "C" fn gfdShaderVertexBindOtPreCallbackHook(_ot: *mut u8, id: u32, p_data: *mut u8) {
     original_function!(_ot, id, p_data)
 }
+/* // Minor graphical issues (see callback for more info)
 #[riri_hook_fn(static_offset(0x1101600))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdShaderFragmentBind(prio: u32, fragment: *mut u8) {
@@ -616,6 +580,7 @@ pub unsafe extern "C" fn gfdShaderFragmentBind(prio: u32, fragment: *mut u8) {
     ot.set_pre_cb(gfdShaderPixelBindOtPreCallback);
     ot.link(prio);
 }
+*/
 /*
 #[riri_hook_fn(static_offset(0x11d81b0))]
 #[allow(non_snake_case)]
@@ -635,13 +600,6 @@ pub unsafe extern "C" fn ngrGetRasterizerStateInner(p_renderer: *mut u8, raster_
         Some(v) => (&raw const *v) as *mut RasterizerState as *mut u8,
         None => std::ptr::null_mut()
     }
-}
-
-#[riri_hook_fn(static_offset(0x1cb05d50))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn add_to_rasterizer_list(p_renderer: *mut u8, rasterizer_state: *mut u8) {
-    println!("renderer: 0x{:x}, state: 0x{:x}", p_renderer as usize, rasterizer_state as usize);
-    original_function!(p_renderer, rasterizer_state)
 }
 
 #[riri_hook_fn(static_offset(0x11b56d0))]
@@ -756,17 +714,59 @@ pub unsafe extern "C" fn ngrSetShaderResources(p_this: *mut u8, p_ty: u32, p_id:
     let state = if p_state.is_null() { None } else { Some(&*(p_state as *mut TextureResource)) };
     this.set_shader_resource_view(ty, p_id as usize, state);
 }
-
+/*
 #[riri_hook_fn(static_offset(0x1192530))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn ngrOMSetRenderTargets(p_this: *mut u8, p_rv: *const u8, p_rv2: *const u8) {
     let this = &mut *(p_this as *mut DeferredContextBase);
     let rv = if !p_rv.is_null() { Some(&*(p_rv as *const ResourceView)) } else { None };
     let rv2 = if !p_rv.is_null() { Some(&*(p_rv2 as *const ResourceView2)) } else { None };
+    // original_function!(p_this, p_rv, p_rv2)
     this.om_set_render_targets(rv, rv2);
 }
+*/
+#[riri_hook_fn(static_offset(0x1192340))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrDeferredContextSetViewports(p_this: *mut u8, viewports: *const f32) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let viewport = &*(viewports as *const D3D11_VIEWPORT);
+    this.set_viewports(viewport);
+}
 
-// pub unsafe extern "C" fn ngrUpdateVertexBuffers
+#[riri_hook_fn(static_offset(0x1192680))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrClearRenderTargetDepthStencil(p_this: *mut u8, flags: u32, p_colors: *const f32, depth: f32, stencil: bool) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let colors = std::mem::transmute::<*const f32, &[f32; 4]>(p_colors);
+    this.clear_depth_stencil_or_render_target_view(flags, colors, depth, stencil);
+}
+
+#[riri_hook_fn(static_offset(0x11929d0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrOMSetBlendState(p_this: *mut u8, p_state: *const u8) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let state = &*(p_state as *const BlendState);
+    this.om_clear_blend_state(state);
+}
+
+#[riri_hook_fn(static_offset(0x1192a20))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrOMSetDepthStencilState(p_this: *mut u8, p_state: *const u8, stencil_ref: u8) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let state = &*(p_state as *const DepthStencilState);
+    this.om_depth_stencil_state(state, stencil_ref);
+}
+
+#[riri_hook_fn(static_offset(0x112ad60))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrUpdateVertexBuffers(p_this: *mut u8, buffer_index: usize) {
+    let this = &mut *(p_this as *mut DrawState);
+    this.update_vertex_buffers(buffer_index);
+    // original_function!(p_this, buffer_index)
+    // let out = original_function!(p_this, buffer_index);
+    // logln!(Information, "blend: flags 0x{:x}, render_mask 0x{:x}", buffer.flags2.bits(), buffer.blend_key.render_mask);
+    // out
+}
 
 /*
 #[riri_hook_fn(static_offset(0x112ad60))]
