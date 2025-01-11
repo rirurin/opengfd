@@ -1,3 +1,5 @@
+/*
+// OLD. Check pkt.rs
 use crate::{
     device::ngr::renderer::state::{ 
         BlendKey,
@@ -122,3 +124,4 @@ pub unsafe fn set_blend_key_preset2(buf_id: usize, blend_id: usize, set_blend_ke
     let global = globals::get_gfd_global_unchecked_mut();
     if buf_id == 3 { *global.graphics.render_state_current.get_unchecked_mut(9) = set_blend_key as usize }
 }
+*/

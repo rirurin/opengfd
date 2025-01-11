@@ -33,14 +33,14 @@ pub unsafe fn set_sampler_key_values(buf_id: usize, sampler_id: usize, a3: bool,
     buffer.set_sampler_mask(sampler_id);
     let filter: FilterMode = if a3 {
         if a4 == a3 {
-            FilterMode::Anisotropic
+            FilterMode::MinMagMipLinear
         } else if !a4 {
             FilterMode::MinLinearMagMipPoint
         } else {
             FilterMode::MinPointMagMipLinear
         }
     } else if !a3 && !a4 {
-        FilterMode::CmpMinMagMipPoint
+        FilterMode::MinMagMipPoint
     } else {
         FilterMode::MinPointMagMipLinear
     };

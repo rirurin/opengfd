@@ -1,5 +1,7 @@
+use glam::{ Vec2, Vec3, Vec3A, Vec4, Mat3, Mat4 };
+
 #[repr(u32)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum BufferFieldType {
     Float = 0,
     Float2,
@@ -20,6 +22,31 @@ impl BufferFieldHint {
     pub const fn new(field0: u64, type_: BufferFieldType) -> Self {
         Self { field0, type_ }
     }
+}
+
+pub trait BufferFieldRustType {
+    fn get_type() -> BufferFieldType;
+}
+impl BufferFieldRustType for f32 {
+    fn get_type() -> BufferFieldType { BufferFieldType::Float }
+}
+impl BufferFieldRustType for Vec2 {
+    fn get_type() -> BufferFieldType { BufferFieldType::Float2 }
+}
+impl BufferFieldRustType for Vec3 {
+    fn get_type() -> BufferFieldType { BufferFieldType::Float3 }
+}
+impl BufferFieldRustType for Vec3A {
+    fn get_type() -> BufferFieldType { BufferFieldType::Float3 }
+}
+impl BufferFieldRustType for Vec4 {
+    fn get_type() -> BufferFieldType { BufferFieldType::Float4 }
+}
+impl BufferFieldRustType for Mat3 {
+    fn get_type() -> BufferFieldType { BufferFieldType::Matrix3 }
+}
+impl BufferFieldRustType for Mat4 {
+    fn get_type() -> BufferFieldType { BufferFieldType::Matrix4 }
 }
 
 // In InitializeNGRBasicBuffers (see Prologue Demo disasm)

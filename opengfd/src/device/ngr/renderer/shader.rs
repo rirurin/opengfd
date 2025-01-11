@@ -11,6 +11,7 @@ use windows::Win32::Graphics::Direct3D11::{
     ID3D11PixelShader,
     ID3D11VertexShader
 };
+use windows::core::Interface;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -26,6 +27,7 @@ pub trait ShaderPlatform {
     type Shader;
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>>;
     fn get_shader_ref(&self) -> Option<&Self::Shader>;
+    fn get_shader_as_raw(&self) -> *mut std::ffi::c_void;
 }
 
 #[repr(C)]
@@ -52,6 +54,15 @@ pub struct VertexShaderPlatform {
     d3d_input_layout: Option<ID3D11InputLayout>
 }
 
+impl VertexShaderPlatform {
+    pub fn get_input_layout(&self) -> Option<&ID3D11InputLayout> {
+        self.d3d_input_layout.as_ref()
+    }
+    pub fn get_vertex_shader_ptr(&self) -> *mut std::ffi::c_void {
+        match &self.d3d_vertex { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
+}
+
 impl ShaderPlatform for VertexShaderPlatform {
     type Shader = ID3D11VertexShader;
     fn get_shader_ptr(&mut self) -> Option<*mut Option<Self::Shader>> {
@@ -59,6 +70,9 @@ impl ShaderPlatform for VertexShaderPlatform {
     }
     fn get_shader_ref(&self) -> Option<&Self::Shader> {
         self.d3d_vertex.as_ref()
+    }
+    fn get_shader_as_raw(&self) -> *mut std::ffi::c_void { 
+        match &self.d3d_vertex { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
     }
 }
 
@@ -91,6 +105,9 @@ impl ShaderPlatform for PixelShaderPlatform {
     fn get_shader_ref(&self) -> Option<&Self::Shader> {
         self.d3d_pixel.as_ref()
     }
+    fn get_shader_as_raw(&self) -> *mut std::ffi::c_void { 
+        match &self.d3d_pixel { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
 }
 
 #[repr(C)]
@@ -110,6 +127,9 @@ impl ShaderPlatform for GeometryShaderPlatform {
     fn get_shader_ref(&self) -> Option<&Self::Shader> {
         self.d3d_geo.as_ref()
     }
+    fn get_shader_as_raw(&self) -> *mut std::ffi::c_void { 
+        match &self.d3d_geo { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
+    }
 }
 
 #[repr(C)]
@@ -127,5 +147,8 @@ impl ShaderPlatform for ComputeShaderPlatform {
     }
     fn get_shader_ref(&self) -> Option<&Self::Shader> {
         self.d3d_cmp.as_ref()
+    }
+    fn get_shader_as_raw(&self) -> *mut std::ffi::c_void { 
+        match &self.d3d_cmp { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
     }
 }

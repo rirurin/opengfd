@@ -2,25 +2,24 @@
 
 use crate::{
     device::ngr::renderer::{
-        blend::BlendModePkt,
-        shader::VertexShader
+        pkt::{ 
+            BlendModePkt,
+            ColorMaskPkt,
+            StencilFuncPkt,
+            StencilOpPkt,
+            StencilTestEnablePkt,
+            TexturePkt 
+        },
+        shader::{ PixelShader, VertexShader },
+        state::{ ComparisonFunc, StencilOperation }
     },
-    graphics::render_ot::{ self, RenderOt, RenderOtBase, RenderOtEx },
+    graphics::{
+        render_ot::{ self, RenderOt, RenderOtBase, RenderOtEx },
+        texture::Texture
+    },
     kernel::global::{ Global, GraphicsGlobal },
     globals
 };
-/*
-pub unsafe fn vertex_shader_bind_ot_pre_callback(pOt: *mut RenderOt, id: i32, userdata: Option<*mut VertexShader>) {
-    globals::get_gfd_global_unchecked()
-    let global = globals::get_gfd_global().as_mut().unwrap();    
-    if userdata.is_some() 
-        && global.graphics.shader_current_vertex != userdata.unwrap() 
-
-        {
-
-    }
-}
-*/
 
 pub struct Render;
 impl Render {
@@ -47,10 +46,71 @@ impl Render {
         ot.set_pre_cb_data(state as *mut u8);
         ot.link(prio)       
     }
+    /// Original function: gfdShaderVertexBind
+    pub unsafe fn bind_vertex_shader(prio: u32, shader: &VertexShader) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_pre_cb(render_ot::bind_vertex_shader_pre_callback);
+        ot.set_pre_cb_data(&raw const *shader as *const u8);
+        ot.link(prio);
+    }
+    /// Original function: gfdShaderFragmentBind
+    pub unsafe fn bind_pixel_shader(prio: u32, shader: &PixelShader) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_pre_cb(render_ot::bind_pixel_shader_pre_callback);
+        ot.set_pre_cb_data((&raw const *shader) as *const u8);
+        ot.link(prio);
+    }
     /// Original function: gfdRenderSetBlendMode
     pub unsafe fn set_blend_mode(prio: u32, blend: u32) {
         let ot = RenderOtEx::<0>::new();
         ot.set_data(&raw const *BlendModePkt::new(blend));
+        ot.link(prio);
+    }
+    /// Original function: gfdRenderTextureSet 
+    pub unsafe fn set_texture(prio: u32, stage: u32, tex: &Texture) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *TexturePkt::new(stage, tex));
+        ot.link(prio);
+    }
+    /// UNTESTED. Inside gfdGeometryRender
+    pub unsafe fn set_color_mask(prio: u32, color_mask: u32) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *ColorMaskPkt::new(color_mask));
+        ot.link(prio);
+    }
+    /// UNTESTED. Inside gfdGeometryRender
+    pub unsafe fn set_stencil_func(prio: u32, func: ComparisonFunc, 
+        state_ref: u8, read_mask: u8, write_mask: u8) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *StencilFuncPkt::new(
+            func, state_ref, read_mask, write_mask
+        ));
+        ot.link(prio);
+    }
+    /// UNTESTED. Inside gfdGeometryRender
+    pub unsafe fn set_stencil_op(prio: u32, fall: StencilOperation, 
+        depth_fall: StencilOperation, pass: StencilOperation) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *StencilOpPkt::new(fall, depth_fall, pass));
+        ot.link(prio);
+    }
+    /// UNTESTED. Inside gfdGeometryRender
+    pub unsafe fn set_stencil_test_enable(prio: u32, enable: bool) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *StencilTestEnablePkt::new(enable));
+        ot.link(prio);
+    }
+    /// UNTESTED. Inside gfdGeometryRender
+    pub unsafe fn set_alpha_func(prio: u32, fall: StencilOperation, 
+        depth_fall: StencilOperation, pass: StencilOperation) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *StencilOpPkt::new(fall, depth_fall, pass));
+        ot.link(prio);
+    }
+    /// UNTESTED. Inside gfdGeometryRender
+    pub unsafe fn set_alpha_test_enable(prio: u32, enable: bool) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *StencilTestEnablePkt::new(enable));
         ot.link(prio);
     }
 }

@@ -1,5 +1,11 @@
 #![allow(dead_code)]
 use crate::{
+    device::ngr::renderer::shader::{ 
+        PixelShaderPlatform,
+        PixelShader,
+        VertexShaderPlatform,
+        VertexShader
+    },
     graphics::{
         cull::CullObject,
         render::cmd_buffer::CmdBuffer,
@@ -68,4 +74,27 @@ impl GraphicsGlobal {
         &mut *(*self.ot_prepare_list.get_unchecked(id)).add(prio)
     }
     pub unsafe fn get_frame_id(&self) -> usize { self.frame_id as usize }
+
+    pub unsafe fn field44b8_clear(&mut self) {
+        self.field44b8 = std::ptr::null_mut();
+        self.field44c0 = std::ptr::null_mut();
+    }
+    pub unsafe fn get_vertex_shader_platform(&self, index: usize) -> Option<&VertexShaderPlatform> {
+        (&**self.shader_vertex.get_unchecked(index)).data.as_ref()
+    }
+    pub unsafe fn get_pixel_shader_platform(&self, index: usize) -> Option<&PixelShaderPlatform> {
+        (&**self.shader_pixel.get_unchecked(index)).data.as_ref()
+    }
+    pub unsafe fn get_current_vertex_shader(&self) -> Option<&VertexShader> {
+        self.shader_current_vertex.as_ref()
+    }
+    pub unsafe fn get_current_pixel_shader(&self) -> Option<&PixelShader> {
+        self.shader_current_fragment.as_ref()
+    }
+    pub unsafe fn get_current_vertex_shader_ptr(&mut self) -> *mut *mut VertexShader {
+        &raw mut self.shader_current_vertex
+    }
+    pub unsafe fn get_current_pixel_shader_ptr(&mut self) -> *mut *mut PixelShader {
+        &raw mut self.shader_current_fragment
+    }
 }

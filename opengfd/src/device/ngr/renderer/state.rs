@@ -5,15 +5,17 @@ use crate::{
         allocator::AllocatorHook,
         hint::MemHint,
         renderer::{
-            blend::BufferBlendMode,
             cbuffer::{
                 BufferType, ConstantBuffer
             },
             platform::d3d::{
                 ResourceView,
                 ResourceView2,
+                ResourceView3,
                 TextureResource
-            }
+            },
+            pkt::BufferBlendMode,
+            shader::{ VertexShaderPlatform, PixelShaderPlatform, ShaderPlatform }
         },
         structures::CrcHash
     },
@@ -209,14 +211,12 @@ pub struct DrawState {
     pub field859_0x5f0: *mut ::std::os::raw::c_void,
     #[field_offset(1528usize)]
     pub field860_0x5f8: *mut ::std::os::raw::c_void,
-    #[field_offset(1536usize)]
-    pub CloudMain: *mut Texture,
-    #[field_offset(1544usize)]
-    pub CloudSub: *mut Texture,
-    #[field_offset(1552usize)]
-    pub Cloud2D: *mut Texture,
-    #[field_offset(1560usize)]
-    pub REG_13_BUFFER_618: *mut ConstantBuffer,
+    #[field_offset(0x600)] pub cloud_main: *mut Texture,
+    #[field_offset(0x608)] pub cloud_sub: *mut Texture, 
+    #[field_offset(0x610)] pub cloud_2d: *mut Texture, 
+    #[field_offset(0x618)] pub cloud_buffer: *mut ConstantBuffer,
+    #[field_offset(0x620)] pub sampler_620: *mut SamplerState,
+    #[field_offset(0x628)] pub field_628: *mut ngr_142234cb0,
     #[field_offset(1592usize)]
     pub REG_11_BUF_638: *mut ConstantBuffer,
     #[field_offset(1600usize)]
@@ -412,8 +412,8 @@ pub struct DeferredContextBase {
     #[field_offset(0x88)] om_depth_stencil: Option<ID3D11DepthStencilState>,
     #[field_offset(0x90)] pub rasterizer: Option<ID3D11RasterizerState>,
     #[field_offset(0x98)] om_depth_stencil_ref: u8,
-    #[field_offset(0xa0)] pub target_vertex_shader: ID3D11VertexShader,
-    #[field_offset(0xb0)] pub target_pixel_shader: ID3D11PixelShader,
+    #[field_offset(0xa0)] pub target_vertex_shader: Option<ID3D11VertexShader>,
+    #[field_offset(0xb0)] pub target_pixel_shader: Option<ID3D11PixelShader>,
     #[field_offset(0xc0)] ia_topology: D3D_PRIMITIVE_TOPOLOGY,
     #[field_offset(0x108)] resources: [DeferredContextResources; 4],
 }
@@ -580,15 +580,34 @@ impl DeferredContextBase {
         }
     }
 
-    unsafe fn get_rasterizer_ptr(&self) -> *mut *mut std::ffi::c_void {
+    pub unsafe fn get_rasterizer_ptr(&self) -> *mut *mut std::ffi::c_void {
         std::mem::transmute::<&Option<ID3D11RasterizerState>, *mut *mut std::ffi::c_void>(&self.rasterizer)
     }
 
-    pub unsafe fn set_vertex_shader(&mut self) {
-
+    unsafe fn get_vertex_shader_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11VertexShader>, *mut *mut std::ffi::c_void>(&self.target_vertex_shader)
     }
-    pub unsafe fn set_pixel_shader(&mut self) {
 
+    unsafe fn get_pixel_shader_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11PixelShader>, *mut *mut std::ffi::c_void>(&self.target_pixel_shader)
+    }
+
+    pub unsafe fn set_vertex_shader(&mut self, shader: Option<&VertexShaderPlatform>) {
+        if let Some(shader) = shader {
+            if *self.get_vertex_shader_ptr() != shader.get_vertex_shader_ptr() {
+                self.device_context.IASetInputLayout(shader.get_input_layout());
+                self.device_context.VSSetShader(shader.get_shader_ref(), None);
+                std::ptr::write(self.get_vertex_shader_ptr(), shader.get_vertex_shader_ptr());
+            }
+        }
+    }
+    pub unsafe fn set_pixel_shader(&mut self, shader: Option<&PixelShaderPlatform>) {
+        let d3d_shader = match &shader { Some(v) => v.get_shader_ref(), None => None };
+        let d3d_shader_ptr = match &shader { Some(v) => v.get_shader_as_raw(), None => std::ptr::null_mut() };
+        if *self.get_pixel_shader_ptr() != d3d_shader_ptr {
+            self.device_context.PSSetShader(d3d_shader, None);
+            std::ptr::write(self.get_pixel_shader_ptr(), d3d_shader_ptr);
+        }
     }
 }
 
@@ -960,6 +979,14 @@ pub struct DepthStencilDescriptions {
     pub(crate) stencil_func: ComparisonFunc,
 }
 
+impl DepthStencilDescriptions {
+    pub(crate) fn set_operations(&mut self, fall: StencilOperation, depth_fall: StencilOperation, pass: StencilOperation) {
+        self.stencil_fall_op = fall;
+        self.stencil_depth_fall_op = depth_fall;
+        self.stencil_pass_op = pass;
+    }
+}
+
 impl Hash for DepthStencilDescriptions {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) { 
         state.write_u8(self.stencil_fall_op as u8);
@@ -1131,27 +1158,29 @@ impl PipelineStateObject for DepthStencilState {
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FilterMode {
-    CmpMinMagMipPoint = 0,
-    CmpMinMagPointMipLinear,
-    CmpMinPointMagLinearMipPoint,
+    MinMagMipPoint = 0,
+    MinMagPointMipLinear,
+    MinPointMagLinearMipPoint,
     MinPointMagMipLinear,
     MinLinearMagMipPoint,
+    MinLinearMagPointMipLinear,
     MinMagLinearMipPoint,
     MinMagMipLinear,
-    Anisotropic
+    Anisotropic,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FilterModeComparison {
-    CmpMinMagMipPoint = 0,
-    CmpMinMagPointMipLinear,
-    CmpMinPointMagLinearMipPoint,
+    MinMagMipPoint = 0,
+    MinMagPointMipLinear,
+    MinPointMagLinearMipPoint,
     MinPointMagMipLinear,
     MinLinearMagMipPoint,
+    MinLinearMagPointMipLinear,
     MinMagLinearMipPoint,
     MinMagMipLinear,
-    Anisotropic
+    Anisotropic,
 }
 
 impl From<FilterMode> for FilterModeComparison {
@@ -1508,6 +1537,8 @@ impl DrawState {
         buffer.sampler_flag = sampler_flag;
     }
 
+    pub fn get_ot_frame_id(&self) -> usize { self.otFrameId as usize }
+
 }
 
 impl BasicBuffers {
@@ -1535,6 +1566,38 @@ impl BasicBuffers {
             self.flags |= BufferFlags::USING_DEPTH_STENCIL;
         }
     }
+
+    pub fn set_depth_stencil_state_ref(&mut self, new: u8) {
+        if self.depth_stencil_state_ref != new {
+            self.depth_stencil_state_ref = new;
+            self.flags |= BufferFlags::SET_DEPTH_STENCIL_WITHOUT_REPLACING;
+        }
+    }
+    // see 141101910
+    pub fn set_depth_stencil_face_function(&mut self, fun: ComparisonFunc, read_mask: u8, write_mask: u8) {
+        if self.depth_stencil_key.front_face.stencil_func != fun 
+            || self.depth_stencil_key.stencil_read_mask != read_mask
+            || self.depth_stencil_key.stencil_write_mask != write_mask
+        {
+            self.depth_stencil_key.front_face.stencil_func = fun;
+            self.depth_stencil_key.back_face.stencil_func = fun;
+            self.depth_stencil_key.stencil_read_mask = read_mask;
+            self.depth_stencil_key.stencil_write_mask = write_mask;
+            self.flags |= BufferFlags::USING_DEPTH_STENCIL;
+        }
+    }
+    // see 141101870
+    pub fn set_depth_stencil_face_operation(&mut self, fall: StencilOperation, depth_fall: StencilOperation, pass: StencilOperation) {
+        if self.depth_stencil_key.front_face.stencil_fall_op != fall
+            || self.depth_stencil_key.front_face.stencil_depth_fall_op != depth_fall
+            || self.depth_stencil_key.front_face.stencil_pass_op != pass
+        {
+            self.depth_stencil_key.front_face.set_operations(fall, depth_fall, pass);
+            self.depth_stencil_key.back_face.set_operations(fall, depth_fall, pass);
+            self.flags |= BufferFlags::USING_DEPTH_STENCIL;
+        }
+    }
+
     pub fn set_sampler_mask(&mut self, index: usize) {
         let mask = self.get_sampler_mask_for_index(index);
         if (self.sampler_mask & mask) == 0 {
@@ -1563,6 +1626,13 @@ impl BasicBuffers {
         }
     }
 
+    pub fn set_blend_render_mask(&mut self, new: u32) {
+        if self.blend_key.render_mask != new {
+            self.blend_key.render_mask = new;
+            self.flags |= BufferFlags::USING_BLEND;
+        }
+    }
+
     pub fn get_deferred_context(&self, index: usize) -> &DeferredContextBase {
         let ctx_dx11 = unsafe { &**self.deferredContexts.get_unchecked(index) };
         &ctx_dx11.super_
@@ -1572,4 +1642,33 @@ impl BasicBuffers {
         let ctx_dx11 = unsafe { &mut **self.deferredContexts.get_unchecked_mut(index) };
         &mut ctx_dx11.super_
     }
+}
+
+#[repr(C)]
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub struct ngr_142234cb0 {
+    _cpp_vtable: *const u8,
+    field08: usize,
+    field10: usize,
+    texture18: *mut Texture,
+    field20: usize,
+    field28: usize,
+    color: [f32; 4],
+    field40: u16,
+    field44: u32,
+    field48: u32,
+    field50: usize,
+    field58: usize
+}
+
+#[repr(C)]
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub struct ngr_1422a7308 {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    view: *mut ResourceView3,
+    field20: [u8; 0x30]
 }

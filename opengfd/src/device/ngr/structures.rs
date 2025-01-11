@@ -18,7 +18,7 @@ use std::{
     alloc::Layout,
     fmt::Debug,
     mem::{ align_of, size_of },
-    ops::{ Deref, DerefMut },
+    ops::{ Deref, DerefMut, Index, IndexMut },
     ptr::NonNull,
     sync::atomic::AtomicI32
 };
@@ -215,6 +215,193 @@ where A: Allocator + Clone
     }
 }
 */
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Array<T, A = AllocatorHook>
+where A: Allocator + Clone
+{
+    _cpp_vtable: *const u8,
+    alloc: Option<NonNull<T>>,
+    entry_size: usize,
+    len: usize,
+    max: usize,
+    hint: MemHint,
+    _allocator: A
+}
+
+impl<T> Array<T, AllocatorHook> {
+    pub fn new(len: usize) -> Self { Self::new_in(len, AllocatorHook) }
+}
+
+static ARRAY_INITIAL_CAPACITY: usize = 4;
+
+impl<T, A> Array<T, A>
+where A: Allocator + Clone
+{
+    pub fn new_in(len: usize, allocator: A) -> Self {
+        Self::new_in_hint(1, len, allocator)
+    }
+
+    // 0x1411cc7f0
+    pub fn new_in_hint(hint: u32, len: usize, allocator: A) -> Self {
+        let alloc = match len {
+            0 => None,
+            _ => Some(allocator.allocate(unsafe { Self::get_layout(len) }).unwrap().cast())
+        };
+        Self {
+            _cpp_vtable: std::ptr::null(),
+            alloc,
+            entry_size: std::mem::size_of::<T>(),
+            len: 0,
+            max: 0,
+            hint: MemHint::new_value(hint),
+            _allocator: allocator
+        }
+    }
+
+    pub fn from_slice(hint: u32, data: &[T], allocator: A) -> Self {
+        let out = Self::new_in_hint(hint, data.len(), allocator);
+        out
+    }
+
+    unsafe fn get_layout(count: usize) -> Layout {
+        Layout::from_size_align_unchecked(std::mem::size_of::<T>() * count, std::mem::align_of::<T>())
+    }
+
+    fn resize(&mut self, max: usize) {
+        let new_alloc = Some(self._allocator.allocate(unsafe { Self::get_layout(max) }).unwrap().cast());
+        match &self.alloc {
+            Some(old) => {
+                unsafe {
+                    std::ptr::copy_nonoverlapping(old.as_ptr(), new_alloc.unwrap().as_ptr(), self.max);
+                    self._allocator.deallocate(NonNull::new_unchecked(old.as_ptr() as *mut u8), Self::get_layout(self.max));
+                }
+            },
+            None => ()
+        };
+        self.alloc = new_alloc;
+    }
+
+    pub fn add(&mut self, new: T) {
+        if self.len == self.max {
+            match self.max {
+                0 => self.resize(ARRAY_INITIAL_CAPACITY),
+                i => self.resize(i * 2)
+            }
+        }
+        unsafe { std::ptr::write(self.alloc.unwrap().add(self.len).as_ptr(), new); }
+        self.len += 1;
+    }
+
+    pub fn remove(&mut self, index: usize) -> T {
+        assert!(index < self.len, "Specified index for remove must be within bounds");
+        let target = unsafe { std::ptr::read(self.alloc.unwrap().add(index).as_ptr()) };
+        unsafe { std::ptr::copy(
+            self.alloc.unwrap().add(index).as_ptr(), 
+            self.alloc.unwrap().add(index + 1).as_ptr(),
+            self.len - index - 1
+        )};
+        self.len -= 1;
+        target
+    }
+
+    pub fn is_empty(&self) -> bool { self.len == 0 }
+    pub fn get_length(&self) -> usize { self.len }
+}
+
+impl<T, A> Array<T, A>
+where T: PartialEq,
+      A: Allocator + Clone
+{
+    pub fn find(&self, item: T) -> Option<&T> {
+        match &self.alloc {
+            Some(v) => {
+                for i in 0..self.len {
+                    let entry = unsafe { v.add(i).as_ref() };
+                    if entry == &item { return Some(entry); }
+                }
+                None
+            },
+            None => None
+        }
+    }
+
+    pub fn find_mut(&mut self, item: T) -> Option<&mut T> {
+        match &self.alloc {
+            Some(v) => {
+                for i in 0..self.len {
+                    let entry = unsafe { v.add(i).as_mut() };
+                    if entry == &item { return Some(entry); }
+                }
+                None
+            },
+            None => None
+        }
+    }
+
+    pub fn find_by_predicate<F>(&self, cb: F) -> Option<&T> 
+    where F: Fn(&T) -> bool
+    {
+        match &self.alloc {
+            Some(v) => {
+                for i in 0..self.len {
+                    let entry = unsafe { v.add(i).as_ref() };
+                    if cb(entry) { return Some(entry); }
+                }
+                None
+            },
+            None => None
+        }
+    }
+
+    pub fn find_by_predicate_mut<F>(&mut self, cb: F) -> Option<&mut T> 
+    where F: Fn(&T) -> bool
+    {
+        match &self.alloc {
+            Some(v) => {
+                for i in 0..self.len {
+                    let entry = unsafe { v.add(i).as_mut() };
+                    if cb(entry) { return Some(entry); }
+                }
+                None
+            },
+            None => None
+        }
+    }
+}
+
+impl<T, A> Drop for Array<T, A>
+where A: Allocator + Clone
+{
+    fn drop(&mut self) {
+        match self.alloc {
+            Some(v) => unsafe {
+                for i in 0..self.len { std::ptr::drop_in_place(v.add(i).as_ptr()); }
+                self._allocator.deallocate(
+                    NonNull::new_unchecked(v.as_ptr() as *mut u8), Self::get_layout(self.max));  
+            },
+            None => ()
+        }
+    }
+}
+
+impl<T, A> Index<usize> for Array<T, A>
+where A: Allocator + Clone
+{
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe { &*self.alloc.unwrap().as_ptr().add(index) }
+    }
+}
+
+impl<T, A> IndexMut<usize> for Array<T, A>
+where A: Allocator + Clone
+{
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        unsafe { &mut *self.alloc.unwrap().as_ptr().add(index) }
+    }
+}
 
 /// Null terminated UTF-8 string
 #[repr(C)]

@@ -248,14 +248,15 @@ impl From<TextureAddressMode> for D3D11_TEXTURE_ADDRESS_MODE {
 impl From<FilterMode> for D3D11_FILTER {
     fn from(value: FilterMode) -> Self {
         match value {
-            FilterMode::CmpMinMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_MIP_POINT,
-            FilterMode::CmpMinMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_POINT_MIP_LINEAR,
-            FilterMode::CmpMinPointMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT,
+            FilterMode::MinMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_MIP_POINT,
+            FilterMode::MinMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_POINT_MIP_LINEAR,
+            FilterMode::MinPointMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT,
             FilterMode::MinPointMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_POINT_MAG_MIP_LINEAR,
             FilterMode::MinLinearMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT,
+            FilterMode::MinLinearMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
             FilterMode::MinMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
             FilterMode::MinMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
-            FilterMode::Anisotropic => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_ANISOTROPIC
+            FilterMode::Anisotropic => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_ANISOTROPIC,
         }
     }
 }
@@ -264,14 +265,15 @@ impl From<FilterMode> for D3D11_FILTER {
 impl From<FilterModeComparison> for D3D11_FILTER {
     fn from(value: FilterModeComparison) -> Self {
         match value {
-            FilterModeComparison::CmpMinMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT,
-            FilterModeComparison::CmpMinMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
-            FilterModeComparison::CmpMinPointMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT,
+            FilterModeComparison::MinMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT,
+            FilterModeComparison::MinMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
+            FilterModeComparison::MinPointMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT,
             FilterModeComparison::MinPointMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR,
             FilterModeComparison::MinLinearMagMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT,
+            FilterModeComparison::MinLinearMagPointMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
             FilterModeComparison::MinMagLinearMipPoint => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             FilterModeComparison::MinMagMipLinear => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
-            FilterModeComparison::Anisotropic => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_ANISOTROPIC
+            FilterModeComparison::Anisotropic => windows::Win32::Graphics::Direct3D11::D3D11_FILTER_COMPARISON_ANISOTROPIC,
         }
     }
 }
