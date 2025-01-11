@@ -17,7 +17,10 @@ use crate::{
         }
     },
     globals,
-    graphics::cull::CullObject
+    graphics::{
+        cull::CullObject,
+        render::cmd_buffer::CmdBufferInterface
+    }
 };
 use std::mem::size_of;
 use windows::Win32::Graphics::Direct3D11::D3D11_VIEWPORT;

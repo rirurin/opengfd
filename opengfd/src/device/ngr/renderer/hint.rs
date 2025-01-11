@@ -130,9 +130,9 @@ pub static GFD_VSCONST_VAT: [BufferFieldHint; 4] = [
     BufferFieldHint::new(0, BufferFieldType::Float), // totalFrame
 ];
 
-pub static REG_8_BUF_360: [BufferFieldHint; 4] = [
-    BufferFieldHint::new(0, BufferFieldType::Float),
-    BufferFieldHint::new(0, BufferFieldType::Float),
+pub static GFD_PSCONST_ALPHATEST: [BufferFieldHint; 4] = [
+    BufferFieldHint::new(0, BufferFieldType::Float), // atest_func
+    BufferFieldHint::new(0, BufferFieldType::Float), // atest_ref
     BufferFieldHint::new(0, BufferFieldType::Float),
     BufferFieldHint::new(0, BufferFieldType::Float),
 ];

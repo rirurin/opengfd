@@ -9,11 +9,17 @@ use crate::{
             BufferFlags,
             ComparisonFunc,
             FilterMode,
-            StencilOperation
+            IATopology,
+            StencilOperation,
+            VertexBuffer
         }
     },
     globals,
-    graphics::texture::Texture
+    graphics::{
+        draw2d::ImmediateRenderType,
+        render::cmd_buffer::CmdBufferInterface,
+        texture::Texture
+    }
     // graphics::render::cmd_buffer::CmdBuffer
 };
 
@@ -186,6 +192,115 @@ pub unsafe fn set_blend_key_preset2(buf_id: usize, blend_id: usize, set_blend_ke
     }
     let global = globals::get_gfd_global_unchecked_mut();
     if buf_id == 3 { *global.graphics.render_state_current.get_unchecked_mut(9) = set_blend_key as usize }
+}
+
+// ImmediateRenderPkt
+#[repr(C)]
+#[derive(Debug)]
+pub struct ImmediateRenderPkt {
+    set_buffers: ImmediateRenderSetBuffers,
+    draw: ImmediateRenderDraw
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ImmediateRenderSetBuffers {
+    cb: unsafe fn(&mut PktData<Self>) -> (),
+    slot: u32,
+    buffer: *const VertexBuffer,
+    count: u32,
+    stride: u32,
+    offset: u32,
+    buffer_index: u32
+}
+
+impl PktFunction for ImmediateRenderSetBuffers {
+    fn as_raw(&self) -> *const Self { &raw const *self }
+}
+
+impl ImmediateRenderSetBuffers {
+    fn set_vertex_buffers(&self, buffer_index: usize) {
+        let state = unsafe { globals::get_ngr_draw_state_unchecked_mut() };
+        let frame_id = state.get_ot_frame_id();
+        unsafe {
+            let buf = if self.buffer.is_null() { None } else { Some(&*self.buffer) };
+            state.basicBuffers.get_unchecked_mut(buffer_index)
+                .get_deferred_context_mut(frame_id).set_vertex_buffers(
+                self.slot, buf, self.count as usize, self.stride, self.offset, self.buffer_index as usize
+            );
+        }
+    }
+}
+
+impl PktData<ImmediateRenderSetBuffers> {
+    fn set_buffers(&mut self) {
+        unsafe {
+            self.get_data().set_vertex_buffers(self.buffer_index as usize);
+            self.move_to_end();
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ImmediateRenderDraw {
+    cb: unsafe fn(&mut PktData<Self>) -> (),
+    ty: ImmediateRenderType,
+    count: u32,
+    start: u32
+}
+
+impl PktFunction for ImmediateRenderDraw {
+    fn as_raw(&self) -> *const Self { &raw const *self }
+}
+
+impl ImmediateRenderDraw {
+    fn draw(&self, buffer_index: usize) {
+        let state = unsafe { globals::get_ngr_draw_state_unchecked_mut() };
+        unsafe { state.update_vertex_buffers(buffer_index); }
+        let frame_id = state.get_ot_frame_id();
+        let ctx = unsafe { state.basicBuffers.get_unchecked_mut(buffer_index)
+                .get_deferred_context_mut(frame_id) };
+        if self.ty == ImmediateRenderType::Indexed { // draw indexed
+            let buffer = unsafe { globals::get_ngr_draw_state_unchecked_mut().get_index_buffer() };
+            unsafe { ctx.set_index_buffer(buffer, 0, 0); }
+            ctx.draw_indexed(IATopology::TriangleList, (self.count - 2) * 3, 0, self.start as i32);
+        } else { ctx.draw(self.ty.into(), self.count, self.start); }
+    }
+}
+
+impl PktData<ImmediateRenderDraw> {
+    fn draw(&mut self) {
+        unsafe {
+            self.get_data().draw(self.buffer_index as usize);
+            self.move_to_end();
+        }
+    }
+}
+
+impl ImmediateRenderPkt {
+    pub fn new(ty: ImmediateRenderType, count: u32, verts: *mut u8, stride: u32, _fvf: u32) -> &'static mut Self {
+        let new: &mut Self = PktData::allocate_for_pkt();
+        let frame_id = unsafe { globals::get_gfd_global_unchecked().graphics.get_frame_id() };
+        let renderer = unsafe { globals::get_ngr_dx11_renderer_unchecked() };
+        let buf = unsafe { renderer.get_command_buffer_unchecked() };
+        new.set_buffers.cb = PktData::<ImmediateRenderSetBuffers>::set_buffers;
+        new.set_buffers.slot = 0;
+        new.set_buffers.count = count;
+        new.set_buffers.buffer_index = frame_id as u32;
+        new.set_buffers.stride = stride;
+        new.set_buffers.offset = unsafe { verts.sub(buf.bufStart as usize) as u32 };
+        new.set_buffers.buffer = buf.buffers as *const VertexBuffer;
+        new.draw.cb = PktData::<ImmediateRenderDraw>::draw;
+        new.draw.count = count;
+        new.draw.ty = ty;
+        new.draw.start = 0;
+        new
+    }
+}
+
+impl PktFunction for ImmediateRenderPkt {
+    fn as_raw(&self) -> *const Self { &raw const *self }
 }
 
 // SetColorMaskPkt
@@ -406,6 +521,66 @@ impl PktData<TexturePkt> {
     fn set_texture_pkt(&mut self) {
         unsafe {
             self.get_data().set_texture(self.buffer_index as usize);
+            self.move_to_end();
+        }
+    }
+}
+
+// AlphaFuncPkt
+#[repr(C)]
+#[derive(Debug)]
+pub struct AlphaFuncPkt {
+    cb: unsafe fn(&mut PktData<Self>) -> (),
+    alpha_test_func: u16,
+    alpha_test_ref: u32,
+}
+
+impl PktFunction for AlphaFuncPkt {
+    fn as_raw(&self) -> *const Self { &raw const *self }
+}
+
+impl AlphaFuncPkt {
+    pub fn new(alpha_func: u16, alpha_ref: u32) -> &'static mut Self {
+        let new: &mut Self = PktData::allocate_for_pkt();
+        new.cb = PktData::<AlphaFuncPkt>::set_alpha;
+        new.alpha_test_ref = alpha_ref;
+        new.alpha_test_func = alpha_func;
+        new
+    }
+    // 0x1411019c0
+    pub fn set_alpha(&self, buffer_index: usize) {
+        let draw_state = unsafe { globals::get_ngr_draw_state_unchecked_mut() };
+        let frame_id = draw_state.get_ot_frame_id();
+        let buffer = unsafe { draw_state.basicBuffers.get_unchecked_mut(buffer_index) };
+        if buffer.alpha_test_ref != self.alpha_test_ref 
+        || buffer.alpha_test_func != self.alpha_test_func {
+            let aref = match self.alpha_test_func {
+                1 => ((self.alpha_test_ref as f32) - 1f32) * 0.003921569,
+                4 => ((self.alpha_test_ref as f32) + 1f32) * 0.003921569,
+                _ => (self.alpha_test_ref as f32) * 0.003921569
+            };
+            let alpha_fn = match self.alpha_test_func {
+                1 => 1f32, 2 => 2f32, 3 => 1f32,
+                4 => 3f32, 5 => 4f32, 6 => 3f32,
+                _ => 0f32
+            };
+            let buf = buffer.get_alpha_test_constant_buffer();
+            unsafe {
+                buf.set_field_unchecked(frame_id, 0, alpha_fn);
+                buf.set_field_unchecked(frame_id, 1, aref);
+            }
+            buffer.alpha_test_ref = self.alpha_test_ref;
+            buffer.alpha_test_func = self.alpha_test_func;
+            buffer.flags |= BufferFlags::USING_ALPHA_TEST;
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl PktData<AlphaFuncPkt> {
+    fn set_alpha(&mut self) {
+        unsafe {
+            self.get_data().set_alpha(self.buffer_index as usize);
             self.move_to_end();
         }
     }

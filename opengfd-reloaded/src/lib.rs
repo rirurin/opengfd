@@ -13,7 +13,8 @@ use opengfd::{
         renderer::{
             cbuffer::{ BufferType, ConstantBuffer },
             platform::d3d::{ 
-                ngrDX11Renderer, 
+                ngrDX11Renderer,
+                PlatformCmdBuffer,
                 TextureResource,
                 ResourceView,
                 ResourceView2
@@ -38,14 +39,17 @@ use opengfd::{
                 DepthStencilState,
                 DepthWriteMask,
                 DrawState,
+                IndexBuffer,
                 RasterizerKey, 
                 RasterizerState,
-                SamplerState
+                SamplerState,
+                VertexBuffer
             }, 
         }
     },
     globals,
     graphics::{
+        draw2d::{ Draw, Im2DVertexG4 },
         render::{
             cmd_buffer::CmdBuffer,
             render::Render
@@ -53,7 +57,10 @@ use opengfd::{
         render_ot::{ RenderOt, RenderOtBase, RenderOtEx },
         texture::Texture
     },
-    utility::reference::{ GfdRc, GfdRcType }
+    utility::{
+        misc::RGBA,
+        reference::{ GfdRc, GfdRcType }
+    }
 };
 use windows::{
     core::Interface,
@@ -578,6 +585,36 @@ pub unsafe extern "C" fn ngrOMSetDepthStencilState(p_this: *mut u8, p_state: *co
     let state = &*(p_state as *const DepthStencilState);
     this.om_depth_stencil_state(state, stencil_ref);
 }
+
+#[riri_hook_fn(static_offset(0x1192bf0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrDeferredContextSetVertexBuffers(
+    p_this: *mut u8, start_slot: u32, p_buffer: *mut u8,
+    a4: usize, stride: u32, offset: u32, buffer_index: u32) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let buffer = if p_buffer.is_null() { None } else { Some(&*(p_buffer as *const VertexBuffer)) };
+    this.set_vertex_buffers(start_slot, buffer, a4, stride, offset, buffer_index as usize);
+}
+#[riri_hook_fn(static_offset(0x1192cb0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn ngrDeferredContextSetIndexBuffer(
+    p_this: *mut u8, p_buffer: *mut u8, offset: u32, buffer_index: u32) {
+    let this = &mut *(p_this as *mut DeferredContextBase);
+    let buffer = if p_buffer.is_null() { None } else { Some(&*(p_buffer as *const IndexBuffer)) };
+    this.set_index_buffer(buffer, offset, buffer_index as usize);
+}
+
+#[riri_hook_fn(dynamic_offset(
+    signature = "48 8B C4 53 48 83 EC 70 80 3D ?? ?? ?? ?? 00",
+    calling_convention = "microsoft"
+))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdPostRender(a1: u32, a2: u32) {
+    // line draw test
+    opengfd::debug::perf_meter::draw_test();
+    original_function!(a1, a2)
+}
+
 /*
 #[riri_hook_fn(static_offset(0x112ad60))]
 #[allow(non_snake_case)]

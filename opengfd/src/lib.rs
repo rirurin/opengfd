@@ -21,7 +21,7 @@ pub mod anim {
     pub mod timeline;
 }
 pub mod debug {
-
+    pub mod perf_meter;
 }
 pub mod device {
     #[cfg(feature = "adapter-hedge")]
@@ -50,7 +50,9 @@ pub mod device {
             pub mod hint;
             pub mod ps;
             pub mod render;
+            pub mod pkt;
             pub mod shader;
+            pub mod set_texture;
             pub mod state;
             pub mod vs;
         } 

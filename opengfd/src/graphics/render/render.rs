@@ -2,9 +2,11 @@
 
 use crate::{
     device::ngr::renderer::{
-        pkt::{ 
+        pkt::{
+            AlphaFuncPkt,
             BlendModePkt,
             ColorMaskPkt,
+            ImmediateRenderPkt,
             StencilFuncPkt,
             StencilOpPkt,
             StencilTestEnablePkt,
@@ -14,6 +16,7 @@ use crate::{
         state::{ ComparisonFunc, StencilOperation }
     },
     graphics::{
+        draw2d::ImmediateRenderType,
         render_ot::{ self, RenderOt, RenderOtBase, RenderOtEx },
         texture::Texture
     },
@@ -100,17 +103,27 @@ impl Render {
         ot.set_data(&raw const *StencilTestEnablePkt::new(enable));
         ot.link(prio);
     }
-    /// UNTESTED. Inside gfdGeometryRender
+    /// UNTESTED. Inside gfdGeometryRender TODO
     pub unsafe fn set_alpha_func(prio: u32, fall: StencilOperation, 
         depth_fall: StencilOperation, pass: StencilOperation) {
         let ot = RenderOtEx::<0>::new();
         ot.set_data(&raw const *StencilOpPkt::new(fall, depth_fall, pass));
         ot.link(prio);
     }
-    /// UNTESTED. Inside gfdGeometryRender
-    pub unsafe fn set_alpha_test_enable(prio: u32, enable: bool) {
+    /// UNTESTED. Inside gfdGeometryRender TODO
+    pub unsafe fn set_alpha_test_enable(prio: u32, 
+        alpha_func: u16, alpha_ref: u32) {
         let ot = RenderOtEx::<0>::new();
-        ot.set_data(&raw const *StencilTestEnablePkt::new(enable));
+        ot.set_data(&raw const *AlphaFuncPkt::new(alpha_func, alpha_ref));
+        ot.link(prio);
+    }
+    /// Original function: gfdDevCmdMakeImmediateRenderPrimitivePkt
+    pub unsafe fn make_immediate_render(prio: u32, ty: ImmediateRenderType,
+        count: u32, verts: *mut u8, stride: u32, fvf: u32) {
+        let ot = RenderOtEx::<0>::new();
+        ot.set_data(&raw const *ImmediateRenderPkt::new(
+            ty, count, verts, stride, fvf
+        ));
         ot.link(prio);
     }
 }

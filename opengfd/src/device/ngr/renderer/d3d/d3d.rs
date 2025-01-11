@@ -18,6 +18,7 @@ use crate::{
             state::{ 
                 BlendKey,
                 BlendState,
+                BufferObject,
                 DepthStencilKey,
                 DepthStencilState,
                 PipelineStateObject,
@@ -34,11 +35,15 @@ use crate::{
             StringHashed
         }
     },
+    graphics::render::cmd_buffer::CmdBufferInterface,
     globals,
     utility::reference::{ GfdRcType, GfdRc, Reference }
 };
 use opengfd_proc::GfdRcAuto;
-use std::alloc::Layout;
+use std::{
+    alloc::Layout,
+    sync::atomic::Ordering
+};
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
     core::Interface,
@@ -61,6 +66,7 @@ use windows::{
                 D3D11_TEXTURE3D_DESC,
                 D3D11CreateDeviceAndSwapChain,
                 ID3D11BlendState,
+                ID3D11Buffer,
                 ID3D11Device,
                 ID3D11DeviceContext,
                 ID3D11DepthStencilState,
@@ -166,7 +172,7 @@ where A: Allocator + Clone
     pub samplers: PointerList<SamplerState>,
     pub mutexes: [*mut CriticalSection; 4],
     field13_0xf8: ngr_1420f21d0,
-    cmdBuffer: *mut ngrCmdBuffer,
+    cmdBuffer: *mut PlatformCmdBuffer,
     unk0: [u8; 0x8],
     use_srgb: u32,
     unk2: [u8; 0xc],
@@ -425,11 +431,11 @@ where A: Allocator + Clone
             }
         }
     }
- 
-    // 0x14108a820
-    // pub fn get_scaled_height(&self) -> usize {
-    //     if 
-    // }
+
+    pub fn get_command_buffer(&self) -> Option<&PlatformCmdBuffer> { unsafe { self.cmdBuffer.as_ref() } }
+    pub unsafe fn get_command_buffer_unchecked(&self) -> &PlatformCmdBuffer { &*self.cmdBuffer }
+    pub fn get_command_buffer_mut(&mut self) -> Option<&mut PlatformCmdBuffer> { unsafe { self.cmdBuffer.as_mut() } }
+    pub unsafe fn get_command_buffer_unchecked_mut(&mut self) -> &mut PlatformCmdBuffer { &mut *self.cmdBuffer }
     
     // VTABLE ENTRIES
     
@@ -566,11 +572,45 @@ pub struct ngr_1420f21d0 {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct ngrCmdBuffer {
-    pub vtable: *mut ::std::os::raw::c_void,
-    pub field1_0x8: *mut ::std::os::raw::c_void,
-    pub bufStart: *mut ::std::os::raw::c_void,
-    pub bufSize: i32,
+pub struct PlatformCmdBuffer {
+    pub _cpp_vtable: *const std::ffi::c_void,
+    pub buffers: *mut CommandBuffer,
+    pub bufStart: *mut std::ffi::c_void,
+    pub bufSize: std::sync::atomic::AtomicI32,
+}
+
+impl CmdBufferInterface for PlatformCmdBuffer {
+    unsafe fn alloc(&mut self, size: i32) -> *mut u8 {
+        let offset = self.bufSize.fetch_add(size, Ordering::Relaxed) as usize;
+        self.bufStart.add(offset) as *mut u8
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct CommandBuffer {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    buffers: [Option<ID3D11Buffer>; 3],
+    field30: usize,
+    field38: u32,
+    field40: usize
+}
+
+impl BufferObject for CommandBuffer {
+    unsafe fn get_buffer(&self, index: usize) -> Option<&ID3D11Buffer> {
+        self.buffers.get_unchecked(index).as_ref()
+    }
+    unsafe fn get_buffer_mut(&mut self, index: usize) -> Option<&mut ID3D11Buffer> {
+        self.buffers.get_unchecked_mut(index).as_mut()
+    }
+    unsafe fn get_buffer_ptr(&self, index: usize) -> *const Option<ID3D11Buffer> {
+        &raw const *self.buffers.get_unchecked(index)
+    }
+    unsafe fn get_buffer_raw(&self, index: usize) -> *mut std::ffi::c_void {
+        match self.buffers.get_unchecked(index) { Some(v) => v.as_raw(), None => std::ptr::null_mut() } 
+    }
 }
 
 #[ensure_layout(size = 0xa78)]

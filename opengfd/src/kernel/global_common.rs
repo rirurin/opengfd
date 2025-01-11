@@ -79,6 +79,18 @@ impl GraphicsGlobal {
         self.field44b8 = std::ptr::null_mut();
         self.field44c0 = std::ptr::null_mut();
     }
+    pub fn get_vertex_shader(&self, index: usize) -> Option<&VertexShader> {
+        unsafe { self.shader_vertex.get_unchecked(index).as_ref() }
+    }
+    pub unsafe fn get_vertex_shader_unchecked(&self, index: usize) -> &VertexShader {
+        &**self.shader_vertex.get_unchecked(index)
+    }
+    pub fn get_pixel_shader(&self, index: usize) -> Option<&PixelShader> {
+        unsafe { self.shader_pixel.get_unchecked(index).as_ref() }
+    }
+    pub unsafe fn get_pixel_shader_unchecked(&self, index: usize) -> &PixelShader {
+        &**self.shader_pixel.get_unchecked(index)
+    }
     pub unsafe fn get_vertex_shader_platform(&self, index: usize) -> Option<&VertexShaderPlatform> {
         (&**self.shader_vertex.get_unchecked(index)).data.as_ref()
     }

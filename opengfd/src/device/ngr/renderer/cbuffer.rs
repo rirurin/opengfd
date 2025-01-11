@@ -42,7 +42,7 @@ pub struct ConstantBuffer {
     resource_count: u32,
     pub(super) slot: i32,
     buffer: Option<ID3D11Buffer>,
-    resources: [*const std::ffi::c_void; 3],
+    resources: [*const std::ffi::c_void; crate::kernel::global::RENDER_LISTS],
     // pub(super) active_buffers: u32,
     pub active_buffers: u32,
 }

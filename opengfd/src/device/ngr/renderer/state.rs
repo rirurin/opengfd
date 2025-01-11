@@ -53,7 +53,8 @@ use windows::{
             ID3D11RenderTargetView,
             ID3D11SamplerState,
             ID3D11ShaderResourceView
-        }
+        },
+        Dxgi::Common::DXGI_FORMAT
     }
 };
 
@@ -115,6 +116,7 @@ pub struct DrawState {
     pub field35_0xe0: *mut ::std::os::raw::c_void,
     #[field_offset(240usize)]
     pub field44_0xf0: *mut ::std::os::raw::c_void,
+    #[field_offset(0xf8)] index_buffer: *mut IndexBuffer,
     #[field_offset(256usize)]
     pub depthStencilViews: [*mut ::std::os::raw::c_void; 3usize],
     #[field_offset(280usize)]
@@ -276,7 +278,7 @@ bitflags! {
         const USING_VSCONST_UV_TRANSFORM1 = 1 << 28;
         const USING_VSCONST_UV_TRANSFORM2 = 1 << 29;
         const USING_VSCONST_VAT = 1 << 30;
-        const USING_REG_8_BUF_360 = 1 << 31;
+        const USING_ALPHA_TEST = 1 << 31;
     }
 }
 
@@ -316,6 +318,8 @@ pub struct BasicBuffers {
     // #[field_offset(0x40)] pub depth_stencil: *mut DepthStencilState,
     #[field_offset(0x40)] pub depth_stencil: Option<GfdRc<DepthStencilState, AllocatorHook>>,
     #[field_offset(0x48)] pub vatBoundingBoxMin: f32,
+    #[field_offset(0x4c)] pub alpha_test_func: u16,
+    #[field_offset(0x50)] pub alpha_test_ref: u32,
     #[field_offset(0x54)] pub vatBoundingBoxMax: f32,
     #[field_offset(0x58)] pub rasterizer_key: RasterizerKey,
     #[field_offset(0x74)] pub blend_key: BlendKey,
@@ -350,7 +354,7 @@ pub struct BasicBuffers {
     #[field_offset(856usize)]
     pub GFD_VSCONST_VAT: *mut ConstantBuffer,
     #[field_offset(864usize)]
-    pub REG_8_BUF_360: *mut ConstantBuffer,
+    pub GFD_PSCONST_ALPHATEST: *mut ConstantBuffer,
     #[field_offset(0x368)] pub field_368: u32,
     #[field_offset(880usize)]
     pub field711_0x370: Mat4,
@@ -415,15 +419,27 @@ pub struct DeferredContextBase {
     #[field_offset(0xa0)] pub target_vertex_shader: Option<ID3D11VertexShader>,
     #[field_offset(0xb0)] pub target_pixel_shader: Option<ID3D11PixelShader>,
     #[field_offset(0xc0)] ia_topology: D3D_PRIMITIVE_TOPOLOGY,
+    #[field_offset(0xc8)] pub(crate) index_buffer: Option<ID3D11Buffer>,
+    #[field_offset(0xd0)] pub(crate) index_buffer_offset: u32,
+    #[field_offset(0xd8)] vertex_buffers: [DeferredContextVertexBuffer; 3],
     #[field_offset(0x108)] resources: [DeferredContextResources; 4],
 }
 
+#[repr(C)]
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct DeferredContextResources {
     pub buffer: [Option<ID3D11Buffer>; 14],
     pub samplers: [Option<ID3D11SamplerState>; 17],
     pub shader_resource_views: [Option<ID3D11ShaderResourceView>; 17]
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct DeferredContextVertexBuffer {
+    buffer: Option<ID3D11Buffer>,
+    stride_count: u32,
+    offset_count: u32
 }
 
 impl DeferredContextBase {
@@ -457,7 +473,7 @@ impl DeferredContextBase {
             BufferType::Compute => ctx.CSSetConstantBuffers(buf.slot as u32, Some(slice)),
         };
     }
-
+    // 0x141189240
     pub fn draw(&mut self, topology: IATopology, vtx_count: u32, vtx_start: u32) {
         let d3d_topology = topology.into();
         if self.ia_topology != d3d_topology {
@@ -465,6 +481,15 @@ impl DeferredContextBase {
             self.ia_topology = d3d_topology;
         }
         unsafe { self.device_context.Draw(vtx_count, vtx_start); }
+    }
+    // 0x1411892c0
+    pub fn draw_indexed(&mut self, topology: IATopology, vtx_count: u32, vtx_start: u32, base: i32) {
+        let d3d_topology = topology.into();
+        if self.ia_topology != d3d_topology {
+            unsafe { self.device_context.IASetPrimitiveTopology(d3d_topology); }
+            self.ia_topology = d3d_topology;
+        }
+        unsafe { self.device_context.DrawIndexed(vtx_count, vtx_start, base) }
     }
 
     unsafe fn set_shader_sampler_inner(&mut self, ty: BufferType, id: usize, state: Option<&SamplerState>) {
@@ -607,6 +632,54 @@ impl DeferredContextBase {
         if *self.get_pixel_shader_ptr() != d3d_shader_ptr {
             self.device_context.PSSetShader(d3d_shader, None);
             std::ptr::write(self.get_pixel_shader_ptr(), d3d_shader_ptr);
+        }
+    }
+
+    unsafe fn get_vertex_buffer_platform_ptr(&self, index: usize) -> *mut *mut std::ffi::c_void {
+        let buf = &self.vertex_buffers.get_unchecked(index).buffer;
+        std::mem::transmute::<&Option<ID3D11Buffer>, *mut *mut std::ffi::c_void>(buf)
+    }
+
+    unsafe fn check_vertex_buffer_data_changed(&self, slot: usize, buf: &VertexBuffer, stride: u32, offset: u32) -> bool {
+        let buf_ptr = match buf.get_buffer(slot) { Some(v) => v.as_raw(), None => std::ptr::null_mut() };
+        *self.get_vertex_buffer_platform_ptr(slot) != buf_ptr
+        || self.vertex_buffers.get_unchecked(slot).stride_count != stride
+        || self.vertex_buffers.get_unchecked(slot).offset_count != offset
+    }
+
+    unsafe fn get_index_buffer_platform_ptr(&self) -> *mut *mut std::ffi::c_void {
+        std::mem::transmute::<&Option<ID3D11Buffer>, *mut *mut std::ffi::c_void>(&self.index_buffer)
+    }
+
+    unsafe fn check_index_buffer_data_changed(&self, slot: usize, buf: &IndexBuffer, offset: u32) -> bool {
+        let buf_ptr = match buf.get_buffer(slot) { Some(v) => v.as_raw(), None => std::ptr::null_mut() };
+        *self.get_index_buffer_platform_ptr() != buf_ptr
+        || self.index_buffer_offset != offset 
+    }
+
+
+    // IASetVertexBuffers (0x141188bf0)
+    pub unsafe fn set_vertex_buffers(&mut self, slot: u32, buffer: Option<&VertexBuffer>, 
+        _a4: usize, stride: u32, offset: u32, buffer_index: usize) {
+        if let Some(buffer) = buffer {
+            if self.check_vertex_buffer_data_changed(slot as usize, buffer, stride, offset) {
+                self.device_context.IASetVertexBuffers(
+                    slot, 1, Some(buffer.get_buffer_ptr(buffer_index)), Some(&raw const stride), Some(&raw const offset)
+                );
+                std::ptr::write(self.get_vertex_buffer_platform_ptr(slot as usize), buffer.get_buffer_raw(buffer_index));
+                self.vertex_buffers.get_unchecked_mut(slot as usize).stride_count = stride;
+                self.vertex_buffers.get_unchecked_mut(slot as usize).offset_count = offset;
+            }
+        }
+    }
+    // IASetIndexBuffer (0x141188cb0)
+    pub unsafe fn set_index_buffer(&mut self, buffer: Option<&IndexBuffer>, offset: u32, buffer_index: usize) {
+        if let Some(buffer) = buffer {
+            if self.check_index_buffer_data_changed(buffer_index, buffer, offset) { 
+                self.device_context.IASetIndexBuffer(buffer.get_buffer(buffer_index), buffer.format, offset);
+                std::ptr::write(self.get_index_buffer_platform_ptr(), buffer.get_buffer_raw(buffer_index));
+                self.index_buffer_offset = offset;
+            }
         }
     }
 }
@@ -1515,8 +1588,8 @@ impl DrawState {
                 let cbuffer = &mut *buffer.GFD_VSCONST_VIEWPROJ;
                 buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Pixel, cbuffer, frame_id as u32);
             }
-            if buffer.flags.contains(BufferFlags::USING_REG_8_BUF_360) {
-                let cbuffer = &mut *buffer.REG_8_BUF_360;
+            if buffer.flags.contains(BufferFlags::USING_ALPHA_TEST) {
+                let cbuffer = &mut *buffer.GFD_PSCONST_ALPHATEST;
                 buffer.get_deferred_context_mut(frame_id).set_constant_buffers(BufferType::Pixel, cbuffer, frame_id as u32);
             }
             buffer.flags = BufferFlags::empty();
@@ -1538,6 +1611,8 @@ impl DrawState {
     }
 
     pub fn get_ot_frame_id(&self) -> usize { self.otFrameId as usize }
+
+    pub fn get_index_buffer(&self) -> Option<&IndexBuffer> { unsafe { self.index_buffer.as_ref() }}
 
 }
 
@@ -1642,6 +1717,8 @@ impl BasicBuffers {
         let ctx_dx11 = unsafe { &mut **self.deferredContexts.get_unchecked_mut(index) };
         &mut ctx_dx11.super_
     }
+
+    pub fn get_alpha_test_constant_buffer(&self) -> &ConstantBuffer { unsafe { &*self.GFD_PSCONST_ALPHATEST } }
 }
 
 #[repr(C)]
@@ -1671,4 +1748,66 @@ pub struct ngr_1422a7308 {
     field10: usize,
     view: *mut ResourceView3,
     field20: [u8; 0x30]
+}
+
+pub trait BufferObject {
+    unsafe fn get_buffer(&self, index: usize) -> Option<&ID3D11Buffer>;
+    unsafe fn get_buffer_mut(&mut self, index: usize) -> Option<&mut ID3D11Buffer>;
+    unsafe fn get_buffer_ptr(&self, index: usize) -> *const Option<ID3D11Buffer>;
+    unsafe fn get_buffer_raw(&self, index: usize) -> *mut std::ffi::c_void;
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct VertexBuffer {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    buffers: [Option<ID3D11Buffer>; 3],
+    field30: usize,
+    field38: u32,
+    field40: usize
+}
+
+impl BufferObject for VertexBuffer {
+    unsafe fn get_buffer(&self, index: usize) -> Option<&ID3D11Buffer> {
+        self.buffers.get_unchecked(index).as_ref()
+    }
+    unsafe fn get_buffer_mut(&mut self, index: usize) -> Option<&mut ID3D11Buffer> {
+        self.buffers.get_unchecked_mut(index).as_mut()
+    }
+    unsafe fn get_buffer_ptr(&self, index: usize) -> *const Option<ID3D11Buffer> {
+        &raw const *self.buffers.get_unchecked(index)
+    }
+    unsafe fn get_buffer_raw(&self, index: usize) -> *mut std::ffi::c_void {
+        match self.buffers.get_unchecked(index) { Some(v) => v.as_raw(), None => std::ptr::null_mut() } 
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct IndexBuffer {
+    _cpp_vtable: *const u8,
+    ref_: Reference,
+    field10: usize,
+    buffers: [Option<ID3D11Buffer>; 3],
+    field30: usize,
+    field38: u32,
+    format: DXGI_FORMAT, 
+    field40: usize
+}
+
+impl BufferObject for IndexBuffer {
+    unsafe fn get_buffer(&self, index: usize) -> Option<&ID3D11Buffer> {
+        self.buffers.get_unchecked(index).as_ref()
+    }
+    unsafe fn get_buffer_mut(&mut self, index: usize) -> Option<&mut ID3D11Buffer> {
+        self.buffers.get_unchecked_mut(index).as_mut()
+    }
+    unsafe fn get_buffer_ptr(&self, index: usize) -> *const Option<ID3D11Buffer> {
+        &raw const *self.buffers.get_unchecked(index)
+    }
+    unsafe fn get_buffer_raw(&self, index: usize) -> *mut std::ffi::c_void {
+        match self.buffers.get_unchecked(index) { Some(v) => v.as_raw(), None => std::ptr::null_mut() } 
+    }
 }

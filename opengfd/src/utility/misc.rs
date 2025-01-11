@@ -45,6 +45,14 @@ impl RGBA {
             (v & 0xff) as u8,
         )
     }
+    pub const fn from_rgba_u32(v: u32) -> Self {
+        Self::from_rgba_u8(
+            (v & 0xff) as u8,
+            (v >> 0x8 & 0xff) as u8,
+            (v >> 0x10 & 0xff) as u8,
+            (v >> 0x18 & 0xff) as u8,
+        )
+    }
     pub const fn from_rgba_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self(glam::U8Vec4::new(r, g, b, a))
     }
@@ -324,4 +332,17 @@ pub struct LinkedList<T> {
 pub struct LinkedListNode<T> {
     prev: *mut T,
     next: *mut T
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct Rect(glam::Vec4);
+impl Rect {
+    pub fn new(top_left: f32, top_right: f32, width: f32, height: f32) -> Self {
+        Self(glam::Vec4::new(top_left, top_right, width, height))
+    }
+    pub fn get_top_left(&self) -> f32 { self.0.x }
+    pub fn get_top_right(&self) -> f32 { self.0.y }
+    pub fn get_width(&self) -> f32 { self.0.z }
+    pub fn get_height(&self) -> f32 { self.0.w }
 }
