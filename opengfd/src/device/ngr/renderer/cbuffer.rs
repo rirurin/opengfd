@@ -1,12 +1,15 @@
+use allocator_api2::alloc::Allocator;
 use crate::{
     device::ngr::{
-        allocator::AllocatorHook,
+        allocator::AllocatorHook, 
         // hint::MemHint,
         renderer::hint::{ BufferFieldType, BufferFieldRustType, BufferFieldHint },
         structures::{ Array, StringHashed }
     },
+    globals,
     utility::reference::Reference
 };
+use std::alloc::Layout;
 use windows::Win32::Graphics::Direct3D11::ID3D11Buffer;
 
 #[repr(u32)]
@@ -60,6 +63,10 @@ impl ConstantBuffer {
     pub fn get_active_buffers(&self) -> u32 { self.active_buffers }
     pub fn get_slot(&self) -> usize { self.slot as usize }
 
+    fn get_resource_layout(&self) -> Layout {
+        unsafe { Layout::from_size_align_unchecked(self.byte_width as usize, std::mem::align_of::<usize>()) }
+    }
+
     // VTABLE ENTRIES
     // 0x1422a7790
     // vtable + 0x10
@@ -70,29 +77,30 @@ impl ConstantBuffer {
     // vtable + 0x28
     pub fn get_field_count(&self) -> usize { self.fields.get_length() }
     // vtable + 0xa0
-    pub unsafe fn get_or_create_resource(&self, index: usize) -> *mut u8 {
-        unsafe {
-            let vtable_offset = self._cpp_vtable.add(0xa0);
-            let state_func = *std::mem::transmute::<
-                *mut std::ffi::c_void, 
-                *const fn(&Self, u32) -> *mut u8
-            >(vtable_offset);
-            (state_func)(self, index as u32)
+    fn get_or_create_resource_inner(&mut self, index: usize) -> *mut u8 {
+        if self.resources[index] == std::ptr::null() {
+            self.resources[index] = AllocatorHook.allocate(self.get_resource_layout()).unwrap().as_ptr() as *const std::ffi::c_void;
+            self.active_buffers |= 1 << index;
         }
+        self.resources[index] as *mut u8
+    }
+    pub unsafe fn get_or_create_resource(&mut self, index: usize) -> *mut u8 {
+        if !self.has_resources() { self.get_or_create_resource_inner(0) }
+        else { self.get_or_create_resource_inner(index) }
     }
     // vtable + 0xb8
     pub unsafe fn get_resource(&self, index: u32) -> *const std::ffi::c_void {
         let real_index = if self.has_resources() { index } else { 0 } as usize;
         unsafe { *self.resources.get_unchecked(real_index) }
     }
-    pub fn set_field<T>(&self, frame: usize, index: usize, value: T) -> bool 
+    pub fn set_field<T>(&mut self, frame: usize, index: usize, value: T) -> bool 
     where T: BufferFieldRustType
     {
         if (unsafe { &*self.fields[index] }).ty != T::get_type() { return false; }
         unsafe { self.set_field_unchecked(frame, index, value); }
         true
     }
-    pub unsafe fn set_field_unchecked<T>(&self, frame: usize, index: usize, value: T) {
+    pub unsafe fn set_field_unchecked<T>(&mut self, frame: usize, index: usize, value: T) {
         let data = self.get_or_create_resource(frame);
         let field = unsafe { &*self.fields[index] };
         std::ptr::write(data.add(field.offset as usize) as *mut T, value);

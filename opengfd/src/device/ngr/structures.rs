@@ -487,7 +487,7 @@ pub struct CrcHash {
 impl CrcHash {
     pub fn new_empty() -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_crchash_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_crchash_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -498,7 +498,7 @@ impl CrcHash {
         let mut hasher = crc32fast::Hasher::new();
         val.hash(&mut hasher); 
         Self {
-            _cpp_vtable: match globals::get_ngr_crchash_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_crchash_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -536,7 +536,7 @@ impl ngr_1422ecad8 {
     // 0x1411e7b90
     pub fn new() -> Self {
         let mut out = Self {
-            _cpp_vtable: match globals::get_ngr_1422ecad8_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_1422ecad8_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -635,7 +635,7 @@ where T: Debug,
         let free_indices_section_size = entries_per_block + 7 >> 3; // alignof(usize)
         let block_entry_size = size_of::<T>() - 1 + alignment & !(alignment - 1); // alignof
         let mut new_list = GfdRc::new_in(Self {
-            _cpp_vtable: match globals::get_ngr_freelist_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_freelist_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -733,7 +733,7 @@ impl SpinLock {
     // 0x141207930
     pub fn new() -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_spinlock_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_spinlock_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },

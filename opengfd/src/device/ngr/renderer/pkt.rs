@@ -564,7 +564,7 @@ impl AlphaFuncPkt {
                 4 => 3f32, 5 => 4f32, 6 => 3f32,
                 _ => 0f32
             };
-            let buf = buffer.get_alpha_test_constant_buffer();
+            let buf = buffer.get_alpha_test_constant_buffer_mut();
             unsafe {
                 buf.set_field_unchecked(frame_id, 0, alpha_fn);
                 buf.set_field_unchecked(frame_id, 1, aref);

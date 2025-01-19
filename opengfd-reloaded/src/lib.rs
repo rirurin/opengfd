@@ -47,7 +47,6 @@ use opengfd::{
             }, 
         }
     },
-    globals,
     graphics::{
         draw2d::{ Draw, Im2DVertexG4 },
         render::{
@@ -72,11 +71,14 @@ use windows::{
         ID3D11Resource
     }
 };
+
 use riri_mod_tools_proc::{ ensure_layout, original_function, riri_hook_fn, riri_hook_static };
 use riri_mod_tools_rt::{ logln, sigscan_resolver };
 
+pub mod globals;
+
 #[no_mangle]
-pub unsafe extern "C" fn set_gfd_global(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_gfd_global_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match riri_mod_tools_rt::sigscan_resolver::get_indirect_address_short2(ofs) {
         Some(v) => v,
         None => return None
@@ -89,13 +91,13 @@ pub unsafe extern "C" fn set_gfd_global(ofs: usize) -> Option<std::ptr::NonNull<
 
 #[riri_hook_static(dynamic_offset(
     signature = "F7 05 ?? ?? ?? ?? 00 00 00 02",
-    resolve_type = set_gfd_global,
+    resolve_type = set_gfd_global_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(GFD_GLOBAL, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_draw_state(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_draw_state_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let ngr_init_state = match sigscan_resolver::get_address_may_thunk(ofs) {
         Some(v) => v,
         None => return None
@@ -112,13 +114,13 @@ pub unsafe extern "C" fn set_ngr_draw_state(ofs: usize) -> Option<std::ptr::NonN
 
 #[riri_hook_static(dynamic_offset(
     signature = "48 83 EC 28 E8 ?? ?? ?? ?? B9 E0 17 00 00",
-    resolve_type = set_ngr_draw_state,
+    resolve_type = set_ngr_draw_state_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_DRAWSTATE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_allocator(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_allocator_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -131,13 +133,13 @@ pub unsafe extern "C" fn set_ngr_allocator(ofs: usize) -> Option<std::ptr::NonNu
 
 #[riri_hook_static(dynamic_offset(
     signature = "48 8B 0D ?? ?? ?? ?? 4C 8D 4C 24 ?? 48 89 44 24 ?? 41 B8 10 00 00 00 48 8D 05 ?? ?? ?? ?? C7 44 24 ?? 00 00 00 13 48 89 44 24 ?? 48 8D 05 ?? ?? ?? ?? C7 44 24 ?? 35 00 00 00",
-    resolve_type = set_ngr_allocator,
+    resolve_type = set_ngr_allocator_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_ALLOCATOR, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_window(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_window_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -150,13 +152,13 @@ pub unsafe extern "C" fn set_ngr_window(ofs: usize) -> Option<std::ptr::NonNull<
 // 1.01 Demo: 48 8B 05 ?? ?? ?? ?? 48 8B 98 ?? ?? ?? ?? 8B 4E ??
 #[riri_hook_static(dynamic_offset(
     signature = "48 8B 05 ?? ?? ?? ?? 4C 8B B8 ?? ?? ?? ?? 8B 4E ??",
-    resolve_type = set_ngr_window,
+    resolve_type = set_ngr_window_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_WINDOW, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_crchash_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_crchash_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -168,13 +170,13 @@ pub unsafe extern "C" fn set_ngr_crchash_vtable(ofs: usize) -> Option<std::ptr::
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 02 89 4A ?? C7 44 24 ?? 01 00 00 00 48 8B CA E8 ?? ?? ?? ?? 0F B6 13 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ??",
-    resolve_type = set_ngr_crchash_vtable,
+    resolve_type = set_ngr_crchash_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_HASHER_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_dx11_renderer(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_dx11_renderer_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -186,13 +188,13 @@ pub unsafe extern "C" fn set_ngr_dx11_renderer(ofs: usize) -> Option<std::ptr::N
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 8B 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 44 8B 1D ?? ?? ?? ??",
-    resolve_type = set_ngr_dx11_renderer,
+    resolve_type = set_ngr_dx11_renderer_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_DX11_RENDERER, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_rasterstate_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_rasterstate_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x64) {
         Some(v) => v,
         None => return None
@@ -204,13 +206,13 @@ pub unsafe extern "C" fn set_ngr_rasterstate_vtable(ofs: usize) -> Option<std::p
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 8B 0E 89 4B ?? 8B 46 ?? 89 43 ?? 0F B6 46 ??",
-    resolve_type = set_ngr_rasterstate_vtable,
+    resolve_type = set_ngr_rasterstate_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_RASTERSTATE_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_blendstate_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_blendstate_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x41) {
         Some(v) => v,
         None => return None
@@ -222,13 +224,13 @@ pub unsafe extern "C" fn set_ngr_blendstate_vtable(ofs: usize) -> Option<std::pt
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
-    resolve_type = set_ngr_blendstate_vtable,
+    resolve_type = set_ngr_blendstate_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_BLENDSTATE_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_depthstencilstate_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_depthstencilstate_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x82) {
         Some(v) => v,
         None => return None
@@ -240,13 +242,13 @@ pub unsafe extern "C" fn set_ngr_depthstencilstate_vtable(ofs: usize) -> Option<
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
-    resolve_type = set_ngr_depthstencilstate_vtable,
+    resolve_type = set_ngr_depthstencilstate_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_DEPTHSTENCILSTATE_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_sampler_state(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_sampler_state_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs + 0x66) {
         Some(v) => v,
         None => return None
@@ -258,13 +260,13 @@ pub unsafe extern "C" fn set_ngr_sampler_state(ofs: usize) -> Option<std::ptr::N
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
-    resolve_type = set_ngr_sampler_state,
+    resolve_type = set_ngr_sampler_state_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_SAMPLER_STATE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_memhint_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_memhint_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -277,13 +279,13 @@ pub unsafe extern "C" fn set_ngr_memhint_vtable(ofs: usize) -> Option<std::ptr::
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? C7 44 24 ?? 00 00 00 01",
-    resolve_type = set_ngr_memhint_vtable,
+    resolve_type = set_ngr_memhint_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_MEMHINT_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_spinlock_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_spinlock_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     // scary!!!
     let inner_fn = match sigscan_resolver::get_indirect_address_short(ofs) {
         Some(v) => v,
@@ -305,13 +307,13 @@ pub unsafe extern "C" fn set_ngr_spinlock_vtable(ofs: usize) -> Option<std::ptr:
 // 0x1411b061c, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
     signature = "E8 ?? ?? ?? ?? 48 89 43 ?? 48 0F AF EF",
-    resolve_type = set_ngr_spinlock_vtable,
+    resolve_type = set_ngr_spinlock_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_SPINLOCK_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_pointer_freelist(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_pointer_freelist_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v.add(1),
         None => return None
@@ -324,13 +326,13 @@ pub unsafe extern "C" fn set_ngr_pointer_freelist(ofs: usize) -> Option<std::ptr
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
     signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 9D 64 24 08",
-    resolve_type = set_ngr_pointer_freelist,
+    resolve_type = set_ngr_pointer_freelist_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_POINTER_FREELIST, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_string_freelist(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_string_freelist_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v.add(1),
         None => return None
@@ -342,13 +344,13 @@ pub unsafe extern "C" fn set_ngr_string_freelist(ofs: usize) -> Option<std::ptr:
 }
 #[riri_hook_static(dynamic_offset(
     signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 10 00 00 00 E8 ?? ?? ?? ?? 48 89 44 24 ??",
-    resolve_type = set_ngr_string_freelist,
+    resolve_type = set_ngr_string_freelist_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_STRING_FREELIST, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_freelist_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_freelist_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -361,13 +363,13 @@ pub unsafe extern "C" fn set_ngr_freelist_vtable(ofs: usize) -> Option<std::ptr:
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 48 89 4B ?? 44 89 6B ??",
-    resolve_type = set_ngr_freelist_vtable,
+    resolve_type = set_ngr_freelist_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_FREELIST_VTABLE, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_ngr_1422ecad8_vtable(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+pub unsafe extern "C" fn set_ngr_1422ecad8_vtable_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
         Some(v) => v,
         None => return None
@@ -380,7 +382,7 @@ pub unsafe extern "C" fn set_ngr_1422ecad8_vtable(ofs: usize) -> Option<std::ptr
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 01 48 8B D9 48 89 79 ?? 48 89 79 ??",
-    resolve_type = set_ngr_1422ecad8_vtable,
+    resolve_type = set_ngr_1422ecad8_vtable_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(NGR_1422ECAD8_VTABLE, usize);

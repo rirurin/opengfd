@@ -13,7 +13,7 @@ impl MemHint {
     }
     pub fn new_value(hint: u32) -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_memhint_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_memhint_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },

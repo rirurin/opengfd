@@ -176,6 +176,10 @@ pub mod tests {
         pub fn new_str<T: AsRef<str>>(t: T) -> Self { OpengfdError(t.as_ref().to_owned()) }
     }
 }
+pub mod tpl {
+    pub mod file_manager;
+    pub mod resource;
+}
 pub mod utility {
     pub mod item_array;
     pub mod math;

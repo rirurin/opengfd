@@ -893,7 +893,7 @@ pub struct RasterizerState {
 impl RasterizerState {
     pub fn new(key: &RasterizerKey) -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_rasterstate_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_rasterstate_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -997,7 +997,7 @@ pub struct BlendState {
 impl BlendState {
     pub fn new(key: &BlendKey) -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_blendstate_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_blendstate_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -1178,7 +1178,7 @@ pub struct DepthStencilState {
 impl DepthStencilState {
     pub fn new(key: &DepthStencilKey) -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_depthstencilstate_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_depthstencilstate_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -1361,7 +1361,7 @@ pub struct SamplerState {
 impl SamplerState {
     pub fn new(key: &SamplerKey) -> Self {
         Self {
-            _cpp_vtable: match globals::get_ngr_depthstencilstate_vtable() {
+            _cpp_vtable: match unsafe { globals::get_ngr_depthstencilstate_vtable() } {
                 Some(v) => &raw const *v,
                 None => std::ptr::null()
             },
@@ -1719,6 +1719,7 @@ impl BasicBuffers {
     }
 
     pub fn get_alpha_test_constant_buffer(&self) -> &ConstantBuffer { unsafe { &*self.GFD_PSCONST_ALPHATEST } }
+    pub fn get_alpha_test_constant_buffer_mut(&mut self) -> &mut ConstantBuffer { unsafe { &mut *self.GFD_PSCONST_ALPHATEST } }
 }
 
 #[repr(C)]

@@ -1,6 +1,6 @@
 #![allow(dead_code, improper_ctypes)]
 // This file was automatically generated from opengfd-globals.
-use crate :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global } ;
+use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global } ;
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of GFD_GLOBAL.
