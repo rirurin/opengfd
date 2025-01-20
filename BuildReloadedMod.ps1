@@ -1,3 +1,7 @@
+param (
+    [System.Boolean] $IsDebug = $False
+)
+
 [System.Boolean] $global:is_pushed = $False
 
 function GoToRelativeFolder {
@@ -60,7 +64,8 @@ function GetRustCrateTargetDirectory {
     param (
         [string] $Path
     )
-    GoToFolder -Path ([IO.Path]::Combine($Path, "target", $global:TARGET, "release"))
+    $ProfileFolder = if ($IsDebug) { "release-debug" } else { "release" }
+    GoToFolder -Path ([IO.Path]::Combine($Path, "target", $global:TARGET, $ProfileFolder))
 }
 
 function BuildRustCrate {
@@ -70,7 +75,8 @@ function BuildRustCrate {
         [string] $BuildStdFeatures,
         [string] $CrateType
     )
-    cargo +nightly rustc --lib --release -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
+    $Profile = if ($IsDebug) { "--profile=release-debug" } else { "--profile=release" }
+    cargo +nightly rustc --lib $Profile -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
     if (!$?) {
         Write-Error "Failed to build the Rust crate ${FriendlyName}"
     }
@@ -97,6 +103,9 @@ function CopyOutputArtifacts {
     Copy-Item ([IO.Path]::Combine($SourceDirectory, "${UnderscoreName}.dll")) -Destination $TargetDirectory
     Copy-Item ([IO.Path]::Combine($SourceDirectory, "${UnderscoreName}.dll.lib")) -Destination $TargetDirectory
     Copy-Item ([IO.Path]::Combine($SourceDirectory, "${UnderscoreName}.dll.exp")) -Destination $TargetDirectory
+    if ($IsDebug) {
+        Copy-Item ([IO.Path]::Combine($SourceDirectory, "${UnderscoreName}.pdb")) -Destination $TargetDirectory
+    }
 }
 
 # Set working directory
