@@ -83,6 +83,12 @@ pub mod effect {
 pub mod fw {
 
 }
+pub mod gfw {
+    pub mod fade;
+    pub mod fiber;
+    pub mod list;
+    pub mod smartpointer;
+}
 pub mod globals;
 pub mod graphics {
     pub mod cull;

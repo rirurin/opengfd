@@ -45,6 +45,13 @@ impl Time {
         ((self.hour as u32 + ((self.year - 1900) * 365 + self.mon as u32 * 31 + self.mday as u32) * 24)
         * 60 + self.min as u32) * 60 + self.sec as u32
     }
+    pub fn get_sec(&self) -> u32 { self.sec as u32 }
+    pub fn get_min(&self) -> u32 { self.min as u32 }
+    pub fn get_hour(&self) -> u32 { self.hour as u32 }
+    pub fn get_mday(&self) -> u32 { self.mday as u32 }
+    pub fn get_mon(&self) -> u32 { self.mon as u32 }
+    pub fn get_year(&self) -> u32 { self.year }
+    pub fn get_wday(&self) -> u32 { self.wday as u32 }
 }
 
 const RAND_TO_F32: f32 = 0.000000059604645f32;
