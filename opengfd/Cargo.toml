@@ -14,6 +14,7 @@ half = "2.4.1"
 libc = "0.2.169"
 opengfd-proc = { path = "../opengfd-proc" }
 riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-rt = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-rt" }
 # rkyv = "0.8.9"
 
 [target.'cfg(windows)'.dependencies.windows]

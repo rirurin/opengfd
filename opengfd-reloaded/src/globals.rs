@@ -1,6 +1,6 @@
 #![allow(dead_code, improper_ctypes)]
 // This file was automatically generated from opengfd-globals.
-use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global } ;
+use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global , tpl :: file_manager :: FileManager } ;
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of GFD_GLOBAL.
@@ -302,6 +302,44 @@ unsafe extern "C" {
    /// An unchecked version of `get_ngr_freelist_vtable_mut`. This assumes that NGR_FREELIST_VTABLE
     /// is set and it's initialized.
     pub(crate) unsafe fn get_ngr_freelist_vtable_unchecked_mut() -> & 'static mut u8;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing a pointer to FILE_MANAGER_INSTANCE.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_file_manager_instance(ptr: *mut * mut FileManager);
+   /// Get a possible reference to FILE_MANAGER_INSTANCE. This checks to see if `set_file_manager_instance`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_file_manager_instance() -> Option<& 'static FileManager>;
+   /// Like `get_file_manager_instance_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_file_manager_instance_mut() -> Option<& 'static mut FileManager>;
+   /// An unchecked version of `get_file_manager_instance`. This assumes that FILE_MANAGER_INSTANCE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_file_manager_instance_unchecked() -> & 'static FileManager;
+   /// An unchecked version of `get_file_manager_instance_mut`. This assumes that FILE_MANAGER_INSTANCE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_file_manager_instance_unchecked_mut() -> & 'static mut FileManager;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of TPL_RESOURCE_SHARED_PTR.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_tpl_resource_shared_ptr(ptr: *mut u8);
+   /// Get a possible reference to TPL_RESOURCE_SHARED_PTR. This checks to see if `set_tpl_resource_shared_ptr`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_tpl_resource_shared_ptr() -> Option<& 'static u8>;
+   /// Like `get_tpl_resource_shared_ptr_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_tpl_resource_shared_ptr_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_tpl_resource_shared_ptr`. This assumes that TPL_RESOURCE_SHARED_PTR
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_tpl_resource_shared_ptr_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_tpl_resource_shared_ptr_mut`. This assumes that TPL_RESOURCE_SHARED_PTR
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_tpl_resource_shared_ptr_unchecked_mut() -> & 'static mut u8;
 
 }
 

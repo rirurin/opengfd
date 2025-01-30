@@ -11,6 +11,7 @@ edition.workspace = true
 
 [dependencies]
 allocator-api2 = "0.2.21"
+cpp-types = { path = "../../cpp-types/cpp-types" }
 glam = "0.29"
 opengfd = { version = "0.1", path = "../opengfd" }
 riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-proc" }

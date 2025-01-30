@@ -84,6 +84,7 @@ pub mod fw {
 
 }
 pub mod gfw {
+    pub mod effect;
     pub mod fade;
     pub mod fiber;
     pub mod list;
