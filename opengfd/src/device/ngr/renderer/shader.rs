@@ -134,6 +134,18 @@ impl ShaderPlatform for GeometryShaderPlatform {
 
 #[repr(C)]
 #[derive(Debug)]
+pub struct GeometryShader {
+    field00: i32,
+    id: ShaderID,
+    pub data: *mut GeometryShaderPlatform,
+    ref_: Reference,
+    prev: *mut GeometryShader,
+    next: *mut GeometryShader,
+    _pinned: PhantomPinned
+}
+
+#[repr(C)]
+#[derive(Debug)]
 pub struct ComputeShaderPlatform {
     super_: ShaderPlatformBase,
     field58: u32,
@@ -151,4 +163,16 @@ impl ShaderPlatform for ComputeShaderPlatform {
     fn get_shader_as_raw(&self) -> *mut std::ffi::c_void { 
         match &self.d3d_cmp { Some(v) => v.as_raw(), None => std::ptr::null_mut() }
     }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ComputeShader {
+    field00: i32,
+    id: ShaderID,
+    pub data: *mut ComputeShaderPlatform,
+    ref_: Reference,
+    prev: *mut ComputeShader,
+    next: *mut ComputeShader,
+    _pinned: PhantomPinned
 }

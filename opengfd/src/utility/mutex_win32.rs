@@ -1,6 +1,6 @@
 use std::{
     mem::MaybeUninit,
-    sync::atomic::AtomicU32,
+    sync::atomic::{ AtomicU32, Ordering },
     ops::{ Deref, DerefMut }
 };
 use windows::Win32::System::Threading::{ 
@@ -71,9 +71,46 @@ pub struct Mutex(AtomicU32);
 unsafe impl Send for Mutex {}
 unsafe impl Sync for Mutex {}
 
+pub(crate) const SPIN_COUNT_BEFORE_YIELDING: usize = 1500;
+
+pub struct MutexGuard<'a, T> {
+    mutex: &'a mut Mutex,
+    data: &'a mut T
+}
+impl<'a, T> MutexGuard<'a, T> {
+    fn new(mutex: &'a mut Mutex, data: &'a mut T) -> Self {
+        loop {
+            for _ in 0..SPIN_COUNT_BEFORE_YIELDING {
+                if let Ok(_) = mutex.0.compare_exchange(0, 1, 
+                Ordering::Acquire, Ordering::Relaxed) {
+                    return Self { mutex, data };
+                }
+            }
+            std::thread::yield_now();
+        }
+    }
+}
+impl<'a, T> Drop for MutexGuard<'a, T> {
+    fn drop(&mut self) {
+        self.mutex.0.store(0, Ordering::Release);
+    }
+}
+
+impl<'a, T> Deref for MutexGuard<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+impl<'a, T> DerefMut for MutexGuard<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data
+    }
+}
+
 impl Mutex {
     pub fn new() -> Self { Self(AtomicU32::new(0)) }
-    pub fn lock(&mut self) -> u32 { self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel) }
+    pub fn lock<'a, T>(&'a mut self, data: &'a mut T) -> MutexGuard<'a, T> { MutexGuard::new(self, data) }
 }
 
 pub mod ffi {

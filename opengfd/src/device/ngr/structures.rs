@@ -727,8 +727,6 @@ pub struct SpinLock {
     lock: AtomicI32,
 }
 
-pub const SPIN_COUNT_BEFORE_YIELDING: usize = 1500;
-
 impl SpinLock {
     // 0x141207930
     pub fn new() -> Self {
@@ -742,36 +740,37 @@ impl SpinLock {
     }
     // 0x141207980
     // https://marabos.nl/atomics/memory-ordering.html
+    // Also see: crate::utility::mutex::Mutex
     pub fn get_lock<'a, T>(&'a mut self, item: &'a mut T) -> SpinLockGuard<'a, T> {
+        SpinLockGuard::new(self, item)
+    }
+}
+
+#[derive(Debug)]
+pub struct SpinLockGuard<'a, T> {
+    mutex: &'a mut SpinLock,
+    data: &'a mut T
+}
+
+impl<'a, T> SpinLockGuard<'a, T> {
+    fn new(mutex: &'a mut SpinLock, data: &'a mut T) -> Self {
         loop {
-            let mut count = SPIN_COUNT_BEFORE_YIELDING;
-            while count > 0 {
-                match self.lock.compare_exchange_weak(0, 1, 
+            for _ in 0..crate::utility::mutex::SPIN_COUNT_BEFORE_YIELDING {
+                if let Ok(_) = mutex.lock.compare_exchange_weak(0, 1, 
                     std::sync::atomic::Ordering::Acquire, 
                     std::sync::atomic::Ordering::Relaxed) {
-                    Ok(_) => return SpinLockGuard {
-                        owner: self,
-                        data: item
-                    },
-                    Err(_) => ()
-                };
-                count -= 1;
+                    return Self { mutex, data }
+                }
             }
             std::thread::yield_now();
         }
     }
 }
 
-#[derive(Debug)]
-pub struct SpinLockGuard<'a, T> {
-    owner: &'a mut SpinLock,
-    data: &'a mut T
-}
-
 impl<'a, T> Drop for SpinLockGuard<'a, T> {
     // 0x1412079d0
     fn drop(&mut self) {
-        self.owner.lock.store(0, std::sync::atomic::Ordering::Release);
+        self.mutex.lock.store(0, std::sync::atomic::Ordering::Release);
     }
 }
 

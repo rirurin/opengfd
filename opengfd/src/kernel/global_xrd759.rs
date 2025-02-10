@@ -1,23 +1,34 @@
 #![allow(unused_imports, dead_code)]
 use bitflags::bitflags;
 use crate::{
-    device::ngr::renderer::shader,
+    device::ngr::{
+        allocator::AllocatorHook,
+        renderer::shader
+    },
     graphics::{
         cull::CullObject,
         environment,
         render::cmd_buffer::CmdBuffer,
         render_ot::{ RenderOtGroup, RenderOtList },
         resources::{ Resources, ResBuffer },
-        scene::Scene,
+        scene::{ Scene, SceneLightPlacement },
         shader::shader::ShaderSource,
         texture::Texture
     },
     kernel::{
+        allocator::GfdAllocator,
         asset::Asset,
-        global_common::RENDER_STATES
+        global_common::RENDER_STATES,
+        task::{
+            Task as GfdTask,
+            TaskList
+        }
     },
+    object::mesh::Mesh,
     utility::{
+        free_list::FreeList as GfdFreeList,
         item_array::ItemArray,
+        math::RandomAligned,
         misc::Range,
         mutex::{ Mutex, RecursiveMutex },
         name::Name
@@ -26,16 +37,89 @@ use crate::{
 use glam::{ Vec3, Vec3A, Mat4 };
 use riri_mod_tools_proc::ensure_layout;
 
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct GlobalFlags: u32 {
+        const NO_INCREASE_TASK_START_TIMER = 1 << 0;
+        const RENDER_TASK_RUNNING = 1 << 1;
+        /// True if _pre_<GFD> or _post_<GFD> are executing
+        const SYSTEM_TASK_RUNNING = 1 << 2;
+    }
+}
+
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct Global {
-    flags: u32,
+    flags: GlobalFlags,
     elapsed_time: f32,
     delta_time: f32,
     loop_counter: i32,
     field10: i32,
     field14: i32,
-    pub graphics: GraphicsGlobal
+    pub graphics: GraphicsGlobal,
+    pub physics: PhysicsGlobal,
+    pub tasks: TaskGlobal,
+    pub random: RandomAligned,
+    field58c0: *mut u8,
+    field58c8: *mut u8,
+    field58d0: *mut u8,
+    field58d8: *mut u8,
+    current_dir: *mut u8,
+    init_path: *mut u8,
+    field58f0: *mut u8,
+    field58f0_count: u32,
+    dev_file_head: *mut u8,
+    dev_file_mutex: Mutex,
+    free_list_head: *mut GfdFreeList,
+    free_list_mutex: Mutex, 
+    chip_free_list: *mut GfdFreeList,
+    task_free_list: *mut GfdFreeList<GfdTask, GfdAllocator>,
+    task_free_list_entries_per_block: u32,
+    // TODO: check node list is in right position
+    node_free_list: *mut GfdFreeList,
+    node_free_list_entries_per_block: u32,
+    delayed_proc_item_head: *mut u8,
+    delayed_proc_item_tail: *mut u8,
+    delayed_proc_item_mutex: RecursiveMutex,
+    field5980: [u8; 0x18],
+    delay_frame: u32,
+    delay_force_frame: u32,
+    main_stack_size: u32,
+    field59a4: [u8; 0x6c],
+    uid: u64
+}
+
+impl Global {
+    pub fn get_free_list_mutex(&mut self) -> &mut Mutex {
+        &mut self.free_list_mutex
+    }
+    pub fn get_free_list_head(&self) -> Option<&GfdFreeList> {
+        if self.free_list_head.is_null() { None }
+        else { Some(unsafe { &*self.free_list_head } )}
+    }
+    pub fn get_free_list_head_mut(&self) -> Option<&mut GfdFreeList> {
+        if self.free_list_head.is_null() { None }
+        else { Some(unsafe { &mut *self.free_list_head } )}
+    }
+    pub fn get_free_list_head_ptr(&self) -> *mut GfdFreeList {
+        unsafe { &raw mut *self.free_list_head }
+    }
+    pub fn set_free_list_head_mut(&mut self, new: *mut GfdFreeList) {
+        self.free_list_head = new;
+    }
+    /// Original function: gfdGetUID
+    pub fn get_uid(&mut self) -> u64 {
+        self.uid.wrapping_add(1).max(1)
+    }
+    pub unsafe fn get_task_free_list_unchecked_mut(&mut self) 
+    -> &mut GfdFreeList<GfdTask, GfdAllocator> {
+        unsafe { &mut *self.task_free_list }
+    }
+
+    pub fn get_flags(&self) -> GlobalFlags {
+        self.flags
+    }
 }
 
 // GRAPHICS START
@@ -138,15 +222,44 @@ pub struct GraphicsGlobal {
     pub shader_compute: [*mut u8; FIXED_COMPUTE_SHADERS],
     pub shader_current_vertex: *mut shader::VertexShader,
     pub shader_current_fragment: *mut shader::PixelShader,
-    pub shader_current_geometry: *mut u8,
-    pub shader_current_compute: *mut u8,
-    pub field44b8: *mut u8,
-    pub field44c0: *mut u8,
-    unk1: [u8; 120],
+    pub shader_current_geometry: *mut shader::GeometryShader,
+    pub shader_current_compute: *mut shader::ComputeShader,
+    pub(crate) field44b8: *mut u8,
+    pub(crate) field44c0: *mut u8, 
+    field44c8: usize,
+    field44d0: usize,
+    shader_hash_vertex: [u32; 3],
+    shader_hash_pixel: [u32; 3],
+    shader_hash_geometry: [u32; 3],
+    shader_hash_4: [u32; 3], // shaderCacheStream
+    shader_hash_5: [u32; 3], // shaderCacheMutex
+    effect_vertex_indices: [*mut u8; 6],
+    light_placement: [*mut SceneLightPlacement; 3],
     shader_outline_texture: *mut Texture,
     shader_noise_texture: *mut Texture,
     shader_edge_dark_texture: *mut Texture,
-    texture_4558: *mut Texture, 
+    texture_4558: *mut Texture,
+    unk1: [u8; 0x10d8],
+    widget_surface: *mut u8,
+    widget_ref: *mut u8,
+    swap_cb: *mut u8,
+    swap_cb_data: *mut u8,
+    sphere_mesh: *mut Mesh,
+    hemisphere_mesh: *mut Mesh,
+    unk2: [u8; 0x70],
+    hdr_filename: Name<AllocatorHook>,
+    ibl_filename: Name<AllocatorHook>,
+    lut_filename: Name<AllocatorHook>,
+    env_toon_filename: Name<AllocatorHook>,
+    skybox_filename: Name<AllocatorHook>,
+    infinite_ocean_filename: Name<AllocatorHook>,
+    env_field_784: f32,
+    env_field_788: u8,
+    scene_ambient_toon_r: f32,
+    scene_ambient_toon_g: f32,
+    field5798: f32,
+    field579c: f32,
+    field57a0: [u32; 8],
 }
 
 // GRAPHICS END
@@ -167,31 +280,112 @@ pub struct PhysicsGlobalWind {
     params: PhysicsWindParams,
     power: f32,
     cycle: f32,
-    delta: f32
+    delta: f32,
+    delta2: f32
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct PhysicsGlobal {
-    gravity: Vec3A,
-    wind: PhysicsGlobalWind
+    data: [u8; 0x50]
+    // gravity: Vec3A,
+    // wind: PhysicsGlobalWind
 }
 
 // PHYSICS END
+
 // TASK START
-/*
+#[derive(Debug)]
+#[repr(C)]
 pub struct TaskGlobal {
-    pub flag: uint,
-    pub begin: gfdTaskLinkList,
-    pub update: gfdTaskLinkList,
-    pub render: gfdTaskLinkList,
-    pub end: gfdTaskLinkList,
-    pub release: gfdTaskLinkList,
-    pub taskCount: uint,
-    pub pad: gfdTaskLinkList,
-    pub detachMutex: *mut gfdTask,
-    pub current: *mut gfdTask,
+    pub flag: u32,
+    pub begin: TaskList<GfdAllocator>,
+    pub update: TaskList<GfdAllocator>,
+    pub render: TaskList<GfdAllocator>,
+    pub end: TaskList<GfdAllocator>,
+    pub release: TaskList<GfdAllocator>,
+    pub task_count: u32,
+    pub pad: TaskList<GfdAllocator>,
+    pub detach_mutex: *mut GfdTask<GfdAllocator>,
+    pub current: *mut GfdTask<GfdAllocator>,
+    pub mutex: Mutex,
 }
-*/
+
+impl TaskGlobal {
+    pub fn get_first_begin_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.begin.get_head_ptr()
+    }
+    pub fn get_first_begin_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.begin.get_head_ptr()
+    }
+    pub fn get_first_update_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.update.get_head_ptr()
+    }
+    pub fn get_first_update_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.update.get_head_ptr()
+    }
+    pub fn get_first_render_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.render.get_head_ptr()
+    }
+    pub fn get_first_render_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.render.get_head_ptr()
+    }
+    pub fn get_first_ending_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.end.get_head_ptr()
+    }
+    pub fn get_first_ending_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.end.get_head_ptr()
+    }
+
+    pub fn get_last_begin_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.begin.get_tail_ptr()
+    }
+    pub fn get_last_begin_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.begin.get_tail_ptr()
+    }
+    pub fn get_last_update_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.update.get_tail_ptr()
+    }
+    pub fn get_last_update_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.update.get_tail_ptr()
+    }
+    pub fn get_last_render_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.render.get_tail_ptr()
+    }
+    pub fn get_last_render_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.render.get_tail_ptr()
+    }
+    pub fn get_last_ending_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.end.get_tail_ptr()
+    }
+    pub fn get_last_ending_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.end.get_tail_ptr()
+    }
+
+    pub fn set_first_begin_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.begin.set_head(val);
+    }
+    pub fn set_first_update_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.update.set_head(val);
+    }
+    pub fn set_first_render_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.render.set_head(val);
+    }
+    pub fn set_first_ending_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.end.set_head(val);
+    }
+    pub fn set_last_begin_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.begin.set_tail(val);
+    }
+    pub fn set_last_update_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.update.set_tail(val);
+    }
+    pub fn set_last_render_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.render.set_tail(val);
+    }
+    pub fn set_last_ending_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.end.set_tail(val);
+    }
+}
 
 // TASK END

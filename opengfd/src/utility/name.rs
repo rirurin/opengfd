@@ -2,6 +2,7 @@
 //! (Original file: gfdName.c)
 use allocator_api2::alloc::{ Allocator, Global };
 use bitflags::bitflags;
+use crc32fast::Hasher;
 // use riri_mod_tools_proc::ensure_layout;
 use std::{
     alloc::Layout,
@@ -25,7 +26,8 @@ bitflags! {
 /// Strings up to i32::MAX in length are supported. When using GFD's serializer, only names up to
 /// i16::MAX are supported, however larger strings can be stored when using serde.
 #[repr(C)]
-pub struct Name<A: Allocator = Global> 
+pub struct Name<A = Global>
+where A: Allocator + Clone
 {
     /// Stores current state of the name instance
     pub(crate) flags: NameFlags,
@@ -41,13 +43,16 @@ pub struct Name<A: Allocator = Global>
 
 // TODO: Serialization
 
-impl<A: Allocator> Name<A>
+impl<A> Name<A>
+where A: Allocator + Clone
 {
     /// (Original function: gfdNameSet)
     pub fn new_in(text: &str, alloc: A) -> Self {
         let flags = NameFlags::CalculatedLength | NameFlags::CalculatedCrc;
         let length: i32 = text.len().try_into().unwrap();
-        let hash = crc32fast::hash(text.as_bytes()); // makes the wrong CRC
+        let mut hasher = Hasher::new_with_initial(!text.len() as u32);
+        hasher.update(text.as_bytes());
+        let hash = !hasher.finalize(); 
         let string = Some(alloc.allocate(Self::get_layout_sized(length)).unwrap().cast());
         unsafe { text.as_ptr().copy_to_nonoverlapping(string.unwrap().as_ptr(), length as usize); }
         Self {
@@ -55,6 +60,7 @@ impl<A: Allocator> Name<A>
             _allocator: alloc,
         }
     }
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
     /// (Original function: gfdNameGetLength)
     pub fn len(&self) -> i32 { self.length }
     fn get_layout(&self) -> Layout { Self::get_layout_sized(self.len()) }
@@ -77,20 +83,24 @@ impl Name<Global> {
     pub fn new(text: &str) -> Self { Self::new_in(text, Global) }
 }
 
-impl<A: Allocator> Display for Name<A> {
+impl<A> Display for Name<A> 
+where A: Allocator + Clone
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.get_string())
     }
 }
 
-impl<A: Allocator> Debug for Name<A> {
+impl<A> Debug for Name<A> 
+where A: Allocator + Clone
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "GfdName {{ string: {}, hash: {} }}", self.get_string(), self.hash)
     }
 }
 
 impl<A> Clone for Name<A> 
-    where A: Allocator + Clone
+where A: Allocator + Clone
 {
     /// (Original function: gfdNameCopy)
     fn clone(&self) -> Self {
@@ -108,7 +118,9 @@ impl<A> Clone for Name<A>
     }
 }
 
-impl<A: Allocator> Drop for Name<A> {
+impl<A> Drop for Name<A> 
+where A: Allocator + Clone
+{
     /// (Original function: gfdNameClear)
     fn drop(&mut self) {
         // SAFETY: This is the last time that self.string is referred to
@@ -116,22 +128,30 @@ impl<A: Allocator> Drop for Name<A> {
     }
 }
 
-impl<A: Allocator> PartialEq for Name<A> {
+impl<A> PartialEq for Name<A> 
+where A: Allocator + Clone
+{
     /// (Original function: gfdNameEqual)
     fn eq(&self, other: &Self) -> bool {
         self.hash == other.hash
     }
 }
 
-impl<A: Allocator> Eq for Name<A> {}
+impl<A> Eq for Name<A> 
+where A: Allocator + Clone
+{}
 
-impl<A: Allocator> PartialOrd for Name<A> {
+impl<A> PartialOrd for Name<A> 
+where A: Allocator + Clone
+{
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<A: Allocator> Ord for Name<A> {
+impl<A> Ord for Name<A> 
+where A: Allocator + Clone
+{
     /// (Original function: gfdNameCompare)
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.hash == other.hash { return std::cmp::Ordering::Equal; }
@@ -147,13 +167,17 @@ impl From<&str> for Name<Global> {
     }
 }
 
-impl<A: Allocator> PartialEq<str> for Name<A> {
+impl<A> PartialEq<str> for Name<A> 
+where A: Allocator + Clone
+{
     fn eq(&self, other: &str) -> bool {
         self.get_string() == other
     }
 }
 
-impl<A: Allocator> PartialOrd<str> for Name<A> {
+impl<A> PartialOrd<str> for Name<A> 
+where A: Allocator + Clone
+{
     fn partial_cmp(&self, other: &str) -> Option<std::cmp::Ordering> {
         Some(self.get_string().cmp(other))
     }
@@ -237,10 +261,9 @@ pub mod tests {
     #[test]
     fn create_gfd_name_from_string_slice() -> TestReturn {
         // RootNode (48E1B0E5) [48E1B0E5]
-        let tex_name = Name::new("RootNode");
-        // println!("{}", tex_name);
-        // println!("{:?}", tex_name);
-        // assert_eq!(tex_name.get_hash(), 1222750437);
+        assert_eq!(Name::new("RootNode").get_hash(), 0x48E1B0E5);
+        // COMMON/init/gfdDefaultEnv.dds (BB4AC992) [BB4AC992]
+        assert_eq!(Name::new("COMMON/init/gfdDefaultEnv.dds").get_hash(), 0xBB4AC992);
         Ok(())
     }
 }

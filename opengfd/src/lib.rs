@@ -188,6 +188,7 @@ pub mod tpl {
     pub mod resource;
 }
 pub mod utility {
+    pub mod free_list;
     pub mod item_array;
     pub mod math;
     pub mod misc;

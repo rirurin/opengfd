@@ -62,6 +62,10 @@ use opengfd::{
         render_ot::{ RenderOt, RenderOtBase, RenderOtEx },
         texture::Texture
     },
+    kernel::{
+        allocator::GfdAllocator,
+        task::Task as GfdTask
+    },
     tpl::{
         file_manager::FileManager,
         resource::{ 
@@ -730,6 +734,8 @@ pub unsafe extern "C" fn tplResourceCreate(mgmt: *mut u8, ret_storage: *mut u8, 
 }
 */
 
+/*
+
 #[riri_hook_fn(static_offset(0x147c470))]
 pub unsafe extern "C" fn tplResourceCreate(mgmt: *mut u8, ret_storage: *mut u8, filename: *mut u8, _a4: u32, _a5: u32) -> *mut u8 {
     let filename_cast = unsafe { &mut *(filename as *mut CppString<u8, AllocatorHook>) };
@@ -829,7 +835,8 @@ riri_static!(TPL_RESOURCE_SHARED_PTR_HOOK, usize);
 #[riri_hook_fn(static_offset(0x147d420))]
 pub unsafe extern "C" fn TplFileManagerThreadEventLoop(p_mgmt: *mut u8) {
     logln!(Information, "Start TPL File Manager Thread");
-    // original_function!(p_mgmt)
+    original_function!(p_mgmt)
+    /*
     let mgmt = unsafe { &mut *(p_mgmt as *mut FileManager<AllocatorHook>) };
     mgmt.set_running(true);
     while mgmt.get_running() {
@@ -886,6 +893,7 @@ pub unsafe extern "C" fn TplFileManagerThreadEventLoop(p_mgmt: *mut u8) {
         tplLoadFileFromCrifs();
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
+    */
 }
 
 #[riri_hook_fn(static_offset(0x1482970))]
@@ -904,4 +912,62 @@ pub unsafe extern "C" fn tplLoadFileFromCrifs() {
 #[riri_hook_fn(static_offset(0x2018fdf0))]
 pub unsafe extern "C" fn tplResourceLoadSubfile(resrc: *mut u8) {
     original_function!(resrc)
+}
+
+*/
+
+#[riri_hook_fn(static_offset(0x1105890))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdFreeListCreate(
+    entry_size: u32, entries_per_block: u32,
+    alignment: u32, prealloc_blocks: u32,
+    _place_space_for_handle: *mut u8, hint: u32
+    ) -> *mut u8 {
+    let out = opengfd::utility::free_list::FreeList::<u8, GfdAllocator>::new_inner_untyped(
+        entry_size, alignment, entries_per_block, prealloc_blocks, hint, GfdAllocator);
+    out.link();
+    logln!(Debug, "handle: 0x{:x}, entry size: {}, entries_per_block: {}, alignment: {}, prealloc: {}, hint: 0x{:x}",
+        &raw const *out as usize, entry_size, entries_per_block, alignment, prealloc_blocks, hint
+    );
+    &raw mut *out as *mut u8
+}
+
+#[riri_hook_fn(static_offset(0x1105b70))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdFreeListAllocCore(handle: *mut u8) -> *mut u8 {
+    let free_list = &mut *(handle as *mut opengfd::utility::free_list::FreeList<u8, GfdAllocator>);
+    free_list.add()
+}
+
+#[riri_hook_fn(static_offset(0x1105cf0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdFreeListFree(list: *mut u8, entry: *mut u8) {
+    // let free_list = &mut *(handle as *mut opengfd::utility::free_list::FreeList<u8, GfdAllocator>);
+    // free_list.remove(entry)
+    original_function!(list, entry)
+}
+
+#[riri_hook_fn(static_offset(0x74c0f40))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn fldMainCreateTask(parent: *mut u8, seq_set: *mut u8) -> *mut u8 {
+    // GfdTask::<GfdAllocator, u8>::print_running_tasks();
+    // logln!(Debug, "fldMain!");
+    original_function!(parent, seq_set)
+}
+
+#[riri_hook_fn(static_offset(0x1b524470))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdTaskAttachUpdateList(p_task: *mut u8) {
+    let task = &mut *(p_task as *mut GfdTask<GfdAllocator>);
+    logln!(Debug, "Attach Update for {}", task);
+    task.attach_to_update_list();
+    // let _ = original_function!(p_task);
+}
+
+#[riri_hook_fn(static_offset(0x1b521310))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdTaskAttachRenderList(p_task: *mut u8) {
+    let task = &mut *(p_task as *mut GfdTask<GfdAllocator>);
+    task.attach_to_render_list();
+    // let _ = original_function!(p_task);
 }
