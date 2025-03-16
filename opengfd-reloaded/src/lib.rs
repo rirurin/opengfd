@@ -109,6 +109,7 @@ pub unsafe extern "C" fn set_gfd_global_hook(ofs: usize) -> Option<std::ptr::Non
 }
 
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "F7 05 ?? ?? ?? ?? 00 00 00 02",
     resolve_type = set_gfd_global_hook,
     calling_convention = "microsoft",
@@ -132,6 +133,7 @@ pub unsafe extern "C" fn set_ngr_draw_state_hook(ofs: usize) -> Option<std::ptr:
 }
 
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 83 EC 28 E8 ?? ?? ?? ?? B9 E0 17 00 00",
     resolve_type = set_ngr_draw_state_hook,
     calling_convention = "microsoft",
@@ -151,6 +153,7 @@ pub unsafe extern "C" fn set_ngr_allocator_hook(ofs: usize) -> Option<std::ptr::
 }
 
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8B 0D ?? ?? ?? ?? 4C 8D 4C 24 ?? 48 89 44 24 ?? 41 B8 10 00 00 00 48 8D 05 ?? ?? ?? ?? C7 44 24 ?? 00 00 00 13 48 89 44 24 ?? 48 8D 05 ?? ?? ?? ?? C7 44 24 ?? 35 00 00 00",
     resolve_type = set_ngr_allocator_hook,
     calling_convention = "microsoft",
@@ -170,6 +173,7 @@ pub unsafe extern "C" fn set_ngr_window_hook(ofs: usize) -> Option<std::ptr::Non
 }
 // 1.01 Demo: 48 8B 05 ?? ?? ?? ?? 48 8B 98 ?? ?? ?? ?? 8B 4E ??
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8B 05 ?? ?? ?? ?? 4C 8B B8 ?? ?? ?? ?? 8B 4E ??",
     resolve_type = set_ngr_window_hook,
     calling_convention = "microsoft",
@@ -188,6 +192,7 @@ pub unsafe extern "C" fn set_ngr_crchash_vtable_hook(ofs: usize) -> Option<std::
     Some(addr)
 }
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 02 89 4A ?? C7 44 24 ?? 01 00 00 00 48 8B CA E8 ?? ?? ?? ?? 0F B6 13 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ?? 48 8B CF E8 ?? ?? ?? ?? 0F B6 53 ??",
     resolve_type = set_ngr_crchash_vtable_hook,
     calling_convention = "microsoft",
@@ -206,6 +211,7 @@ pub unsafe extern "C" fn set_ngr_dx11_renderer_hook(ofs: usize) -> Option<std::p
     Some(addr)
 }
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8B 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 44 8B 1D ?? ?? ?? ??",
     resolve_type = set_ngr_dx11_renderer_hook,
     calling_convention = "microsoft",
@@ -224,6 +230,7 @@ pub unsafe extern "C" fn set_ngr_rasterstate_vtable_hook(ofs: usize) -> Option<s
     Some(addr)
 }
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 8B 0E 89 4B ?? 8B 46 ?? 89 43 ?? 0F B6 46 ??",
     resolve_type = set_ngr_rasterstate_vtable_hook,
     calling_convention = "microsoft",
@@ -242,6 +249,7 @@ pub unsafe extern "C" fn set_ngr_blendstate_vtable_hook(ofs: usize) -> Option<st
     Some(addr)
 }
 #[riri_hook_static(dynamic_offset(
+    // TODO: Fix this! 
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
     resolve_type = set_ngr_blendstate_vtable_hook,
     calling_convention = "microsoft",
@@ -260,6 +268,7 @@ pub unsafe extern "C" fn set_ngr_depthstencilstate_vtable_hook(ofs: usize) -> Op
     Some(addr)
 }
 #[riri_hook_static(dynamic_offset(
+    // TODO: Fix this!
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
     resolve_type = set_ngr_depthstencilstate_vtable_hook,
     calling_convention = "microsoft",
@@ -278,6 +287,7 @@ pub unsafe extern "C" fn set_ngr_sampler_state_hook(ofs: usize) -> Option<std::p
     Some(addr)
 }
 #[riri_hook_static(dynamic_offset(
+    // TODO: Fix this!
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 0F B6 0E 88 4B ?? 8B 46 ?? 89 43 ?? 8B 46 ?? 89 43 ?? 8B 46 ??",
     resolve_type = set_ngr_sampler_state_hook,
     calling_convention = "microsoft",
@@ -296,11 +306,20 @@ pub unsafe extern "C" fn set_ngr_memhint_vtable_hook(ofs: usize) -> Option<std::
     Some(addr)
 }
 // 0x1411b0ce0, inside ngrInitFreeList
-#[riri_hook_static(dynamic_offset(
-    signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? C7 44 24 ?? 00 00 00 01",
-    resolve_type = set_ngr_memhint_vtable_hook,
-    calling_convention = "microsoft",
-))]
+#[riri_hook_static({
+    XRD759_UWP_1011 => dynamic_offset(
+        // signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? 44 8B 05 ?? ?? ?? ??",
+        signature = "49 89 E3 48 81 EC 88 00 00 00 48 8D 05 ?? ?? ?? ?? 45 31 C9 49 89 43 ?? 48 8D 15 ?? ?? ?? ?? 49 8D 43 ?? 31 C9",
+        resolve_type = set_ngr_memhint_vtable_hook,
+        calling_convention = "microsoft",
+    ),
+    // Checked with Steam 1.02, Steam 1.011
+    _ => dynamic_offset(
+        signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? C7 44 24 ?? 00 00 00 01",
+        resolve_type = set_ngr_memhint_vtable_hook,
+        calling_convention = "microsoft",
+    )
+})]
 riri_static!(NGR_MEMHINT_VTABLE, usize);
 
 #[no_mangle]
@@ -325,6 +344,7 @@ pub unsafe extern "C" fn set_ngr_spinlock_vtable_hook(ofs: usize) -> Option<std:
 }
 // 0x1411b061c, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "E8 ?? ?? ?? ?? 48 89 43 ?? 48 0F AF EF",
     resolve_type = set_ngr_spinlock_vtable_hook,
     calling_convention = "microsoft",
@@ -343,11 +363,24 @@ pub unsafe extern "C" fn set_ngr_pointer_freelist_hook(ofs: usize) -> Option<std
     Some(addr)
 }
 // 0x1411b0ce0, inside ngrInitFreeList
-#[riri_hook_static(dynamic_offset(
-    signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 9D 64 24 08",
-    resolve_type = set_ngr_pointer_freelist_hook,
-    calling_convention = "microsoft",
-))]
+#[riri_hook_static({
+    XRD759_STEAM_1011 => dynamic_offset(
+        signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 5D 89 D0 29",
+        resolve_type = set_ngr_pointer_freelist_hook,
+        calling_convention = "microsoft",
+    ),
+    XRD759_UWP_1011 => dynamic_offset(
+        signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? 8B 0D ?? ?? ?? ??",
+        resolve_type = set_ngr_pointer_freelist_hook,
+        calling_convention = "microsoft",
+    ),
+    // Checked with Steam 1.02
+    _ => dynamic_offset(
+        signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 9D 64 24 08",
+        resolve_type = set_ngr_pointer_freelist_hook,
+        calling_convention = "microsoft",
+    )
+})]
 riri_static!(NGR_POINTER_FREELIST, usize);
 
 #[no_mangle]
@@ -361,11 +394,19 @@ pub unsafe extern "C" fn set_ngr_string_freelist_hook(ofs: usize) -> Option<std:
     logln!(Information, "got ngrFreeList string: 0x{:x}", addr.as_ptr() as usize);
     Some(addr)
 }
-#[riri_hook_static(dynamic_offset(
-    signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 10 00 00 00 E8 ?? ?? ?? ?? 48 89 44 24 ??",
-    resolve_type = set_ngr_string_freelist_hook,
-    calling_convention = "microsoft",
-))]
+#[riri_hook_static({
+    XRD759_STEAM_1011 => dynamic_offset(
+        signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? 8B 0D ?? ?? ?? ??",
+        resolve_type = set_ngr_string_freelist_hook,
+        calling_convention = "microsoft",
+    ),
+    // Checked with Steam 1.011 and UWP 1.011
+    _ => dynamic_offset(
+        signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 10 00 00 00 E8 ?? ?? ?? ?? 48 89 44 24 ??",
+        resolve_type = set_ngr_string_freelist_hook,
+        calling_convention = "microsoft",
+    )
+})]
 riri_static!(NGR_STRING_FREELIST, usize);
 
 #[no_mangle]
@@ -381,6 +422,7 @@ pub unsafe extern "C" fn set_ngr_freelist_vtable_hook(ofs: usize) -> Option<std:
 }
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 48 89 4B ?? 44 89 6B ??",
     resolve_type = set_ngr_freelist_vtable_hook,
     calling_convention = "microsoft",
@@ -400,6 +442,7 @@ pub unsafe extern "C" fn set_ngr_1422ecad8_vtable_hook(ofs: usize) -> Option<std
 }
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static(dynamic_offset(
+    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
     signature = "48 8D 05 ?? ?? ?? ?? 48 89 01 48 8B D9 48 89 79 ?? 48 89 79 ??",
     resolve_type = set_ngr_1422ecad8_vtable_hook,
     calling_convention = "microsoft",
@@ -422,6 +465,8 @@ pub unsafe extern "C" fn ngrSetPixelProgramLoadHook(p_ctx: *mut u8, p_shader: *m
     ctx.set_pixel_shader(shader);
 }
 */
+
+/*
 #[riri_hook_fn(static_offset(0x1072960))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdRenderStateSetHook(prio: u32, state: u32, value: *mut u8) {
@@ -444,6 +489,8 @@ pub unsafe extern "C" fn gfdRenderStatePushHook(prio: u32, state: u32) {
 pub unsafe extern "C" fn gfdRenderSetBlendModeHook(prio: u32, blend: u32) {
     Render::set_blend_mode(prio, blend);
 }
+*/
+
 /*
 #[riri_hook_fn(static_offset(0x1101030))]
 #[allow(non_snake_case)] // Major graphical issues (still!)
@@ -457,6 +504,8 @@ pub unsafe extern "C" fn gfdShaderVertexBindHook(prio: u32, vertex: *mut u8) {
 //     let ot = &mut *(ot as *mut RenderOt);
 //     ot.link(prio);
 // }
+
+/*
 #[riri_hook_fn(static_offset(0x11947b0))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn ngrGetRasterizerStateInner(p_renderer: *mut u8, raster_key: *mut u8) -> *mut u8 {
@@ -624,6 +673,7 @@ pub unsafe extern "C" fn ngrDeferredContextSetIndexBuffer(
     let buffer = if p_buffer.is_null() { None } else { Some(&*(p_buffer as *const IndexBuffer)) };
     this.set_index_buffer(buffer, offset, buffer_index as usize);
 }
+*/
 
 #[riri_hook_fn(dynamic_offset(
     signature = "48 8B C4 53 48 83 EC 70 80 3D ?? ?? ?? ?? 00",
@@ -916,6 +966,8 @@ pub unsafe extern "C" fn tplResourceLoadSubfile(resrc: *mut u8) {
 
 */
 
+/*
+
 #[riri_hook_fn(static_offset(0x1105890))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdFreeListCreate(
@@ -971,3 +1023,4 @@ pub unsafe extern "C" fn gfdTaskAttachRenderList(p_task: *mut u8) {
     task.attach_to_render_list();
     // let _ = original_function!(p_task);
 }
+*/

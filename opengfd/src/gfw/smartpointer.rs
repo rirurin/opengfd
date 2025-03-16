@@ -132,6 +132,23 @@ where A: Allocator + Clone
         }
     }
 
+    pub fn link_unpin(&mut self, src: &mut Self) {
+        if std::ptr::addr_eq(&raw const *self, &raw const *src) { return }
+        if src.is_unique() {
+            src.next = Some(unsafe { NonNull::new_unchecked(&raw mut *self) });
+            self.prev = Some(unsafe { NonNull::new_unchecked(&raw mut *src) });
+            self.data = src.data;
+        } else {
+            self.next = src.next;
+            self.prev = Some(unsafe { NonNull::new_unchecked(&raw mut *src) });
+            if let Some(mut n) = self.next {
+                unsafe { n.as_mut() }.prev = Some(unsafe { NonNull::new_unchecked(&raw mut *self) });
+            }
+            src.next = Some(unsafe { NonNull::new_unchecked(&raw mut *self) });
+            self.data = src.data;
+        }
+    }
+
     fn get_next(&self) -> Option<&Self> {
         unsafe { self.next.map(|p| p.as_ref()) }
     }
@@ -158,6 +175,13 @@ where A: Allocator + Clone
     /// Is this SmartPointer the only reference to the data?
     pub fn is_unique(&self) -> bool { self.get_next().is_none() && self.get_prev().is_none() }
     pub fn is_initialized(&self) -> bool { self.data.is_some() }
+
+    pub fn set_cpp_vtable(&mut self, vtable: *const u8) {
+        self._cpp_vtable = vtable;
+    }
+    pub fn get_cpp_vtable(&self) -> *const u8 {
+        self._cpp_vtable
+    }
 }
 
 impl<T, A> Debug for SmartPointer<T, A>
@@ -247,6 +271,23 @@ where T: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.get_data())
+    }
+}
+
+impl<T, A> Deref for SmartPointer<T, A>
+where A: Allocator + Clone
+{
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.get_data()
+    }
+}
+
+impl<T, A> DerefMut for SmartPointer<T, A>
+where A: Allocator + Clone
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.get_data_mut()
     }
 }
 

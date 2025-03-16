@@ -70,11 +70,13 @@ where A: Allocator + Clone
         // (on serialized gfdName, only i16 is possible!)
         unsafe { Layout::from_size_align_unchecked(len as usize, align_of::<u8>()) }
     }
-    pub fn get_string(&self) -> &str {
-        // SAFETY: self.string ptr is valid for lifetime of self
-        let slice = unsafe { std::slice::from_raw_parts(self.string.unwrap().as_ptr(), self.len() as usize) };
-        // SAFETY: self.string is always UTF-8 (except in FFI), return value can only live as long as self
-        unsafe { std::str::from_utf8_unchecked(slice) }
+    pub fn get_string(&self) -> Option<&str> {
+        self.string.map(|v| {
+            // SAFETY: self.string ptr is valid for lifetime of self
+            let slice = unsafe { std::slice::from_raw_parts(v.as_ptr(), self.len() as usize) };
+            // SAFETY: self.string is always UTF-8 (except in FFI), return value can only live as long as self
+            unsafe { std::str::from_utf8_unchecked(slice) }
+        })
     }
     pub fn get_hash(&self) -> u32 { self.hash }
 }
@@ -87,7 +89,11 @@ impl<A> Display for Name<A>
 where A: Allocator + Clone
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.get_string())
+        let fmt = match self.get_string() {
+            Some(v) => v,
+            None => "NULL"
+        };
+        write!(f, "{}", fmt)
     }
 }
 
@@ -95,7 +101,11 @@ impl<A> Debug for Name<A>
 where A: Allocator + Clone
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "GfdName {{ string: {}, hash: {} }}", self.get_string(), self.hash)
+        let fmt = match self.get_string() {
+            Some(v) => v,
+            None => "NULL"
+        };
+        write!(f, "GfdName {{ string: {}, hash: {} }}", fmt, self.hash)
     }
 }
 
@@ -171,7 +181,10 @@ impl<A> PartialEq<str> for Name<A>
 where A: Allocator + Clone
 {
     fn eq(&self, other: &str) -> bool {
-        self.get_string() == other
+        match self.get_string() {
+            Some(v) => v == other,
+            None => false
+        }
     }
 }
 
@@ -179,7 +192,7 @@ impl<A> PartialOrd<str> for Name<A>
 where A: Allocator + Clone
 {
     fn partial_cmp(&self, other: &str) -> Option<std::cmp::Ordering> {
-        Some(self.get_string().cmp(other))
+        self.get_string().map(|v| v.cmp(other))
     }
 }
 

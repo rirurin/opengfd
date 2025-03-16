@@ -54,12 +54,14 @@ fn main() {
     let base = std::env::current_dir().unwrap();
     let cargo_info = mod_package::CargoInfo::new(&base).unwrap();
     let package_toml = mod_package::reloaded3ririext::Package::new(&base, &cargo_info).unwrap();
+    let mut hash_e = mod_package::HashFile::new(&base, package_toml.get_mod_id(), package_toml.get_mod_name()).unwrap();
     // Make FFI: Evaluate riri_hook macro, create hooked classes
     let mut hook_e = reloaded_codegen::HookEvaluator::new(&base, &package_toml, &cargo_info).unwrap();
     hook_e.set_ignore_files(vec![base.join("src/logger.rs"), base.join("src/config.rs")]);
     let call_hook_register = hook_e.evaluate_hooks(csbindgen_callback).unwrap();
     // Generate Mod.cs
     hook_e.generate_mod_main(call_hook_register).unwrap();
+    hash_e.generate_mod_hashes().unwrap();
     hook_e.update_timestamp().unwrap();
     let middata = hook_e.get_middata_path().to_path_buf();
     // Generate ModConfig.json

@@ -36,6 +36,7 @@ use crate::{
 };
 use glam::{ Vec3, Vec3A, Mat4 };
 use riri_mod_tools_proc::ensure_layout;
+use riri_mod_tools_rt::address::ProcessInfo;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -86,7 +87,7 @@ pub struct Global {
     delay_frame: u32,
     delay_force_frame: u32,
     main_stack_size: u32,
-    field59a4: [u8; 0x6c],
+    field59a4: [u8; 0x74],
     uid: u64
 }
 
@@ -110,15 +111,47 @@ impl Global {
     }
     /// Original function: gfdGetUID
     pub fn get_uid(&mut self) -> u64 {
-        self.uid.wrapping_add(1).max(1)
+        // self.uid.wrapping_add(1).max(1)
+        let process = ProcessInfo::get_current_process().unwrap();
+        match process.get_executable_hash() {
+            0x51d3b74ca903fd98 => { // hack for UWP since it's gfdGlobal is slightly larger (+ 0x28)
+                let ptr = unsafe { (&raw mut *self as *mut u8).add(0x5a40) as *mut u64 };
+                unsafe { (*ptr).wrapping_add(1).max(1) }
+            },
+            _ => self.uid.wrapping_add(1).max(1)
+        }
     }
     pub unsafe fn get_task_free_list_unchecked_mut(&mut self) 
     -> &mut GfdFreeList<GfdTask, GfdAllocator> {
-        unsafe { &mut *self.task_free_list }
+        let process = ProcessInfo::get_current_process().unwrap();
+        match process.get_executable_hash() {
+            0x51d3b74ca903fd98 => { // hack for UWP since it's gfdGlobal is slightly larger (+ 0x28)
+                &mut **((&raw mut *self as *mut u8).add(0x5950) as *mut *mut GfdFreeList<GfdTask, GfdAllocator>)
+            },
+            _ => &mut *self.task_free_list
+        }
     }
 
     pub fn get_flags(&self) -> GlobalFlags {
         self.flags
+    }
+    pub fn get_tasks(&self) -> &TaskGlobal {
+        let process = ProcessInfo::get_current_process().unwrap();
+        match process.get_executable_hash() {
+            0x51d3b74ca903fd98 => { // hack for UWP since it's gfdGlobal is slightly larger (+ 0x28)
+                unsafe { &*((&raw const *self as *const u8).add(0x5850) as *const TaskGlobal) }
+            },
+            _ => &self.tasks
+        }
+    }
+    pub fn get_tasks_mut(&mut self) -> &mut TaskGlobal {
+        let process = ProcessInfo::get_current_process().unwrap();
+        match process.get_executable_hash() {
+            0x51d3b74ca903fd98 => { // hack for UWP since it's gfdGlobal is slightly larger (+ 0x28)
+                unsafe { &mut *((&raw mut *self as *mut u8).add(0x5850) as *mut TaskGlobal) }
+            },
+            _ => &mut self.tasks
+        }
     }
 }
 

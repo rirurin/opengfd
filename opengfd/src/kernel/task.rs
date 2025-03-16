@@ -196,16 +196,19 @@ where A: Allocator + Clone
         }
     }
 
+    pub fn get_main_work_ref(&self) -> Option<&D> {
+        self.main_work.map(|v| unsafe { v.as_ref() })
+    }
+
+    pub fn get_main_work_mut(&mut self) -> Option<&mut D> {
+        self.main_work.map(|mut v| unsafe { v.as_mut() })
+    }
+
     fn fmt_inner(&self, update: bool) -> String {
-        // Function name
-        let name_printf = match self.name.len() {
-            0 => "NO NAME",
-            _ => self.name.get_string()
-        };
         let prio = if update { self.update_prio } else { self.render_prio };
         format!(
             "- {} @ 0x{:x}: <prio: {}> <func: 0x{:x}, 0x{:x}, 0x{:x}> <data: 0x{:x}> <uid: {}>",
-        name_printf, &raw const *self as usize, prio, self.get_update_function_address() as usize, 
+        self.get_name_native(), &raw const *self as usize, prio, self.get_update_function_address() as usize, 
         self.get_render_function_address() as usize, self.get_end_function_address() as usize, 
         self.get_main_work_address() as usize, self.uid)
     }
@@ -350,11 +353,11 @@ where A: Allocator + Clone
     pub fn attach_to_update_list(&mut self) {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
         let glb2 = unsafe { &mut *(&raw mut *glb) };
-        let mut mutex = glb.tasks.mutex.lock(glb2);
+        let mut mutex = glb.get_tasks_mut().mutex.lock(glb2);
         let pself = &raw mut *self as *mut Task<GfdAllocator>;
-        if (&*mutex).tasks.get_last_update_task() != std::ptr::null() {
+        if (&*mutex).get_tasks().get_last_update_task() != std::ptr::null() {
             // insert according to update priority
-            let mut curr = Some(unsafe { &mut *((&*mutex).tasks.get_last_update_task_mut()) });
+            let mut curr = Some(unsafe { &mut *((&*mutex).get_tasks().get_last_update_task_mut()) });
             while let Some(task) = curr {
                 if self.update_prio < task.update_prio {
                     match task.get_next_update_task_mut() {
@@ -367,7 +370,7 @@ where A: Allocator + Clone
                         },
                         None => {
                             // put at end
-                            (&mut *mutex).tasks.set_last_update_task(pself);
+                            (&mut *mutex).get_tasks_mut().set_last_update_task(pself);
                             task.update.next = pself;
                             self.update.prev = &raw mut *task as *mut Task<A>;
                         }
@@ -378,27 +381,28 @@ where A: Allocator + Clone
             }
         }
         // insert at the "end" (at head)
-        let last = if (&*mutex).tasks.get_first_update_task() != std::ptr::null_mut() {
-            let first = (&*mutex).tasks.get_first_update_task_mut();
+        let last = if (&*mutex).get_tasks().get_first_update_task() != std::ptr::null_mut() {
+            let first = (&*mutex).get_tasks().get_first_update_task_mut();
             self.update.next = first as *mut Task<A>;
             unsafe { first.as_mut().unwrap() }.update.prev = pself;
-            (&mut *mutex).tasks.get_last_update_task_mut()
+            // (&mut *mutex).tasks.get_last_update_task_mut()
+            (&*mutex).get_tasks().get_last_update_task_mut()
         } else {
             pself
         };
-        (&mut *mutex).tasks.set_last_update_task(last);
-        (&mut *mutex).tasks.set_first_update_task(pself);
+        (&mut *mutex).get_tasks_mut().set_last_update_task(last);
+        (&mut *mutex).get_tasks_mut().set_first_update_task(pself);
     }
 
     /// Original function: gfdTaskAttachRenderList
     pub fn attach_to_render_list(&mut self) {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
         let glb2 = unsafe { &mut *(&raw mut *glb) };
-        let mut mutex = glb.tasks.mutex.lock(glb2);
+        let mut mutex = glb.get_tasks_mut().mutex.lock(glb2);
         let pself = &raw mut *self as *mut Task<GfdAllocator>;
-        if (&*mutex).tasks.get_last_render_task() != std::ptr::null() {
+        if (&*mutex).get_tasks().get_last_render_task() != std::ptr::null() {
             // insert according to render priority
-            let mut curr = Some(unsafe { &mut *((&*mutex).tasks.get_last_render_task_mut()) });
+            let mut curr = Some(unsafe { &mut *((&*mutex).get_tasks().get_last_render_task_mut()) });
             while let Some(task) = curr {
                 if self.render_prio < task.update_prio {
                     match task.get_next_render_task_mut() {
@@ -411,7 +415,7 @@ where A: Allocator + Clone
                         },
                         None => {
                             // put at end
-                            (&mut *mutex).tasks.set_last_render_task(pself);
+                            (&mut *mutex).get_tasks_mut().set_last_render_task(pself);
                             task.render.next = pself;
                             self.render.prev = &raw mut *task as *mut Task<A>;
                         }
@@ -422,27 +426,27 @@ where A: Allocator + Clone
             }
         }
         // insert at the "end" (at head)
-        let last = if (&*mutex).tasks.get_first_render_task() != std::ptr::null_mut() {
-            let first = (&*mutex).tasks.get_first_render_task_mut();
+        let last = if (&*mutex).get_tasks().get_first_render_task() != std::ptr::null_mut() {
+            let first = (&*mutex).get_tasks().get_first_render_task_mut();
             self.render.next = first as *mut Task<A>;
             unsafe { first.as_mut().unwrap() }.render.prev = pself;
-            (&mut *mutex).tasks.get_last_render_task_mut()
+            (&mut *mutex).get_tasks().get_last_render_task_mut()
         } else {
             pself
         };
-        (&mut *mutex).tasks.set_last_render_task(last);
-        (&mut *mutex).tasks.set_first_render_task(pself);
+        (&mut *mutex).get_tasks_mut().set_last_render_task(last);
+        (&mut *mutex).get_tasks_mut().set_first_render_task(pself);
     }
 
     fn attach_to_begin_list(&mut self) {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
         let glb2 = unsafe { &mut *(&raw mut *glb) };
-        let mut mutex = glb.tasks.mutex.lock(glb2);
+        let mut mutex = glb.get_tasks_mut().mutex.lock(glb2);
         if !(&*mutex).get_flags().contains(GlobalFlags::NO_INCREASE_TASK_START_TIMER) {
             self.start_timer += 1;
         }
-        let first_idle = if (&*mutex).tasks.get_first_begin_task() != std::ptr::null() {
-            Some(unsafe { &mut *(&*mutex).tasks.get_first_begin_task_mut() })
+        let first_idle = if (&*mutex).get_tasks().get_first_begin_task() != std::ptr::null() {
+            Some(unsafe { &mut *(&*mutex).get_tasks().get_first_begin_task_mut() })
         } else { None };
         let pself = &raw mut *self as *mut Task<GfdAllocator>;
         match first_idle {
@@ -450,18 +454,18 @@ where A: Allocator + Clone
                 self.idle.next = &raw mut *v as *mut Task<A>;
                 v.idle.prev = pself;
             },
-            None => (&mut *mutex).tasks.set_last_update_task(pself),
+            None => (&mut *mutex).get_tasks_mut().set_last_update_task(pself),
         }
-        (&mut* mutex).tasks.set_first_update_task(pself);
+        (&mut* mutex).get_tasks_mut().set_first_update_task(pself);
     }
 
     /// Original function: gfdTaskExist
     pub fn exists(&self) -> bool {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
         let mut curr_task = match self.status {
-            TaskStatus::Begin => glb.tasks.get_last_begin_task_mut(),
-            TaskStatus::Update => glb.tasks.get_last_update_task_mut(),
-            TaskStatus::Shutdown => glb.tasks.get_last_ending_task_mut()
+            TaskStatus::Begin => glb.get_tasks().get_last_begin_task_mut(),
+            TaskStatus::Update => glb.get_tasks().get_last_update_task_mut(),
+            TaskStatus::Shutdown => glb.get_tasks().get_last_ending_task_mut()
         };
         while curr_task != std::ptr::null_mut() {
             let task_ref = unsafe { &*curr_task };
@@ -477,46 +481,43 @@ where A: Allocator + Clone
 
     /// Original function: gfdTaskFindByName
     pub fn find_by_str(name: &str) -> Option<&'static Self> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let mut curr_task = glb.tasks.get_last_update_task();
-        while curr_task != std::ptr::null_mut() {
-            let task_ref = unsafe { curr_task.as_ref().unwrap() };
-            if task_ref == name { return Some(unsafe { &*(curr_task as *const Self) }); }
-            curr_task = task_ref.get_prev_update_task_ptr();
+        let mut found = Self::iter_update().find(|p| *p == name);
+        if found.is_none() {
+            found = Self::iter_begin().find(|p| *p == name);
         }
-        curr_task = glb.tasks.get_last_begin_task();
-        while curr_task != std::ptr::null_mut() {
-            let task_ref = unsafe { curr_task.as_ref().unwrap() };
-            if task_ref == name { return Some(unsafe { &*(curr_task as *const Self) }); }
-            curr_task = task_ref.get_prev_update_task_ptr();
+        found
+    }
+    pub fn find_by_str_mut(name: &str) -> Option<&'static mut Self> {
+        let mut found = Self::iter_update().find(|p| *p == name);
+        if found.is_none() {
+            found = Self::iter_begin().find(|p| *p == name);
         }
-        None
+        found.map(|t| unsafe { &mut *(&raw const *t as *mut Self) })
     }
     /// Original function: gfdTaskFindByUID
     pub fn find_by_uid(uid: u64) -> Option<&'static Self> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let mut curr_task = glb.tasks.get_last_update_task();
-        while curr_task != std::ptr::null_mut() {
-            let task_ref = unsafe { curr_task.as_ref().unwrap() };
-            if task_ref == &uid { return Some(unsafe { &*(curr_task as *const Self) }); }
-            curr_task = task_ref.get_prev_update_task_ptr();
+        let mut found = Self::iter_update().find(|p| *p == &uid);
+        if found.is_none() {
+            found = Self::iter_begin().find(|p| *p == &uid);
         }
-        curr_task = glb.tasks.get_last_begin_task();
-        while curr_task != std::ptr::null_mut() {
-            let task_ref = unsafe { curr_task.as_ref().unwrap() };
-            if task_ref == &uid { return Some(unsafe { &*(curr_task as *const Self) }); }
-            curr_task = task_ref.get_prev_idle_task_ptr();
-        }
-        None
+        found
     }
     /// Original function: gfdTaskGetCurrentID
     pub fn current_id() -> Option<&'static Self> {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        if glb.tasks.current != std::ptr::null_mut() {
-            Some(unsafe { &*(glb.tasks.current as *mut Self) })
+        if glb.get_tasks().current != std::ptr::null_mut() {
+            Some(unsafe { &*(glb.get_tasks().current as *mut Self) })
         } else {
             None
         }
+    }
+
+    pub fn get_name(&self) -> Option<&str> {
+        self.name.get_string()
+    }
+
+    pub fn get_name_native(&self) -> &Name<A> {
+        &self.name
     }
 }
 
@@ -828,10 +829,10 @@ impl<A, D> Task<A, D>
 where D: 'static,
       A: Allocator + Clone
 {
-    fn iter_begin() -> TaskBeginIterator<'static, A, D> {
+    pub fn iter_begin() -> TaskBeginIterator<'static, A, D> {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let mut curr = if glb.tasks.get_last_begin_task() != std::ptr::null_mut() {
-            Some(unsafe { &*(glb.tasks.get_last_begin_task() as *mut Task<A, D>) })
+        let mut curr = if glb.get_tasks().get_last_begin_task() != std::ptr::null_mut() {
+            Some(unsafe { &*(glb.get_tasks().get_last_begin_task() as *mut Task<A, D>) })
         } else { None };
         while let Some(next_t) = curr {
             curr = if next_t.idle.prev != std::ptr::null_mut() {
@@ -841,10 +842,10 @@ where D: 'static,
         }
         TaskBeginIterator { curr }
     }
-    fn iter_end() -> TaskEndIterator<'static, A, D> {
+    pub fn iter_end() -> TaskEndIterator<'static, A, D> {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let mut curr = if glb.tasks.get_last_ending_task() != std::ptr::null_mut() {
-            Some(unsafe { &*(glb.tasks.get_last_ending_task() as *mut Task<A, D>) })
+        let mut curr = if glb.get_tasks().get_last_ending_task() != std::ptr::null_mut() {
+            Some(unsafe { &*(glb.get_tasks().get_last_ending_task() as *mut Task<A, D>) })
         } else { None };
         while let Some(next_t) = curr {
             curr = if next_t.idle.prev != std::ptr::null_mut() {
@@ -854,17 +855,17 @@ where D: 'static,
         }
         TaskEndIterator { curr }
     }
-    fn iter_update() -> TaskUpdateIterator<'static, A, D> {
+    pub fn iter_update() -> TaskUpdateIterator<'static, A, D> {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let update_task = glb.tasks.get_last_update_task();
+        let update_task = glb.get_tasks().get_last_update_task();
         let curr = if update_task != std::ptr::null_mut() {
             Some(unsafe { &*(update_task as *mut Task<A, D>) })
         } else { None };
         TaskUpdateIterator { curr }
     }
-    fn iter_render() -> TaskRenderIterator<'static, A, D> {
+    pub fn iter_render() -> TaskRenderIterator<'static, A, D> {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let update_task = glb.tasks.get_last_render_task();
+        let update_task = glb.get_tasks().get_last_render_task();
         let curr = if update_task != std::ptr::null_mut() {
             Some(unsafe { &*(update_task as *mut Task<A, D>) })
         } else { None };
