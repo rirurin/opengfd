@@ -59,6 +59,8 @@ function GetNameWithUnderscores {
 [string] $global:OPENGFD_LIB = "opengfd"
 # Always will be given the game's compiled using MSVC
 [string] $global:TARGET = "x86_64-pc-windows-msvc"
+# Dependencies
+[string] $global:ADX_CRATE = "cri-adx-globals"
 
 function GetRustCrateTargetDirectory {
     param (
@@ -114,10 +116,14 @@ Split-Path $MyInvocation.MyCommand.Path | Push-Location
 $BASE_PATH = (Get-Location).ToString();
 [System.Environment]::SetEnvironmentVariable("RUST_BACKTRACE", 1)
 [System.Environment]::SetEnvironmentVariable("RUSTFLAGS", "-C panic=abort -C lto=fat -C embed-bitcode=yes -C target_cpu=native")
-
+# set env var for OpenGFD
 SetEnvironmentVariableIfNull -EnvVariable OPENGFD_PATH -EnvValue (Get-Location).ToString()
 $OPENGFD_DIRECTORY = GetNonNullEnvironmentVariable -EnvVariable OPENGFD_PATH
 $RELOADED_MOD_DIRECTORY = [IO.Path]::Combine((GetNonNullEnvironmentVariable -EnvVariable RELOADEDIIMODS), $global:GFD_RELOADED_ENTRYPOINT)
+# copy generate Cri ADX global bindings
+$ADX_GLB = ([IO.Path]::Combine($BASE_PATH, $global:GFD_RELOADED_CRATE, "src", "adx.rs"))
+$CRI_PATH = GetNonNullEnvironmentVariable -EnvVariable CRI_ADX_PATH
+Copy-Item ([IO.Path]::Combine($CRI_PATH, $global:ADX_CRATE, "middata", "ext.rs")) -Destination $ADX_GLB -Force
 
 # build OpenGFD globals as DLL
 GoToFolder -Path ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:GFD_GLOBALS_CRATE))

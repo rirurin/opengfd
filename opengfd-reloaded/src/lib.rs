@@ -94,7 +94,8 @@ use windows::{
 use riri_mod_tools_proc::{ ensure_layout, original_function, riri_hook_fn, riri_hook_static };
 use riri_mod_tools_rt::{ logln, sigscan_resolver };
 
-pub mod globals;
+pub mod adx; // cri adx bindings
+pub mod globals; // opengfd bindings
 
 #[no_mangle]
 pub unsafe extern "C" fn set_gfd_global_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
@@ -1024,3 +1025,29 @@ pub unsafe extern "C" fn gfdTaskAttachRenderList(p_task: *mut u8) {
     // let _ = original_function!(p_task);
 }
 */
+
+#[riri_hook_fn(static_offset(0x14870c0))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn tplSoundPlayerPlayCue(p_snd_player: *mut u8, id: i32) {
+    let snd_player = &mut *(p_snd_player as *mut opengfd::tpl::sound::player::SoundPlayer);
+    logln!(Verbose, "Player 0x{:x} - Play Cue {}", p_snd_player as usize, id);
+    snd_player.play_cue(id);
+    // original_function!(p_snd_player, id)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_sound_player_send_signal_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    logln!(Information, "got TPL::SoundPlayer::SendSignal: 0x{:x}", addr.as_ptr() as usize);
+    globals::set_sound_player_send_signal(addr.as_ptr());
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "49 89 E3 49 89 5B ?? 57 48 81 EC 80 00 00 00 48 8B 05 ?? ?? ?? ?? 48 31 E0 48 89 44 24 ?? 48 89 CF 80 39 00",
+    resolve_type = set_sound_player_send_signal_hook,
+    calling_convention = "microsoft",
+))]
+riri_static!(SOUND_PLAYER_SEND_SIGNAL_HOOK, usize);

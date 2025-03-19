@@ -8,6 +8,7 @@ allocator-api2 = "0.2.21"
 bitflags = "2.6"
 byteorder = "1"
 cpp-types = { path = "../../cpp-types/cpp-types" }
+cri-adx = { path = "../../cri-adx-rs/cri-adx" }
 crc32fast = "1.4.2"
 glam = "0.29"
 half = "2.4.1"

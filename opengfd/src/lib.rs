@@ -185,6 +185,13 @@ pub mod tests {
 }
 pub mod tpl {
     pub mod file_manager;
+    pub mod sound {
+        pub mod data;
+        pub mod player;
+        pub mod region;
+        pub mod source3d;
+        pub mod transceiver;
+    }
     pub mod resource;
 }
 pub mod utility {

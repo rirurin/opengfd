@@ -72,6 +72,9 @@ HasInterface = true
 UserName = "RyoTune"
 RepositoryName = "SharedScans"
 
+[[R2Dependencies]]
+Id = "riri.criadx"
+
 [HookSettings]
 HookLibrary = "Reloaded2CSharpHooks"
 DefaultCallingConvention = "Microsoft"

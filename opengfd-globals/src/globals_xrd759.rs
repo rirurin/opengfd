@@ -11,7 +11,7 @@ use opengfd::{
         structures::{ ListNodeFreeList, PointerListEntry }
     },
     kernel::global::Global,
-    tpl::file_manager::FileManager
+    tpl::file_manager::FileManager,
 };
 
 use opengfd_proc::create_gfd_static;
@@ -36,5 +36,6 @@ create_gfd_static!(NGR_1422ECAD8_VTABLE, u8); // ?? used in free list
 create_gfd_static!(NGR_FREELIST_VTABLE, u8);
 // TPL
 create_gfd_static!(FILE_MANAGER_INSTANCE, *mut FileManager);
+create_gfd_static!(SOUND_PLAYER_SEND_SIGNAL, u8);
 // std::shared_ptr vtables
 create_gfd_static!(TPL_RESOURCE_SHARED_PTR, u8);

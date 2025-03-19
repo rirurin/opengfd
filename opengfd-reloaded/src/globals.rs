@@ -1,6 +1,6 @@
 #![allow(dead_code, improper_ctypes)]
 // This file was automatically generated from opengfd-globals.
-use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global , tpl :: file_manager :: FileManager } ;
+use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global , tpl :: file_manager :: FileManager , } ;
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of GFD_GLOBAL.
@@ -321,6 +321,25 @@ unsafe extern "C" {
    /// An unchecked version of `get_file_manager_instance_mut`. This assumes that FILE_MANAGER_INSTANCE
     /// is set and it's initialized.
     pub(crate) unsafe fn get_file_manager_instance_unchecked_mut() -> & 'static mut FileManager;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of SOUND_PLAYER_SEND_SIGNAL.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_sound_player_send_signal(ptr: *mut u8);
+   /// Get a possible reference to SOUND_PLAYER_SEND_SIGNAL. This checks to see if `set_sound_player_send_signal`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_sound_player_send_signal() -> Option<& 'static u8>;
+   /// Like `get_sound_player_send_signal_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_sound_player_send_signal_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_sound_player_send_signal`. This assumes that SOUND_PLAYER_SEND_SIGNAL
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_sound_player_send_signal_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_sound_player_send_signal_mut`. This assumes that SOUND_PLAYER_SEND_SIGNAL
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_sound_player_send_signal_unchecked_mut() -> & 'static mut u8;
 
 }
 
