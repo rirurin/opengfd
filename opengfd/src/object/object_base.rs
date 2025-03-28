@@ -1,3 +1,8 @@
+use allocator_api2::alloc::Allocator;
+use crate::{
+    kernel::allocator::GfdAllocator,
+    object::node::Node
+};
 use std::{
     marker::PhantomPinned,
     ptr::NonNull
@@ -39,12 +44,54 @@ pub enum ObjectErrorID {
 /// (Original struct: gfdObject)
 #[repr(C)]
 #[derive(Debug)]
-pub struct Object {
+pub struct Object<A = GfdAllocator> 
+where A: Allocator + Clone 
+{
     id: ObjectId,
-    parent: Option<NonNull<super::node::Node>>,
-    prev: Option<NonNull<Object>>,
-    next: Option<NonNull<Object>>,
-    _pinned: PhantomPinned
+    parent: Option<NonNull<Node<A>>>,
+    prev: Option<NonNull<Object<A>>>,
+    next: Option<NonNull<Object<A>>>,
+    _pinned: PhantomPinned,
+    _allocator: A
+}
+
+impl<A> Object<A> 
+where A: Allocator + Clone
+{
+
+    // Original function: gfdObjectInitialize
+    pub(crate) fn new(id: ObjectId, alloc: A) -> Self {
+        Self {
+            id,
+            parent: None,
+            prev: None,
+            next: None,
+            _pinned: PhantomPinned,
+            _allocator: alloc
+        }
+    }
+
+    pub fn get_parent(&self) -> Option<&Node<A>> {
+        self.parent.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_parent_mut(&mut self) -> Option<&mut Node<A>> {
+        self.parent.map(|mut v| unsafe { v.as_mut() })
+    }
+    pub fn get_prev(&self) -> Option<&Self> {
+        self.prev.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_next(&self) -> Option<&Self> {
+        self.next.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_prev_mut(&mut self) -> Option<&mut Self> {
+        self.prev.map(|mut v| unsafe { v.as_mut() })
+    }
+    pub fn get_next_mut(&mut self) -> Option<&mut Self> {
+        self.next.map(|mut v| unsafe { v.as_mut() })
+    }
+    pub fn get_id(&self) -> ObjectId {
+        self.id
+    }
 }
 
 impl TryFrom<*const Object> for &super::mesh::Mesh {

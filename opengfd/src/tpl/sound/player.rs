@@ -55,7 +55,7 @@ impl SoundPlayer {
     }
 
     pub fn send_signal(&mut self) {
-        let send_signal_fn = &raw const *unsafe { crate::globals::get_sound_player_send_signal_unchecked() };
+        let send_signal_fn = unsafe { &raw const *crate::globals::get_sound_player_send_signal_unchecked() };
         let send_signal_fn = unsafe { std::mem::transmute::<_, fn(&mut SoundPlayer) -> ()>(send_signal_fn) };
         send_signal_fn(self);
     }
@@ -88,12 +88,14 @@ impl SoundPlayer {
     }
 
     // 0x14147d5b0
+    // Original function: TPL::SoundPlayer::SetAisacControlById
     pub fn set_aisac_control_by_id(&mut self, id: u32, value: f32) {
         self.get_player_mut().unwrap().set_aisac_control_by_id(id, value);
         self.send_signal();
     }
 
     // 0x14147d8c0
+    // Original function: TPL::SoundPlayer::Stop
     pub fn stop(&mut self) {
         self.get_player_mut().unwrap().stop();
         self.get_tween_mut().unwrap().stop();
@@ -102,6 +104,7 @@ impl SoundPlayer {
     }
 
     // 0x14147d200
+    // Original function: TPL::SoundPlayer::IsPaused
     pub fn is_paused(&self) -> bool {
         match self.get_player() {
             Some(v) => v.is_paused(),
@@ -109,11 +112,13 @@ impl SoundPlayer {
         }
     }
 
+    // Original function: TPL::SoundPlayer::Pause
     pub fn pause(&mut self, sw: bool) {
         self.get_player_mut().unwrap().pause(sw);
     }
 
     // 0x14147d220
+    // Original function: TPL::SoundPlayer::IsPlaying
     pub fn is_playing(&self) -> bool {
         match self.get_player() {
             Some(v) => match v.get_status() {

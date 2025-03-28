@@ -10,3 +10,4 @@
 /*/incl/
 /*/middata/
 *.g.cs
+BuildPrivate.ps1

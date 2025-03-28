@@ -53,6 +53,13 @@ impl GraphicsGlobal {
         unsafe { &mut *self.get_scene(no).camera }
     }
     pub fn is_deferred_rendering_available(&self) -> bool { false }
+
+    pub fn get_current_scene(&self) -> &Scene {
+        self.get_scene(self.current_scene)
+    }
+    pub fn get_current_scene_mut(&mut self) -> &mut Scene {
+        self.get_scene_mut(self.current_scene)
+    }
 }
 
 impl GraphicsGlobal {

@@ -7,20 +7,20 @@
             "UserName": "DeathChaos","RepositoryName": "mrfpc.modloader","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "mrfpc.modloader.ReleaseMetadata.json"
         },
-        "reloaded.sharedlib.hooks": {
+        "SharedScans.Reloaded": {
           "Config": {
-            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
-          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
+            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
         },
         "Reloaded.Memory.SigScan.ReloadedII": {
           "Config": {
             "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
         },
-        "SharedScans.Reloaded": {
+        "reloaded.sharedlib.hooks": {
           "Config": {
-            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
+            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
+          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
         }
       }
     },"GameBananaDependencies": {

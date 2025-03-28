@@ -104,3 +104,9 @@ pub struct Scene {
     quake: *mut Quake,
     field290: [u8; 0x40]
 }
+
+impl Scene {
+    pub fn get_root_node(&self) -> Option<&Node> {
+        unsafe { self.hierarchy.as_ref() }
+    }
+}
