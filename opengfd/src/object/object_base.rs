@@ -4,6 +4,7 @@ use crate::{
     object::node::Node
 };
 use std::{
+    fmt::Debug,
     marker::PhantomPinned,
     ptr::NonNull
 };
@@ -43,7 +44,7 @@ pub enum ObjectErrorID {
 /// points to another node in hierarchy and if the type is node, it may have children itself).
 /// (Original struct: gfdObject)
 #[repr(C)]
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct Object<A = GfdAllocator> 
 where A: Allocator + Clone 
 {
@@ -70,7 +71,9 @@ where A: Allocator + Clone
             _allocator: alloc
         }
     }
-
+    pub fn get_id(&self) -> ObjectId {
+        self.id
+    }
     pub fn get_parent(&self) -> Option<&Node<A>> {
         self.parent.map(|v| unsafe { v.as_ref() })
     }
@@ -89,8 +92,31 @@ where A: Allocator + Clone
     pub fn get_next_mut(&mut self) -> Option<&mut Self> {
         self.next.map(|mut v| unsafe { v.as_mut() })
     }
-    pub fn get_id(&self) -> ObjectId {
-        self.id
+    pub fn get_prev_ptr(&self) -> *mut Self {
+        match self.prev {
+            Some(p) => p.as_ptr(),
+            None => std::ptr::null_mut()
+        }
+    }
+    pub fn get_next_ptr(&self) -> *mut Self {
+        match self.next {
+            Some(p) => p.as_ptr(),
+            None => std::ptr::null_mut()
+        }
+    }
+}
+
+impl<A> Debug for Object<A>
+where A: Allocator + Clone
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let parent_fmt = match self.parent {
+            Some(v) => format!("{}", unsafe { v.as_ref() }),
+            None => "None".to_owned()
+        };
+        write!(f, "{:?} @ 0x{:x} {{ parent: {}, prev: 0x{:x}, next: 0x{:x} }}", 
+        self.id, &raw const *self as usize, parent_fmt, 
+        self.get_prev_ptr() as usize, self.get_next_ptr() as usize)
     }
 }
 
@@ -108,4 +134,22 @@ impl TryFrom<*mut Object> for &mut super::mesh::Mesh {
 
         Err(ObjectErrorID::Unknown)
     }
+}
+
+// gfdObjectFunctionTable
+pub trait ObjectTable {
+    /// Original function: gfdObjectGetIdName
+    const ID: &'static str;
+    /// Original function: gfdObjectAddRef
+    fn add_ref(&mut self) -> u32;
+    /// Original function: gfdObjectApplyKey
+    fn apply_key(&mut self, key: u8);
+    /// Original function: gfdObjectSetVisible
+    fn set_visible(&mut self, visibility: bool);
+    /// Original function: gfdObjectSetCulled
+    fn set_culled(&mut self, cull: bool);
+    fn set_dirty(&mut self, dirty: bool);
+    fn clear_dirty(&mut self);
+    /// Original function: gfdObjectCheckDirtied
+    fn check_dirty(&self) -> bool;
 }

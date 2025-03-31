@@ -2,9 +2,10 @@ use allocator_api2::alloc::Allocator;
 use glam::{ Vec3A, Quat, Mat4 };
 use crate::{
     kernel::allocator::GfdAllocator,
+    object::object::Object,
     utility::{ 
         name::Name, 
-        property::Property,
+        property::{ Property, PropertyChunk },
     }
 };
 use std::{
@@ -12,7 +13,7 @@ use std::{
     ops::{ Deref, DerefMut },
     ptr::NonNull
 };
-use super::object::Object;
+use riri_mod_tools_rt::logln;
 
 #[repr(C)]
 // #[derive(Debug)]
@@ -349,81 +350,316 @@ where A: Allocator + Clone
 // Standard Object Iterator
 // ==========================
 
+pub struct ObjectIterator<'a, A>
+where A: Allocator + Clone
+{
+    curr: Option<&'a Object<A>>,
+    curr_rev: Option<&'a Object<A>>,
+    _alloc_marker: std::marker::PhantomData<A>
+}
+
+impl<'a, A> ObjectIterator<'a, A>
+where A: Allocator + Clone
+{
+    fn collided(&self) -> bool {
+        let fwd_ptr = match &self.curr { Some(v) => &raw const **v, None => std::ptr::null() as *const Object<A> };
+        let bck_ptr = match &self.curr_rev { Some(v) => &raw const **v, None => std::ptr::null() as *const Object<A> };
+        std::ptr::eq(fwd_ptr, bck_ptr)
+    }
+}
+
+impl<'a, A> Iterator for ObjectIterator<'a, A>
+where A: Allocator + Clone
+{
+    type Item = &'a Object<A>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr.take().map(|v| {
+            self.curr = match self.collided() {
+                false => v.get_next(),
+                true => None
+            };
+            v  
+        })
+    }
+}
+
+impl<'a, A> DoubleEndedIterator for ObjectIterator<'a, A>
+where A: Allocator + Clone
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.curr_rev.take().map(|v| {
+            self.curr_rev = match self.collided() {
+                false => v.get_prev(),
+                true => None
+            };
+            v  
+        })
+    }
+}
+
+pub struct ObjectIteratorMut<'a, A>
+where A: Allocator + Clone
+{
+    curr: Option<&'a mut Object<A>>,
+    curr_rev: Option<&'a mut Object<A>>,
+    _alloc_marker: std::marker::PhantomData<A>
+}
+
+impl<'a, A> ObjectIteratorMut<'a, A>
+where A: Allocator + Clone
+{
+    fn collided(&self) -> bool {
+        let fwd_ptr = match &self.curr { Some(v) => &raw const **v, None => std::ptr::null() as *const Object<A> };
+        let bck_ptr = match &self.curr_rev { Some(v) => &raw const **v, None => std::ptr::null() as *const Object<A> };
+        std::ptr::eq(fwd_ptr, bck_ptr)
+    }
+}
+
+impl<'a, A> Iterator for ObjectIteratorMut<'a, A>
+where A: Allocator + Clone
+{
+    type Item = &'a mut Object<A>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr.take().map(|v| {
+            let value = unsafe { &mut *(&raw const *v as *mut Object<A>) };
+            self.curr = match self.collided() {
+                false => v.get_next_mut(),
+                true => None
+            };
+            value
+        })
+    }
+}
+
+impl<'a, A> DoubleEndedIterator for ObjectIteratorMut<'a, A>
+where A: Allocator + Clone
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.curr_rev.take().map(|v| {
+            let value = unsafe { &mut *(&raw const *v as *mut Object<A>) };
+            self.curr_rev = match self.collided() {
+                false => v.get_prev_mut(),
+                true => None
+            };
+            value  
+        })
+    }
+}
+
 /* 
-pub struct ObjectIterator<'a, A, S>
+impl<'a, A> IntoIterator for &'a Node<A>
+where A: Allocator + Clone
+{
+    type Item = &'a Object<A>;
+    type IntoIter = ObjectIterator<'a, A>;
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter {
+            curr: self.object_head.map(|v| unsafe { v.as_ref() }),
+            curr_rev: self.object_tail.map(|v| unsafe { v.as_ref() }),
+            _alloc_marker: std::marker::PhantomData::<A>
+        }
+    }
+}
+
+impl<'a, A> IntoIterator for &'a mut Node<A>
+where A: Allocator + Clone
+{
+    type Item = &'a mut Object<A>;
+    type IntoIter = ObjectIteratorMut<'a, A>;
+    fn into_iter(self) -> Self::IntoIter {
+        let curr = self.object_head.map(|mut v| unsafe { v.as_mut() });
+        let curr_rev = self.object_tail.map(|mut v| unsafe { v.as_mut() });
+        Self::IntoIter { curr, curr_rev, _alloc_marker: std::marker::PhantomData::<A> }
+    }
+}
+*/
+
+impl<A> Node<A>
+where A: Allocator + Clone
+{
+    pub fn iter_object(&self) -> ObjectIterator<'_, A> {
+        ObjectIterator {
+            curr: self.object_head.map(|v| unsafe { v.as_ref() }),
+            curr_rev: self.object_tail.map(|v| unsafe { v.as_ref() }),
+            _alloc_marker: std::marker::PhantomData::<A>
+        }
+    }
+    pub fn iter_object_mut(&mut self) -> ObjectIteratorMut<'_, A> {
+        ObjectIteratorMut {
+            curr: self.object_head.map(|mut v| unsafe { v.as_mut() }),
+            curr_rev: self.object_tail.map(|mut v| unsafe { v.as_mut() }),
+            _alloc_marker: std::marker::PhantomData::<A>
+        }
+    }
+}
+
+// ==========================
+// Recursive Object Iterator
+// ==========================
+
+pub struct RecursiveObjectIterator<'a, A, S>
 where A: Allocator + Clone,
       S: ObjectIterationSettings
 {
     nodes: Vec<&'a Node<A>>,
     curr: Option<&'a Object<A>>,
-    curr_node: &'a Node,
-    start_node: &'a Node,
     _alloc_marker: std::marker::PhantomData<A>,
     _settings: std::marker::PhantomData<S>
 }
 
-impl<'a, A, S> Iterator for ObjectIterator<'a, A, S>
+impl<'a, A, S> Iterator for RecursiveObjectIterator<'a, A, S>
 where A: Allocator + Clone,
       S: ObjectIterationSettings
 {
     type Item = &'a Object<A>;
     fn next(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|v| {
-            
-            // depth first search, so check child first
-            // self.parent
-            // self.curr = if let Some()
-            let node = *self.nodes.last().unwrap();
-            /* 
-            self.curr = if let Some(n) = v.get_next() {
-                Some(n)
-            } else if Some(ch) = node.link.child {
-
-            } else if self.nodes.len() > 1 && node.link.next.is_some() {
-                let next = unsafe { node.link.next.unwrap().as_ref() };
-
-            } else {
-                None
-            };
-            */
-            /* 
-            self.curr = if let Some(c) = v.link.child {
-                self.parents.push(v);
-                Some(unsafe { c.as_ref() })
-            // then check siblings
-            } else if let Some(s) = v.link.next {
-                Some(unsafe { s.as_ref() })
-            // if at the end of the chain, go back to the parent
-            } else if !self.parents.is_empty() {
-                Some(self.parents.pop().unwrap())
-            } else {
-                None
-            };
-*/
+            self.curr = v.get_next().or_else(|| self.find_next_node().map(
+                |v| v.get_first_object().unwrap()));
             v
         })
     }
 }
 
-impl<'a, A, S> ObjectIterator<'a, A, S>
+impl<'a, A, S> RecursiveObjectIterator<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
+{
+    pub fn find_next_node(&mut self) -> Option<&'a Node<A>> {
+        let mut curr = self.nodes.pop();
+        while let Some(v) = curr {
+            // logln!(Verbose, "Check Node! {}", v);
+            if let Some(n) = v.link.get_next() {
+                self.nodes.push(n);
+            }
+            if let Some(ch) = v.link.get_child() {
+                self.nodes.push(ch);
+            }
+            if v.has_object() { return Some(v); }
+            curr = self.nodes.pop();
+        }
+        None
+    }
+
+    fn get_first_object_iter(&mut self, root: &'a Node<A>) -> Option<&'a Object<A>> {
+        if let Some(c) = root.link.get_child() {
+            self.nodes.push(c);
+        }
+        if root.has_object() {
+            root.get_first_object()
+        } else {
+            self.find_next_node().map(|n| n.get_first_object().unwrap())
+        }
+    }
+}
+
+impl<'a, A, S> RecursiveObjectIterator<'a, A, S>
 where A: Allocator + Clone,
       S: ObjectIterationSettings
 {
     pub fn from_node(node: &'a Node<A>) -> Self {
-        Self {
-            nodes: vec![node],
+        let mut iterator = Self {
+            nodes: vec![],
             curr: None,
             _alloc_marker: std::marker::PhantomData::<A>,
             _settings: std::marker::PhantomData::<S>
+        };
+        iterator.curr = iterator.get_first_object_iter(node);
+        iterator
+    }
+}
+/* 
+pub struct RecursiveObjectIteratorMut<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
+{
+    nodes: Vec<&'a Node<A>>,
+    curr: Option<&'a Object<A>>,
+    _alloc_marker: std::marker::PhantomData<A>,
+    _settings: std::marker::PhantomData<S>
+}
+
+impl<'a, A, S> Iterator for RecursiveObjectIterator<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
+{
+    type Item = &'a Object<A>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr.take().map(|v| {
+            self.curr = v.get_next().or_else(|| self.find_next_node().map(
+                |v| v.get_first_object().unwrap()));
+            v
+        })
+    }
+}
+
+impl<'a, A, S> RecursiveObjectIterator<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
+{
+    pub fn find_next_node(&mut self) -> Option<&'a Node<A>> {
+        let mut curr = self.nodes.pop();
+        while let Some(v) = curr {
+            // logln!(Verbose, "Check Node! {}", v);
+            if let Some(n) = v.link.get_next() {
+                self.nodes.push(n);
+            }
+            if let Some(ch) = v.link.get_child() {
+                self.nodes.push(ch);
+            }
+            if v.has_object() { return Some(v); }
+            curr = self.nodes.pop();
+        }
+        None
+    }
+
+    fn get_first_object_iter(&mut self, root: &'a Node<A>) -> Option<&'a Object<A>> {
+        if let Some(c) = root.link.get_child() {
+            self.nodes.push(c);
+        }
+        if root.has_object() {
+            root.get_first_object()
+        } else {
+            self.find_next_node().map(|n| n.get_first_object().unwrap())
         }
     }
 }
+
+impl<'a, A, S> RecursiveObjectIterator<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
+{
+    pub fn from_node(node: &'a Node<A>) -> Self {
+        let mut iterator = Self {
+            nodes: vec![],
+            curr: None,
+            _alloc_marker: std::marker::PhantomData::<A>,
+            _settings: std::marker::PhantomData::<S>
+        };
+        iterator.curr = iterator.get_first_object_iter(node);
+        iterator
+    }
+}
 */
-// TODO: mut flavor
 
 impl<A> Node<A>
 where A: Allocator + Clone
 {
+
+    /// Original function: gfdNodeCollectHelper
+    pub fn collect_by_helper_id(&self, id: i32) -> Vec<&Self> {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|n| n.has_helper_id(id)).collect()
+    }
+
+    pub fn collect_by_name<F>(&self, name: &str) -> Vec<&Self> {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|v| v.has_name(name)).collect()
+    }
+
+    pub fn collect_by_predicate<C>(&self, cond: C) -> Vec<&Self>
+    where C: Fn(&Self) -> bool {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|v| cond(v)).collect()
+    }
+
     // Count the number of child nodes *including* the current node
     /// Original function: gfdNodeGetCount
     pub fn get_count(&self) -> usize {
@@ -451,6 +687,7 @@ where A: Allocator + Clone
     }
     /// Get the number of children nodes for the current node. This method is recursive
     /// and will return a Vec<&Node> in depth first order
+    /// Original function: gfdNodeCollect
     pub fn get_children(&self) -> Vec<&Self> {
         match self.link.child {
             Some(v) => {
@@ -481,27 +718,55 @@ where A: Allocator + Clone
         }
     }
 
+    /// Check if the current node has a gfdHelperID with a matching ID
+    pub fn has_helper_id(&self, id: i32) -> bool {
+        if let Some(p) = self.get_property() {
+            if let Some(h) = p.find("gfdHelperID") {
+                if let Ok(n) = h.get_integer_value() {
+                    n == id
+                } else { false }
+            } else { false }
+        } else { false }
+    }
+
+    pub fn has_name(&self, name: &str) -> bool {
+        match self.get_name() {
+            Some(n) => n == name,
+            None => false
+        }
+    }
+
     /// Original function: gfdNodeFindHierarchyByHelperID 
     /// and gfdNodeFindHierarchyByHelperIDRecursive
     pub fn find_by_helper_id(&self, id: i32) -> Option<&Self> {
-        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| {
-            if let Some(p) = (*n).get_property() {
-                if let Some(h) = p.find("gfdHelperID") {
-                    if let Ok(n) = h.get_integer_value() {
-                        n == id
-                    } else { false }
-                } else { false }
-            } else { false }
-        })
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| self.has_helper_id(id))
     }
 
     /// Original function: gfdNodeFindHierarchyByName
     pub fn find_by_name(&self, name: &str) -> Option<&Self> {
-        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| {
-            if let Some(s) = n.get_name() {
-                s == name
-            } else { false }
-        })
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| n.has_name(name))
+    }
+
+    pub fn find_by_predicate<F>(&self, cb: F) -> Option<&Self> 
+    where F: Fn(&Self) -> bool {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| cb(*n))
+    }
+
+
+    pub fn for_each_by_helper_id<F>(&self, id: i32, cb: F) 
+    where F: Fn(&Self) {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|v| v.has_helper_id(id)).for_each(|n| cb(n))
+    }
+
+    pub fn for_each_by_name<F>(&self, name: &str, cb: F) 
+    where F: Fn(&Self) {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|v| v.has_name(name)).for_each(|n| cb(n))
+    }
+
+    pub fn for_each_by_predicate<C, F>(&self, cond: C, cb: F) 
+    where C: Fn(&Self) -> bool,
+          F: Fn(&Self) {
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|v| cond(v)).for_each(|n| cb(n))
     }
 
     pub fn get_average_scale(&self) -> f32 {
@@ -526,6 +791,15 @@ where A: Allocator + Clone
     pub fn get_name_platform(&self) -> &Name {
         &self.name
     }
+
+    pub fn get_first_object(&self) -> Option<&Object<A>> {
+        self.object_head.map(|v| unsafe { v.as_ref() })
+    }
+
+    pub fn get_last_object(&self) -> Option<&Object<A>> {
+        self.object_tail.map(|v| unsafe { v.as_ref() })
+    }
+
     /// Get a immutable reference to the parent of the current node within the hierarchy
     /// Original function: gfdNodeGetParent
     pub fn get_parent(&self) -> Option<&Self> {
@@ -538,6 +812,12 @@ where A: Allocator + Clone
 
     pub fn get_property(&self) -> Option<&Property<A>> {
         self.property.map(|v| unsafe { v.as_ref() })
+    }
+
+    pub fn get_property_entry(&self, name: &str) -> Option<&PropertyChunk<A>> {
+        if let Some(p) = self.get_property() {
+            p.find(name)
+        } else { None }
     }
 
     /// Get a immutable reference to the root of the node hierarchy that this node is within
@@ -568,6 +848,10 @@ where A: Allocator + Clone
     /// Original function: gfdNodeGetWorldTransform
     pub fn get_world_transform(&self) -> Mat4 {
         self.world_tm
+    }
+
+    pub fn has_object(&self) -> bool {
+        self.object_head.is_some()
     }
 
     pub fn is_leaf(&self) -> bool {
@@ -610,6 +894,19 @@ where A: Allocator + Clone
     }
 }
 
+impl<A> Node<A>
+where A: Allocator + Clone
+{
+    pub fn fmt_hierarchy(&self) -> String {
+        let mut root =  format!("{}\n", self);
+        let children: Vec<_> = NodeIteratorDepthLimited::from_node(self).collect();
+        for child in children {
+            root += &format!("{}{}\n", "\t".repeat(child.get_depth()), &*child);
+        }
+        root
+    }
+}
+
 impl<A> Debug for Node<A>
 where A: Allocator + Clone
 {
@@ -643,4 +940,18 @@ where A: Allocator + Clone {
     next: Option<NonNull<Node<A>>>,
     skin_bone_index: u16,
     terminate: u16
+}
+
+impl<A> NodeLink<A>
+where A: Allocator + Clone
+{
+    pub(crate) fn get_root(&self) -> Option<&Node<A>> {
+        self.root.map(|v| unsafe { v.as_ref() })
+    }
+    pub(crate) fn get_child(&self) -> Option<&Node<A>> {
+        self.child.map(|v| unsafe { v.as_ref() })
+    }
+    pub(crate) fn get_next(&self) -> Option<&Node<A>> {
+        self.next.map(|v| unsafe { v.as_ref() })
+    }
 }

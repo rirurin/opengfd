@@ -109,4 +109,7 @@ impl Scene {
     pub fn get_root_node(&self) -> Option<&Node> {
         unsafe { self.hierarchy.as_ref() }
     }
+    pub fn get_root_node_mut(&mut self) -> Option<&mut Node> {
+        unsafe { self.hierarchy.as_mut() }
+    }
 }

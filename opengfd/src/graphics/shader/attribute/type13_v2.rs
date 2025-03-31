@@ -1,31 +1,27 @@
 use allocator_api2::alloc::Allocator;
 use crate::{
     graphics::{
-        material::{ 
+        material::{  
             Material, 
             MaterialType, 
         },
-        shader::shader::ShaderFlags
+        shader::{
+            attribute::toon_v2::Toon,
+            shader::ShaderFlags
+        }
     },
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
-use glam::Vec4;
 
-// See https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
-
-/// Shader File: 39.HLSL or 41.HLSL
-#[repr(C)]
-#[derive(Debug)]
-pub struct Shadow<A = GfdAllocator> 
+pub struct Type13<A = GfdAllocator> 
 where A: Allocator + Clone
 {
-    field0: Vec4,
-    field10: f32,
-    _allocator: std::marker::PhantomData<A>
+    _impl: Toon,
+    _alloc: std::marker::PhantomData<A>
 }
 
-impl<A> Shadow<A> 
+impl<A> Type13<A> 
 where A: Allocator + Clone
 {
     pub fn get_material(&self) -> &Material<A> {
@@ -34,7 +30,7 @@ where A: Allocator + Clone
     }
 }
 
-impl<A> MaterialType for Shadow<A> 
+impl<A> MaterialType for Type13<A> 
 where A: Allocator + Clone
 {
     fn check_billboard_shadow_map(&self) -> bool {
@@ -74,5 +70,10 @@ where A: Allocator + Clone
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
     fn update(&mut self) {
+        /* 
+        if self.flags.contains(FieldFlags::RemoveDiffuseShadow) {
+            // TODO: Remove diffuse shadow
+        }
+        */
     }
 }

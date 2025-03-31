@@ -1,31 +1,48 @@
 use allocator_api2::alloc::Allocator;
+use bitflags::bitflags;
 use crate::{
     graphics::{
         material::{ 
             Material, 
+            MaterialFlags,
             MaterialType, 
         },
-        shader::shader::ShaderFlags
+        shader::{
+            flag::Flags2 as ShaderFlag2,
+            shader::ShaderFlags
+        }
     },
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
 use glam::Vec4;
 
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct SkyFlags: u32 {
+        const BlendClearColor = 0x00000001;
+    }
+}
+
 // See https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
-/// Shader File: 39.HLSL or 41.HLSL
+/// Shader File: 37.HLSL
 #[repr(C)]
 #[derive(Debug)]
-pub struct Shadow<A = GfdAllocator> 
+pub struct Sky<A = GfdAllocator> 
 where A: Allocator + Clone
 {
-    field0: Vec4,
-    field10: f32,
+    base_color: Vec4,
+    emissive_strength: f32,
+    roughness: f32,
+    metallic: f32,
+    multi_alpha: f32,
+    bloom_intensity: f32,
+    flags: SkyFlags,
     _allocator: std::marker::PhantomData<A>
 }
 
-impl<A> Shadow<A> 
+impl<A> Sky<A> 
 where A: Allocator + Clone
 {
     pub fn get_material(&self) -> &Material<A> {
@@ -34,7 +51,7 @@ where A: Allocator + Clone
     }
 }
 
-impl<A> MaterialType for Shadow<A> 
+impl<A> MaterialType for Sky<A> 
 where A: Allocator + Clone
 {
     fn check_billboard_shadow_map(&self) -> bool {
@@ -44,7 +61,7 @@ where A: Allocator + Clone
         false
     }
     fn check_invisible(&self) -> bool {
-        false
+        self.base_color.w == 0.
     }
     fn check_outline(&self) -> bool {
         false
@@ -65,14 +82,25 @@ where A: Allocator + Clone
         false
     }
     fn get_base_color_opacity(&self) -> f32 {
-        0.
+        self.base_color.w
     }
     fn get_shadow_link_func(&self) -> u8 {
         0
     }
+    fn get_tex1_name(&self) -> &'static str { "Base Texture" }
+    fn get_tex5_name(&self) -> &'static str { "Multiply Texture" }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+        if self.flags.contains(SkyFlags::BlendClearColor) {
+            *flags |= ShaderFlag2::FLAG2_BLEND_CLEARCOLOR;
+        }
+        // TODO: Transparency
     }
     fn update(&mut self) {
+        /* 
+        if self.flags.contains(FieldFlags::RemoveDiffuseShadow) {
+            // TODO: Remove diffuse shadow
+        }
+        */
     }
 }

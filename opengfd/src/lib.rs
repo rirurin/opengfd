@@ -115,12 +115,23 @@ pub mod graphics {
         }
         #[cfg(feature = "v2-core")]
         pub mod attribute {
+            pub mod distortion_v2;
+            pub mod field_v2;
             pub mod lambert_v2;
             pub mod layered_v2;
             pub mod metal_v2;
             pub mod pbr_v2;
             pub mod shadow_v2;
+            pub mod sky_v2;
             pub mod toon_v2;
+            pub mod type3_v2;
+            pub mod type7_v2;
+            pub mod type8_v2;
+            pub mod type9_v2;
+            pub mod type11_v2;
+            pub mod type13_v2;
+            pub mod type14_v2;
+            pub mod type15_v2;
             pub mod water_v2;
         }
         #[cfg(feature = "v1-core")]

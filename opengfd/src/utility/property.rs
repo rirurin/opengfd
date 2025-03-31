@@ -46,6 +46,7 @@ bitflags! {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct Property<A = GfdAllocator> 
 where A: Allocator + Clone
 {
@@ -98,6 +99,21 @@ where A: Allocator + Clone
 
     pub fn get_property_entries(&self) -> Vec<&PropertyChunk<A>> {
         self.into_iter().collect()
+    }
+}
+
+impl<A> Display for Property<A>
+where A: Allocator + Clone
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut fmt_string = format!("Property @ 0x{:x}: [", &raw const *self as usize);
+        let len = self.into_iter().count();
+        for (i, chunk) in self.into_iter().enumerate() {
+            let sep = if i == len - 1 { "" } else { ", " };
+            fmt_string += &format!("{}{}", chunk, sep);
+        }
+        fmt_string += "]";
+        write!(f, "{}", fmt_string)
     }
 }
 
@@ -291,8 +307,12 @@ where A: Allocator + Clone
     }
     pub fn get_string_value(&self) -> Result<&str, PropertyChunkTypeError> {
         match self.ty {
-            ValueType::String => Ok(unsafe { std::str::from_utf8_unchecked(
-                std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.size as usize)) }),
+            ValueType::String => {
+                let bytes = unsafe { std::slice::from_raw_parts(
+                    // subtract 1 to get rid of the null terminator
+                    *(self.data.as_ptr() as *const *const u8), self.size as usize - 1) };
+                Ok(unsafe { std::str::from_utf8_unchecked(bytes) })
+            },
             _ => Err(PropertyChunkTypeError::new(ValueType::String, self.ty))
         }
     }
@@ -325,5 +345,24 @@ where A: Allocator + Clone
             ValueType::ByteArray => Ok(unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.size as usize)}),
             _ => Err(PropertyChunkTypeError::new(ValueType::ByteArray, self.ty))
         }
+    }
+}
+
+impl<A> Display for PropertyChunk<A>
+where A: Allocator + Clone 
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt_data = match self.ty {
+            ValueType::Int => format!("{}", self.get_integer_value().unwrap()),
+            ValueType::Float => format!("{}", self.get_float_value().unwrap()),
+            ValueType::Bool => format!("{:?}", self.get_bool_value().unwrap()),
+            ValueType::String => format!("{}", self.get_string_value().unwrap()),
+            ValueType::ByteVector3 => format!("{}", self.get_byte_vec3_value().unwrap()),
+            ValueType::ByteVector4 => format!("{}", self.get_byte_vec4_value().unwrap()),
+            ValueType::Vector3 => format!("{}", self.get_vec3_value().unwrap()),
+            ValueType::Vector4 => format!("{}", self.get_vec4_value().unwrap()),
+            _ => "None".to_owned()
+        };
+        write!(f, "<{}: {}>", self.name, fmt_data)
     }
 }

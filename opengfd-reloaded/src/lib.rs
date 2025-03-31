@@ -1071,6 +1071,61 @@ pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
         let scene = glb.graphics.get_current_scene();
         if let Some(n) = scene.get_root_node() {
+            let arch = n.find_by_name("mesh_arc_0006").unwrap();
+
+            // let children = start.get_children_limited_depth(1000);
+            // for ch in children {
+            //     logln!(Verbose, "{}{}", "\t".repeat(ch.get_depth()), &*ch);
+            // }
+            for attach in opengfd::object::node::RecursiveObjectIterator::<
+                GfdAllocator, opengfd::object::node::StandardNodeIterator
+            >::from_node(arch) {
+                logln!(Verbose, "{:?}", attach);
+            }
+            /* 
+            let children = n.get_children_limited_depth(1000);
+            for ch in children {
+                logln!(Verbose, "{}{}", "\t".repeat(ch.get_depth()), &*ch);
+            }
+            */
+            /* 
+            let prop_nodes = n.collect_by_predicate(|n| n.get_property().is_some());
+            for p in prop_nodes {
+                logln!(Verbose, "{}", p.get_property().unwrap());
+            }
+            */
+            /* 
+            match n.find_by_name("mesh_arc_0006__combined1") {
+                Some(n) => {
+                    for o in n.iter_object() {
+                        logln!(Verbose, "{:?}", o);
+                    }
+                    // logln!(Verbose, "{}", n2);
+                    // logln!(Verbose, "{:?}", n2);
+                },
+                None => logln!(Verbose, "Could not find node mesh_arc_0006__combined1")
+            };
+            */
+            /* 
+            if let Some(n) = n.find_by_name("c_pelvis") {
+                logln!(Verbose, "{}", n.fmt_hierarchy());
+            }
+            */
+            /* 
+            n.for_each_by_predicate(|v| v.get_property_entry("gfdHelperID").is_some(), |v| {
+                let gfdHelperId = v.get_property().unwrap().find("gfdHelperID").unwrap();
+                logln!(Verbose, "{} -> {}", v.get_name_platform(), gfdHelperId);
+            });
+            */
+            /* 
+            match n.find_by_name("mesh_arc_0006__combined1") {
+                Some(n2) => {
+                    logln!(Verbose, "{}", n2);
+                    logln!(Verbose, "{:?}", n2);
+                },
+                None => logln!(Verbose, "Could not find node mesh_arc_0006__combined1")
+            };
+            */
             /* 
             let children = n.get_children_limited_depth(3);
             logln!(Verbose, "Scene graph limit = 3: {} children", children.len());
@@ -1080,8 +1135,6 @@ pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
                 logln!(Verbose, "{}", &**c);
             }
             */
-            logln!(Verbose, "{}", n);
-            logln!(Verbose, "{:?}", n);
             /* 
             let children = n.get_children();
             logln!(Verbose, "Scene graph: {} children", children.len());

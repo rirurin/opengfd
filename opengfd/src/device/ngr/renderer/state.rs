@@ -1770,6 +1770,8 @@ pub struct VertexBuffer {
     field40: usize
 }
 
+// CreateVertexBuffer: renderer vtable + 0x70
+
 impl BufferObject for VertexBuffer {
     unsafe fn get_buffer(&self, index: usize) -> Option<&ID3D11Buffer> {
         self.buffers.get_unchecked(index).as_ref()
@@ -1795,8 +1797,11 @@ pub struct IndexBuffer {
     field30: usize,
     field38: u32,
     format: DXGI_FORMAT, 
-    field40: usize
+    field40: usize,
+    field48: usize
 }
+
+// CreateIndexBuffer: renderer vtable + 0x78
 
 impl BufferObject for IndexBuffer {
     unsafe fn get_buffer(&self, index: usize) -> Option<&ID3D11Buffer> {

@@ -167,6 +167,9 @@ pub(crate) const FIXED_COMPUTE_SHADERS: usize = 30;
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct GraphicsFlags : u32 {
+        const ShadowCaster = 1 << 0;
+        const Fog = 1 << 3;
+        const HeightFog = 1 << 7;
         const HasInfiniteOcean = 1 << 15;
         const HasTemperare = 1 << 18;
     }
@@ -295,6 +298,15 @@ pub struct GraphicsGlobal {
     field5798: f32,
     field579c: f32,
     field57a0: [u32; 8],
+}
+
+impl GraphicsGlobal {
+    pub fn has_flags(&self, flag: GraphicsFlags) -> bool {
+        self.flags.contains(flag)
+    }
+    pub fn has_any_flag(&self, flag: GraphicsFlags) -> bool {
+        self.flags.intersects(flag)
+    }
 }
 
 // GRAPHICS END

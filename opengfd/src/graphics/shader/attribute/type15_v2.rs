@@ -1,35 +1,60 @@
 use allocator_api2::alloc::Allocator;
+use bitflags::bitflags;
 use crate::{
     graphics::{
         material::{ 
             Material, 
             MaterialType, 
         },
-        shader::shader::ShaderFlags
+        shader::{
+            flag::Flags2 as ShaderFlag2,
+            shader::ShaderFlags
+        }
     },
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
-use glam::Vec4;
+use glam::Vec3;
 
-// From https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
+// from https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
-/// Shader file: 3.HLSL
 #[repr(C)]
 #[derive(Debug)]
-pub struct Lambert<A = GfdAllocator> 
+pub struct Layer {
+    tile_size: f32,
+    field1: f32,
+    tile_offset: f32,
+    field3: f32,
+    roughness: f32,
+    metallic: f32,
+    color: Vec3
+}
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Type15Flags : u32 {
+        const TriplanarMapping = 0x00000001;
+        const GBufferSkyFlag = 0x00000002;
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Type15<A = GfdAllocator> 
 where A: Allocator + Clone 
 {
-    ambient_color: Vec4,
-    diffuse_color: Vec4,
-    specular_color: Vec4,
-    emissive_color: Vec4,
-    reflectivity: f32,
-    lerp_blend_rate: f32,
+    layers: [Layer; 16],
+    layer_count: u32,
+    triplanar_scale: f32,
+    flags: Type15Flags,
     _allocator: std::marker::PhantomData<A>
 }
 
-impl<A> Lambert<A> 
+
+/// Source file: 49.HLSL
+
+
+impl<A> Type15<A> 
 where A: Allocator + Clone
 {
     pub fn get_material(&self) -> &Material<A> {
@@ -38,7 +63,7 @@ where A: Allocator + Clone
     }
 }
 
-impl<A> MaterialType for Lambert<A> 
+impl<A> MaterialType for Type15<A> 
 where A: Allocator + Clone
 {
     fn check_billboard_shadow_map(&self) -> bool {
@@ -75,18 +100,17 @@ where A: Allocator + Clone
         0
     }
     fn get_tex1_name(&self) -> &'static str { "Base Texture" }
-    fn get_tex2_name(&self) -> &'static str { "Normal Texture" }
     fn get_tex5_name(&self) -> &'static str { "Multiply Texture" }
-    fn get_tex6_name(&self) -> &'static str { "Emissive Texture" }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
-        // TODO
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+        if self.flags.contains(Type15Flags::TriplanarMapping) {
+            // #define FLAG2_TRIPLANARMAPPING FLAG2_HDR_TONEMAP
+            *flags |=  ShaderFlag2::FLAG2_HDR_TONEMAP
+        }
+        if self.flags.contains(Type15Flags::GBufferSkyFlag) {
+            *flags |=  ShaderFlag2::FLAG2_SKY
+        }
     }
     fn update(&mut self) {
-        /* 
-        if self.flags.contains(FieldFlags::RemoveDiffuseShadow) {
-            // TODO: Remove diffuse shadow
-        }
-        */
     }
 }

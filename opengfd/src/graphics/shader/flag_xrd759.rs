@@ -16,6 +16,7 @@ bitflags! {
         const FLAG0_LIGHT2_POINT = 0x00000800;
         const FLAG0_LIGHT2_SPOT = 0x00001000;
         const FLAG0_COLOR_OP_ADD = 0x00002000;
+        const FLAG0_ALWAYS_ENABLED = 0x4000;
         const FLAG0_CONSTANTCOLOR = 0x00008000;
         const FLAG0_TEXCOORD0IN = 0x00010000;
         const FLAG0_TEXCOORD1IN = 0x00020000;

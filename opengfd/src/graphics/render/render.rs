@@ -13,7 +13,7 @@ use crate::{
             TexturePkt 
         },
         shader::{ PixelShader, VertexShader },
-        state::{ ComparisonFunc, StencilOperation }
+        state::{ ComparisonFunc, RenderStateTable, StencilOperation }
     },
     graphics::{
         draw2d::ImmediateRenderType,
@@ -27,26 +27,26 @@ use crate::{
 pub struct Render;
 impl Render {
     /// Original function: gfdRenderStateSet
-    pub unsafe fn set_state(prio: u32, state: u32, value: *mut u8) {
+    pub unsafe fn set_state(prio: u32, state: RenderStateTable, value: *mut u8) {
         let ot = RenderOtEx::<16>::new();
-        ot.set::<u32>(0, state).unwrap();
+        ot.set::<u32>(0, state as u32).unwrap();
         ot.set::<*mut u8>(8, value).unwrap();
         ot.set_pre_cb(render_ot::set_state_pre_callback);
         ot.set_pre_cb_data(ot.data_raw());
         ot.link(prio)
     }
     /// Original function: gfdRenderStatePush
-    pub unsafe fn push_state(prio: u32, state: u32) {
+    pub unsafe fn push_state(prio: u32, state: RenderStateTable) {
         let ot = RenderOtEx::<0>::new();
         ot.set_pre_cb(render_ot::push_state_pre_callback);
-        ot.set_pre_cb_data(state as *mut u8);
+        ot.set_pre_cb_data(state as u32 as *mut u8);
         ot.link(prio)
     }
     /// Original function: gfdRenderStatePop
-    pub unsafe fn pop_state(prio: u32, state: u32) {
+    pub unsafe fn pop_state(prio: u32, state: RenderStateTable) {
         let ot = RenderOtEx::<0>::new();
         ot.set_pre_cb(render_ot::pop_state_pre_callback);
-        ot.set_pre_cb_data(state as *mut u8);
+        ot.set_pre_cb_data(state as u32 as  *mut u8);
         ot.link(prio)       
     }
     /// Original function: gfdShaderVertexBind
@@ -130,21 +130,26 @@ impl Render {
 
 #[allow(non_snake_case)]
 pub mod ffi {
-    use crate::graphics::render_ot::RenderOt;
+    use crate::{
+        device::ngr::renderer::state::RenderStateTable,
+        graphics::{
+            render_ot::RenderOt
+        }
+    };
     use super::Render;
 
     #[no_mangle]
-    pub unsafe extern "C" fn gfdRenderStateSet(prio: u32, state: u32, value: *mut u8) {
+    pub unsafe extern "C" fn gfdRenderStateSet(prio: u32, state: RenderStateTable, value: *mut u8) {
         Render::set_state(prio, state, value);
     }
 
     #[no_mangle]
-    pub unsafe extern "C" fn gfdRenderStatePush(prio: u32, state: u32) {
+    pub unsafe extern "C" fn gfdRenderStatePush(prio: u32, state: RenderStateTable) {
         Render::push_state(prio, state);
     }
 
     #[no_mangle]
-    pub unsafe extern "C" fn gfdRenderStatePop(prio: u32, state: u32) {
+    pub unsafe extern "C" fn gfdRenderStatePop(prio: u32, state: RenderStateTable) {
         Render::pop_state(prio, state);
     }
 

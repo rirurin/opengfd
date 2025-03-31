@@ -17,7 +17,7 @@ use glam::Vec4;
 /// Shader File: 39.HLSL or 41.HLSL
 #[repr(C)]
 #[derive(Debug)]
-pub struct Shadow<A = GfdAllocator> 
+pub struct Type9<A = GfdAllocator> 
 where A: Allocator + Clone
 {
     field0: Vec4,
@@ -25,7 +25,7 @@ where A: Allocator + Clone
     _allocator: std::marker::PhantomData<A>
 }
 
-impl<A> Shadow<A> 
+impl<A> Type9<A> 
 where A: Allocator + Clone
 {
     pub fn get_material(&self) -> &Material<A> {
@@ -34,7 +34,7 @@ where A: Allocator + Clone
     }
 }
 
-impl<A> MaterialType for Shadow<A> 
+impl<A> MaterialType for Type9<A> 
 where A: Allocator + Clone
 {
     fn check_billboard_shadow_map(&self) -> bool {
@@ -70,6 +70,8 @@ where A: Allocator + Clone
     fn get_shadow_link_func(&self) -> u8 {
         0
     }
+    fn get_tex1_name(&self) -> &'static str { "Base Texture" }
+    fn get_tex5_name(&self) -> &'static str { "Multiply Texture" }
 
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
