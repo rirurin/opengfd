@@ -284,6 +284,8 @@ where A: Allocator + Clone
         !self.flags.contains(GeometryFlags::Hidden)
     }
 
+    // pub fn set_alpha_func(&mut self, ) 
+
     /// Original function: gfdGeometrySetColorMask
     pub fn set_color_mask(&mut self, mask: u32) {
         self.color_mask = mask;

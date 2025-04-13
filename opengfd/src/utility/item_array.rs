@@ -115,6 +115,10 @@ impl<T, A> ItemArray<T, A>
     pub fn swap(&mut self, idx0: IndexType, idx1: IndexType) -> bool {
         true
     }
+
+    pub fn len(&self) -> IndexType {
+        self.count
+    }
 }
 /*
 impl<T, A> ItemArray<T, A>

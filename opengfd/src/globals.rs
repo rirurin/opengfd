@@ -1,6 +1,6 @@
 #![allow(dead_code, improper_ctypes)]
 // This file was automatically generated from opengfd-globals.
-use crate :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , kernel :: global :: Global , tpl :: file_manager :: FileManager , } ;
+use crate :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , io :: keyboard :: Keyboard , kernel :: { global :: Global , job :: Job } , tpl :: file_manager :: FileManager , } ;
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of GFD_GLOBAL.
@@ -359,6 +359,139 @@ unsafe extern "C" {
    /// An unchecked version of `get_tpl_resource_shared_ptr_mut`. This assumes that TPL_RESOURCE_SHARED_PTR
     /// is set and it's initialized.
     pub(crate) unsafe fn get_tpl_resource_shared_ptr_unchecked_mut() -> & 'static mut u8;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of MAIN_THREAD_ID.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_main_thread_id(ptr: *mut u32);
+   /// Get a possible reference to MAIN_THREAD_ID. This checks to see if `set_main_thread_id`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_main_thread_id() -> Option<& 'static u32>;
+   /// Like `get_main_thread_id_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_main_thread_id_mut() -> Option<& 'static mut u32>;
+   /// An unchecked version of `get_main_thread_id`. This assumes that MAIN_THREAD_ID
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_main_thread_id_unchecked() -> & 'static u32;
+   /// An unchecked version of `get_main_thread_id_mut`. This assumes that MAIN_THREAD_ID
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_main_thread_id_unchecked_mut() -> & 'static mut u32;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing a pointer to JOB_LIST.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_job_list(ptr: *mut * mut Job);
+   /// Get a possible reference to JOB_LIST. This checks to see if `set_job_list`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_job_list() -> Option<& 'static Job>;
+   /// Like `get_job_list_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_job_list_mut() -> Option<& 'static mut Job>;
+   /// An unchecked version of `get_job_list`. This assumes that JOB_LIST
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list_unchecked() -> & 'static Job;
+   /// An unchecked version of `get_job_list_mut`. This assumes that JOB_LIST
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list_unchecked_mut() -> & 'static mut Job;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing a pointer to JOB_LIST1.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_job_list1(ptr: *mut * mut Job);
+   /// Get a possible reference to JOB_LIST1. This checks to see if `set_job_list1`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_job_list1() -> Option<& 'static Job>;
+   /// Like `get_job_list1_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_job_list1_mut() -> Option<& 'static mut Job>;
+   /// An unchecked version of `get_job_list1`. This assumes that JOB_LIST1
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list1_unchecked() -> & 'static Job;
+   /// An unchecked version of `get_job_list1_mut`. This assumes that JOB_LIST1
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list1_unchecked_mut() -> & 'static mut Job;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing a pointer to JOB_LIST2.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_job_list2(ptr: *mut * mut Job);
+   /// Get a possible reference to JOB_LIST2. This checks to see if `set_job_list2`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_job_list2() -> Option<& 'static Job>;
+   /// Like `get_job_list2_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_job_list2_mut() -> Option<& 'static mut Job>;
+   /// An unchecked version of `get_job_list2`. This assumes that JOB_LIST2
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list2_unchecked() -> & 'static Job;
+   /// An unchecked version of `get_job_list2_mut`. This assumes that JOB_LIST2
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list2_unchecked_mut() -> & 'static mut Job;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing a pointer to JOB_LIST3.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_job_list3(ptr: *mut * mut Job);
+   /// Get a possible reference to JOB_LIST3. This checks to see if `set_job_list3`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_job_list3() -> Option<& 'static Job>;
+   /// Like `get_job_list3_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_job_list3_mut() -> Option<& 'static mut Job>;
+   /// An unchecked version of `get_job_list3`. This assumes that JOB_LIST3
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list3_unchecked() -> & 'static Job;
+   /// An unchecked version of `get_job_list3_mut`. This assumes that JOB_LIST3
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_job_list3_unchecked_mut() -> & 'static mut Job;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of KEYCODE_FOR_MOUSE_CLICK.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_keycode_for_mouse_click(ptr: *mut u8);
+   /// Get a possible reference to KEYCODE_FOR_MOUSE_CLICK. This checks to see if `set_keycode_for_mouse_click`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_keycode_for_mouse_click() -> Option<& 'static u8>;
+   /// Like `get_keycode_for_mouse_click_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_keycode_for_mouse_click_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_keycode_for_mouse_click`. This assumes that KEYCODE_FOR_MOUSE_CLICK
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_keycode_for_mouse_click_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_keycode_for_mouse_click_mut`. This assumes that KEYCODE_FOR_MOUSE_CLICK
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_keycode_for_mouse_click_unchecked_mut() -> & 'static mut u8;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of KEYBOARD_DATA.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_keyboard_data(ptr: *mut Keyboard);
+   /// Get a possible reference to KEYBOARD_DATA. This checks to see if `set_keyboard_data`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_keyboard_data() -> Option<& 'static Keyboard>;
+   /// Like `get_keyboard_data_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_keyboard_data_mut() -> Option<& 'static mut Keyboard>;
+   /// An unchecked version of `get_keyboard_data`. This assumes that KEYBOARD_DATA
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_keyboard_data_unchecked() -> & 'static Keyboard;
+   /// An unchecked version of `get_keyboard_data_mut`. This assumes that KEYBOARD_DATA
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_keyboard_data_unchecked_mut() -> & 'static mut Keyboard;
 
 }
 

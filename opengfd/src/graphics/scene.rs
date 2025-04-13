@@ -13,6 +13,7 @@ use crate::{
     }
 };
 use glam::Mat4;
+use std::ptr::NonNull;
 
 #[cfg(feature = "v2-core")]
 #[repr(C)]
@@ -101,7 +102,7 @@ pub struct Scene {
     view_cb_userdata: *mut u8,
     fn278: *mut u8,
     fn278_data: *mut u8,
-    quake: *mut Quake,
+    quake: Option<NonNull<Quake>>,
     field290: [u8; 0x40]
 }
 
@@ -111,5 +112,11 @@ impl Scene {
     }
     pub fn get_root_node_mut(&mut self) -> Option<&mut Node> {
         unsafe { self.hierarchy.as_mut() }
+    }
+    pub fn get_quake(&self) -> Option<&Quake> {
+        self.quake.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_quake_mut(&mut self) -> Option<&mut Quake> {
+        self.quake.map(|mut v| unsafe { v.as_mut() })
     }
 }

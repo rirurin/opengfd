@@ -10,9 +10,9 @@ license-file.workspace = true
 edition.workspace = true
 
 [dependencies]
-opengfd = { version = "0.1", path = "../opengfd" }
+opengfd = { path = "../opengfd" }
 opengfd-proc = { path = "../opengfd-proc" }
-riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
 
 [build-dependencies]
 opengfd-proc-impl = { path = "../opengfd-proc-impl" }

@@ -13,12 +13,12 @@ edition.workspace = true
 allocator-api2 = "0.2.21"
 cpp-types = { path = "../../cpp-types/cpp-types" }
 glam = "0.29"
-opengfd = { version = "0.1", path = "../opengfd" }
-riri-mod-tools-proc = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-proc" }
-riri-mod-tools-rt = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools-rt" }
+opengfd = { path = "../opengfd" }
+riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-rt = { path = "../../riri-mod-tools/riri-mod-tools-rt" }
 
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.60"
+version = "0.61.1"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Direct3D11",
@@ -33,4 +33,4 @@ toml = "0.8"
 walkdir = "2.5"
 # csbindgen = "1.8"
 csbindgen = { version = "1.8", path = "../../csbindgen/csbindgen" }
-riri-mod-tools = { version = "0.1", path = "../../riri-mod-tools/riri-mod-tools" }
+riri-mod-tools = { path = "../../riri-mod-tools/riri-mod-tools" }

@@ -46,9 +46,9 @@ use std::{
 };
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
-    core::Interface,
+    core::{ BOOL, Interface },
     Win32::{
-        Foundation::{ BOOL, HWND },
+        Foundation::{ HMODULE, HWND },
         Graphics::{
             Direct3D::{
                 D3D_DRIVER_TYPE_HARDWARE,
@@ -310,7 +310,7 @@ where A: Allocator + Clone
         D3D11CreateDeviceAndSwapChain(
             None, // first adapter
             D3D_DRIVER_TYPE_HARDWARE,
-            None, // we're not using software rendering
+            HMODULE::default(), // we're not using software rendering
             D3D11_CREATE_DEVICE_FLAG(0),
             Some(&NGR_FEATURE_LEVEL),
             7,

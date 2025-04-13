@@ -10,7 +10,11 @@ use opengfd::{
         },
         structures::{ ListNodeFreeList, PointerListEntry }
     },
-    kernel::global::Global,
+    io::keyboard::Keyboard,
+    kernel::{
+        global::Global,
+        job::Job
+    },
     tpl::file_manager::FileManager,
 };
 
@@ -39,3 +43,13 @@ create_gfd_static!(FILE_MANAGER_INSTANCE, *mut FileManager);
 create_gfd_static!(SOUND_PLAYER_SEND_SIGNAL, u8);
 // std::shared_ptr vtables
 create_gfd_static!(TPL_RESOURCE_SHARED_PTR, u8);
+// async
+create_gfd_static!(MAIN_THREAD_ID, u32);
+// from gfdDeviceJobInitialize
+create_gfd_static!(JOB_LIST, *mut Job); // 0x2000 entries, 5 workers
+create_gfd_static!(JOB_LIST1, *mut Job); // 0x2800 entries, 5 workers
+create_gfd_static!(JOB_LIST2, *mut Job); // 0x20 entries, 1 worker
+create_gfd_static!(JOB_LIST3, *mut Job); // 0x2000 entries, 1 worker
+// IO
+create_gfd_static!(KEYCODE_FOR_MOUSE_CLICK, u8);
+create_gfd_static!(KEYBOARD_DATA, Keyboard);

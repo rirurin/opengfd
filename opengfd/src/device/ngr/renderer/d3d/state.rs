@@ -18,9 +18,9 @@ use crate::device::ngr::renderer::state::{
     RasterizerKey,
     TextureAddressMode 
 };
-use windows::Win32::{
-    Foundation::BOOL,
-    Graphics::{
+use windows::{
+    core::BOOL,
+    Win32::Graphics::{
         Direct3D::D3D_PRIMITIVE_TOPOLOGY,
         Direct3D11::{
             D3D11_BLEND,

@@ -20,17 +20,6 @@ use crate::{
 // SHADER INFO COMMON
 pub(crate) const RENDER_STATES: usize = 33;
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct VideoMode {
-    flags: u32,
-    width: i32,
-    height: i32,
-    depth: i32,
-    ref_rate: i32,
-    format: i32
-}
-
 impl GraphicsGlobal {
     /// Get a reference to the target scene graph from global state
     /// (Original function: gfdRenderGetScene)

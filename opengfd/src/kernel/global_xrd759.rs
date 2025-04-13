@@ -18,7 +18,9 @@ use crate::{
     kernel::{
         allocator::GfdAllocator,
         asset::Asset,
+        chip::Chip,
         global_common::RENDER_STATES,
+        init::VideoMode,
         task::{
             Task as GfdTask,
             TaskList
@@ -45,13 +47,29 @@ bitflags! {
         const RENDER_TASK_RUNNING = 1 << 1;
         /// True if _pre_<GFD> or _post_<GFD> are executing
         const SYSTEM_TASK_RUNNING = 1 << 2;
+        const RESIZE_FLAG0 = 1 << 3;
+        const RESIZE_FLAG1 = 1 << 4;
     }
 }
 
+pub trait GlobalImpl {
+    fn get_free_list_mutex(&mut self) -> &mut Mutex;
+    fn get_free_list_head(&self) -> Option<&GfdFreeList>;
+    fn get_free_list_head_mut(&self) -> Option<&mut GfdFreeList>;
+    fn get_free_list_head_ptr(&self) -> *mut GfdFreeList;
+    fn set_free_list_head_mut(&mut self, new: *mut GfdFreeList);
+    fn get_uid(&mut self);
+    unsafe fn get_task_free_list_unchecked_mut(&mut self) -> &mut GfdFreeList<GfdTask, GfdAllocator>;
+    fn get_flags(&self) -> GlobalFlags;
+    fn get_tasks(&self) -> &TaskGlobal;
+    fn get_tasks_mut(&mut self) -> &mut TaskGlobal;
+    fn get_chip_free_list(&self) -> Option<&GfdFreeList<Chip, GfdAllocator>>;
+    fn get_chip_free_list_mut(&self) -> Option<&mut GfdFreeList<Chip, GfdAllocator>>;
+}
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct Global {
+pub struct GlobalUWP {
     flags: GlobalFlags,
     elapsed_time: f32,
     delta_time: f32,
@@ -74,7 +92,50 @@ pub struct Global {
     dev_file_mutex: Mutex,
     free_list_head: *mut GfdFreeList,
     free_list_mutex: Mutex, 
-    chip_free_list: *mut GfdFreeList,
+    chip_free_list: *mut GfdFreeList<Chip, GfdAllocator>,
+    task_free_list: *mut GfdFreeList<GfdTask, GfdAllocator>,
+    task_free_list_entries_per_block: u32,
+    // TODO: check node list is in right position
+    node_free_list: *mut GfdFreeList,
+    node_free_list_entries_per_block: u32,
+    delayed_proc_item_head: *mut u8,
+    delayed_proc_item_tail: *mut u8,
+    delayed_proc_item_mutex: RecursiveMutex,
+    field5980: [u8; 0x18],
+    delay_frame: u32,
+    delay_force_frame: u32,
+    main_stack_size: u32,
+    field59a4: [u8; 0x74],
+    uid: u64
+}
+
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Global {
+    flags: GlobalFlags,
+    elapsed_time: f32,
+    delta_time: f32,
+    loop_counter: i32,
+    field10: i32,
+    field14: i32,
+    pub graphics: GraphicsGlobal,
+    pub physics: PhysicsGlobal,
+    pub tasks: TaskGlobal,
+    pub random: RandomAligned,
+    controller_callback: *mut u8, // callback for controller
+    controller_arg: *mut u8,
+    field58d0: *mut u8,
+    field58d8: *mut u8,
+    current_dir: *mut u8,
+    init_path: *mut u8,
+    field58f0: *mut u8,
+    field58f0_count: u32,
+    dev_file_head: *mut u8,
+    dev_file_mutex: Mutex,
+    free_list_head: *mut GfdFreeList,
+    free_list_mutex: Mutex, 
+    chip_free_list: *mut GfdFreeList<Chip, GfdAllocator>,
     task_free_list: *mut GfdFreeList<GfdTask, GfdAllocator>,
     task_free_list_entries_per_block: u32,
     // TODO: check node list is in right position
@@ -104,7 +165,7 @@ impl Global {
         else { Some(unsafe { &mut *self.free_list_head } )}
     }
     pub fn get_free_list_head_ptr(&self) -> *mut GfdFreeList {
-        unsafe { &raw mut *self.free_list_head }
+        &raw mut *self.free_list_head
     }
     pub fn set_free_list_head_mut(&mut self, new: *mut GfdFreeList) {
         self.free_list_head = new;
@@ -152,6 +213,12 @@ impl Global {
             },
             _ => &mut self.tasks
         }
+    }
+    pub fn get_chip_free_list(&self) -> Option<&GfdFreeList<Chip, GfdAllocator>> {
+        unsafe { self.chip_free_list.as_ref() }
+    }
+    pub fn get_chip_free_list_mut(&self) -> Option<&mut GfdFreeList<Chip, GfdAllocator>> {
+        unsafe { self.chip_free_list.as_mut() }
     }
 }
 
@@ -213,7 +280,7 @@ impl std::fmt::Debug for GraphicsCBuffer {
 #[derive(Debug)]
 pub struct GraphicsGlobal {
     flags: GraphicsFlags,
-    video_mode: super::global_common::VideoMode,
+    video_mode: VideoMode,
     fps: u32,
     fvf: u32,
     pub(super) scene: [*mut Scene; 2],
@@ -342,10 +409,18 @@ pub struct PhysicsGlobal {
 // PHYSICS END
 
 // TASK START
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct TaskFlag : u32 {
+        const PRE_GFD = 1 << 2;
+    }
+}
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct TaskGlobal {
-    pub flag: u32,
+    pub flag: TaskFlag,
     pub begin: TaskList<GfdAllocator>,
     pub update: TaskList<GfdAllocator>,
     pub render: TaskList<GfdAllocator>,

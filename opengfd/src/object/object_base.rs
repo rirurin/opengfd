@@ -104,6 +104,24 @@ where A: Allocator + Clone
             None => std::ptr::null_mut()
         }
     }
+
+    /// Original function: gfdObjectSetNode
+    pub fn set_parent(&mut self, parent: Option<&mut Node<A>>) {
+        if let Some(p) = &parent {
+            /* 
+            match self.next {
+                Some(v) => {
+                    v.prev = self.prev;
+                },
+                None => {
+
+                }
+            }
+            */
+            let a = p.get_average_scale();
+        }
+        self.parent = parent.map(|v| unsafe { NonNull::new_unchecked(&raw mut *v) });
+    }
 }
 
 impl<A> Debug for Object<A>
@@ -140,6 +158,7 @@ impl TryFrom<*mut Object> for &mut super::mesh::Mesh {
 pub trait ObjectTable {
     /// Original function: gfdObjectGetIdName
     const ID: &'static str;
+    const NUM: usize;
     /// Original function: gfdObjectAddRef
     fn add_ref(&mut self) -> u32;
     /// Original function: gfdObjectApplyKey

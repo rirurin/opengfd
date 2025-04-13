@@ -7,6 +7,10 @@ pub struct BoundingBox {
     max: Vec3,
     min: Vec3
 }
+impl BoundingBox {
+    pub fn get_max(&self) -> Vec3 { self.max }
+    pub fn get_min(&self) -> Vec3 { self.min }
+}
 
 #[repr(C)]
 #[derive(Debug, Clone)]

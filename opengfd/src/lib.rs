@@ -147,9 +147,15 @@ pub mod graphics {
     pub mod skin;
     pub mod texture;
 }
+pub mod io {
+    pub mod controller;
+    pub mod keyboard;
+    pub mod mouse;
+}
 pub mod kernel {
     pub mod allocator;
     pub mod asset;
+    pub mod chip;
     #[cfg(feature = "v1-core")]
     #[path = "global_xrd744.rs"]
     pub mod global;
@@ -157,6 +163,8 @@ pub mod kernel {
     #[path = "global_xrd759.rs"]
     pub mod global;
     pub mod global_common;
+    pub mod init;
+    pub mod job;
     pub mod task;
 }
 pub mod object {
