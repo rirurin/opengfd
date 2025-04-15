@@ -1,0 +1,46 @@
+use crate::state::Inspector;
+use imgui::{
+    Context as ImContext,
+    Condition as ImCond,
+    internal::RawWrapper,
+    Ui as ImUI
+};
+use opengfd::kernel::{
+    allocator::GfdAllocator,
+    task::{
+        Task as GfdTask,
+        UpdateTask
+    }
+};
+use std::sync::Mutex;
+
+pub static CONTEXT_TEST: Mutex<ImContextWrapper> = Mutex::new(ImContextWrapper(None));
+
+#[allow(dead_code)]
+pub struct ImContextWrapper(Option<ImContext>);
+unsafe impl Send for ImContextWrapper {}
+unsafe impl Sync for ImContextWrapper {}
+
+#[no_mangle]
+pub unsafe extern "C" fn inspector_reloaded_new_window(ui: *mut ImUI, ctx: *mut <ImContext as RawWrapper>::Raw) {
+    if imgui::no_current_context() {
+        let mut ctx_test = CONTEXT_TEST.lock().unwrap();
+        (*ctx_test) = ImContextWrapper(Some(ImContext::set_current_context(ctx)));
+    }
+    let ui = &mut *ui;
+    let state: Option<&mut GfdTask<GfdAllocator, Inspector>> = GfdTask::find_by_str_mut(Inspector::NAME);
+    if let Some(state) = state {
+        let ctx = state.get_work_data_mut().unwrap();
+        let ui_into = unsafe { &mut *(&raw mut *ui) };
+        ui.window("GFD Inspector for Metaphor: Refantazio")
+            .size([500., 400.], ImCond::FirstUseEver)
+            .position([30., 30.], ImCond::FirstUseEver)
+            .build(|| {
+                if let Some(_) = ui.tab_bar("Inspector Sections") {
+                    for panel in ctx.panels.iter_mut() {
+                        panel.draw(ui_into);
+                    }
+                }
+            });
+    }
+}

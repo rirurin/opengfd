@@ -2,10 +2,12 @@
 resolver = "2"
 members = [ 
     "opengfd", 
-    "opengfd-globals",
+    "opengfd-globals", 
+    "opengfd-inspector",
     "opengfd-proc", 
     "opengfd-proc-impl",
-    "opengfd-reloaded"
+    "opengfd-reloaded", 
+    "opengfd-tests"
 ]
 
 [workspace.package]

@@ -1,4 +1,8 @@
-use opengfd::kernel::allocator::GfdAllocator;
+use opengfd::kernel::{
+    allocator::GfdAllocator,
+    task::Task as GfdTask,
+};
+use opengfd_inspector::state::Inspector as GfdInspector;
 use riri_mod_tools_proc::riri_hook_fn;
 use riri_mod_tools_rt::logln;
 
@@ -289,6 +293,101 @@ pub unsafe extern "C" fn gfdRenderSetTransformWorld(prio: u32, v: *mut u8) {
 }
 */
 
+#[allow(dead_code)]
+fn object_tests() {
+    /* 
+    let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
+    let scene = glb.graphics.get_current_scene();
+    if let Some(n) = scene.get_root_node() {
+        let arch = n.find_by_name("mesh_arc_0006").unwrap();
+
+        // let children = start.get_children_limited_depth(1000);
+        // for ch in children {
+        //     logln!(Verbose, "{}{}", "\t".repeat(ch.get_depth()), &*ch);
+        // }
+        for attach in opengfd::object::node::RecursiveObjectIterator::<
+            GfdAllocator, opengfd::object::node::StandardNodeIterator
+        >::from_node(arch) {
+            logln!(Verbose, "{:?}", attach);
+        }
+        /* 
+        let children = n.get_children_limited_depth(1000);
+        for ch in children {
+            logln!(Verbose, "{}{}", "\t".repeat(ch.get_depth()), &*ch);
+        }
+        */
+        /* 
+        let prop_nodes = n.collect_by_predicate(|n| n.get_property().is_some());
+        for p in prop_nodes {
+            logln!(Verbose, "{}", p.get_property().unwrap());
+        }
+        */
+        /* 
+        match n.find_by_name("mesh_arc_0006__combined1") {
+            Some(n) => {
+                for o in n.iter_object() {
+                    logln!(Verbose, "{:?}", o);
+                }
+                // logln!(Verbose, "{}", n2);
+                // logln!(Verbose, "{:?}", n2);
+            },
+            None => logln!(Verbose, "Could not find node mesh_arc_0006__combined1")
+        };
+        */
+        /* 
+        if let Some(n) = n.find_by_name("c_pelvis") {
+            logln!(Verbose, "{}", n.fmt_hierarchy());
+        }
+        */
+        /* 
+        n.for_each_by_predicate(|v| v.get_property_entry("gfdHelperID").is_some(), |v| {
+            let gfdHelperId = v.get_property().unwrap().find("gfdHelperID").unwrap();
+            logln!(Verbose, "{} -> {}", v.get_name_platform(), gfdHelperId);
+        });
+        */
+        /* 
+        match n.find_by_name("mesh_arc_0006__combined1") {
+            Some(n2) => {
+                logln!(Verbose, "{}", n2);
+                logln!(Verbose, "{:?}", n2);
+            },
+            None => logln!(Verbose, "Could not find node mesh_arc_0006__combined1")
+        };
+        */
+        /* 
+        let children = n.get_children_limited_depth(3);
+        logln!(Verbose, "Scene graph limit = 3: {} children", children.len());
+        let iter_count = 1000.min(children.len());
+        for i in 0..iter_count {
+            let c = &children[i];
+            logln!(Verbose, "{}", &**c);
+        }
+        */
+        /* 
+        let children = n.get_children();
+        logln!(Verbose, "Scene graph: {} children", children.len());
+        let iter_count = 1000.min(children.len());
+        for i in 0..iter_count {
+            let c = children[i];
+            logln!(Verbose, "<{}, T {:?} R {:?} S {:?}>", 
+            c.get_name_platform(), c.get_translate(),
+            c.get_rotate(), c.get_scale());
+        }
+        */
+        /* 
+        logln!(Verbose, "{} children", n.get_direct_child_count());
+        for child in n.get_direct_children() {
+            logln!(Verbose, "\t{}", child.get_name_platform());
+            logln!(Verbose, "\t{:?}", child.get_translate());
+            logln!(Verbose, "\t{:?}", child.get_rotate());
+            logln!(Verbose, "\t{:?}", child.get_scale());
+        }
+        */
+    }
+    // logln!(Verbose, "test!");
+    */
+}
+
 
 #[riri_hook_fn(dynamic_offset(
     signature = "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 83 0D ?? ?? ?? ?? 01",
@@ -297,95 +396,9 @@ pub unsafe extern "C" fn gfdRenderSetTransformWorld(prio: u32, v: *mut u8) {
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
     if windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x74) & 1 != 0 {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
-        let scene = glb.graphics.get_current_scene();
-        if let Some(n) = scene.get_root_node() {
-            let arch = n.find_by_name("mesh_arc_0006").unwrap();
-
-            // let children = start.get_children_limited_depth(1000);
-            // for ch in children {
-            //     logln!(Verbose, "{}{}", "\t".repeat(ch.get_depth()), &*ch);
-            // }
-            for attach in opengfd::object::node::RecursiveObjectIterator::<
-                GfdAllocator, opengfd::object::node::StandardNodeIterator
-            >::from_node(arch) {
-                logln!(Verbose, "{:?}", attach);
-            }
-            /* 
-            let children = n.get_children_limited_depth(1000);
-            for ch in children {
-                logln!(Verbose, "{}{}", "\t".repeat(ch.get_depth()), &*ch);
-            }
-            */
-            /* 
-            let prop_nodes = n.collect_by_predicate(|n| n.get_property().is_some());
-            for p in prop_nodes {
-                logln!(Verbose, "{}", p.get_property().unwrap());
-            }
-            */
-            /* 
-            match n.find_by_name("mesh_arc_0006__combined1") {
-                Some(n) => {
-                    for o in n.iter_object() {
-                        logln!(Verbose, "{:?}", o);
-                    }
-                    // logln!(Verbose, "{}", n2);
-                    // logln!(Verbose, "{:?}", n2);
-                },
-                None => logln!(Verbose, "Could not find node mesh_arc_0006__combined1")
-            };
-            */
-            /* 
-            if let Some(n) = n.find_by_name("c_pelvis") {
-                logln!(Verbose, "{}", n.fmt_hierarchy());
-            }
-            */
-            /* 
-            n.for_each_by_predicate(|v| v.get_property_entry("gfdHelperID").is_some(), |v| {
-                let gfdHelperId = v.get_property().unwrap().find("gfdHelperID").unwrap();
-                logln!(Verbose, "{} -> {}", v.get_name_platform(), gfdHelperId);
-            });
-            */
-            /* 
-            match n.find_by_name("mesh_arc_0006__combined1") {
-                Some(n2) => {
-                    logln!(Verbose, "{}", n2);
-                    logln!(Verbose, "{:?}", n2);
-                },
-                None => logln!(Verbose, "Could not find node mesh_arc_0006__combined1")
-            };
-            */
-            /* 
-            let children = n.get_children_limited_depth(3);
-            logln!(Verbose, "Scene graph limit = 3: {} children", children.len());
-            let iter_count = 1000.min(children.len());
-            for i in 0..iter_count {
-                let c = &children[i];
-                logln!(Verbose, "{}", &**c);
-            }
-            */
-            /* 
-            let children = n.get_children();
-            logln!(Verbose, "Scene graph: {} children", children.len());
-            let iter_count = 1000.min(children.len());
-            for i in 0..iter_count {
-                let c = children[i];
-                logln!(Verbose, "<{}, T {:?} R {:?} S {:?}>", 
-                c.get_name_platform(), c.get_translate(),
-                c.get_rotate(), c.get_scale());
-            }
-            */
-            /* 
-            logln!(Verbose, "{} children", n.get_direct_child_count());
-            for child in n.get_direct_children() {
-                logln!(Verbose, "\t{}", child.get_name_platform());
-                logln!(Verbose, "\t{:?}", child.get_translate());
-                logln!(Verbose, "\t{:?}", child.get_rotate());
-                logln!(Verbose, "\t{:?}", child.get_scale());
-            }
-            */
-        }
-        // logln!(Verbose, "test!");
+        let new_task = GfdTask::<GfdAllocator, GfdInspector>::new_update(10, 0, 0, 0, GfdAllocator);
+        logln!(Verbose, "Inspector task: {}", new_task);
+        opengfd_inspector::imgui_hook::add_gui_callback(opengfd_inspector::window::inspector_reloaded_new_window);
     }
     original_function!(delta)
 }

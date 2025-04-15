@@ -273,6 +273,33 @@ where A: Allocator + Clone
     pub fn get_work_data_mut(&mut self) -> Option<&'static mut D> {
         self.main_work.map(|mut v| unsafe { v.as_mut() })
     }
+
+    pub fn get_task_uid(&self) -> u64 { self.uid }
+
+    pub fn get_main_work_ptr(&self) -> *mut D {
+        match self.main_work {
+            Some(v) => v.as_ptr(),
+            None => std::ptr::null_mut()
+        }
+    }
+    pub fn get_update_ptr(&self) -> *mut UpdateFn<D> {
+        match self.update_fn {
+            Some(v) => v as *mut UpdateFn<D>,
+            None => std::ptr::null_mut()
+        }
+    }
+    pub fn get_render_ptr(&self) -> *mut RenderFn<D> {
+        match self.render_fn {
+            Some(v) => v as *mut RenderFn<D>,
+            None => std::ptr::null_mut()
+        }
+    }
+    pub fn get_shutdown_ptr(&self) -> *mut EndFn<D> {
+        match self.end_fn {
+            Some(v) => v as *mut EndFn<D>,
+            None => std::ptr::null_mut()
+        }
+    }
 }
 
 #[allow(dead_code)]

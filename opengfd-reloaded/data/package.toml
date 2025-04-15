@@ -75,6 +75,9 @@ RepositoryName = "SharedScans"
 [[R2Dependencies]]
 Id = "riri.criadx"
 
+[[R2Dependencies]]
+Id = "riri.imguihookex"
+
 [HookSettings]
 HookLibrary = "Reloaded2CSharpHooks"
 DefaultCallingConvention = "Microsoft"

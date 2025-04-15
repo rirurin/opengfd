@@ -14,6 +14,7 @@ allocator-api2 = "0.2.21"
 cpp-types = { path = "../../cpp-types/cpp-types" }
 glam = "0.29"
 opengfd = { path = "../opengfd" }
+opengfd-inspector = { path = "../opengfd-inspector" }
 riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
 riri-mod-tools-rt = { path = "../../riri-mod-tools/riri-mod-tools-rt" }
 

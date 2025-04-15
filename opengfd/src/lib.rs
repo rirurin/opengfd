@@ -178,6 +178,9 @@ pub mod object {
     pub mod epl;
     pub mod morph;
 }
+pub mod platform {
+    pub mod utils;
+}
 pub mod tests {
     #![allow(dead_code)]
     use std::{

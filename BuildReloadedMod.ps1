@@ -57,6 +57,8 @@ function GetNameWithUnderscores {
 [string] $global:GFD_RELOADED_CRATE = "opengfd-reloaded"
 [string] $global:GFD_RELOADED_ENTRYPOINT = "metaphor.opengfd"
 [string] $global:OPENGFD_LIB = "opengfd"
+[string] $global:INSPECTOR_CRATE = "opengfd-inspector"
+[string] $global:TEST_CRATE = "opengfd-tests"
 # Always will be given the game's compiled using MSVC
 [string] $global:TARGET = "x86_64-pc-windows-msvc"
 # Dependencies
@@ -131,9 +133,13 @@ GoToFolder -Path ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:GFD_GLOBALS_CRA
 # so that they can be linked into any mod using OpenGFD
 $OPENGFD_GLOBAL_FILE = ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:OPENGFD_LIB, "src", "globals.rs"))
 $OPENGFD_RELOADED_GLB = ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:GFD_RELOADED_CRATE, "src", "globals.rs"))
+$OPENGFD_INSPECTOR = ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:INSPECTOR_CRATE, "src", "globals.rs"))
+$OPENGFD_TESTS = ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:TEST_CRATE, "src", "globals.rs"))
 BuildRustCrate -FriendlyName $global:GFD_GLOBALS_CRATE -BuildStd "std,panic_abort" -BuildStdFeatures "panic_immediate_abort" -CrateType "cdylib"
 Copy-Item ([IO.Path]::Combine((Get-Location).ToString(), "middata", "self.rs")) -Destination $OPENGFD_GLOBAL_FILE -Force
 Copy-Item ([IO.Path]::Combine((Get-Location).ToString(), "middata", "ext.rs")) -Destination $OPENGFD_RELOADED_GLB -Force
+Copy-Item ([IO.Path]::Combine((Get-Location).ToString(), "middata", "ext.rs")) -Destination $OPENGFD_INSPECTOR -Force
+Copy-Item ([IO.Path]::Combine((Get-Location).ToString(), "middata", "ext.rs")) -Destination $OPENGFD_TESTS -Force
 
 # build OpenGFD Reloaded project (Rust portion)
 GoToFolder -Path ([IO.Path]::Combine($OPENGFD_DIRECTORY, $global:GFD_RELOADED_CRATE))
