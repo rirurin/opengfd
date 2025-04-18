@@ -116,7 +116,7 @@ where A: Allocator + Clone
     fn get_tex9_name(&self) -> &'static str { "Alpha Mask Texture" }
     fn get_tex10_name(&self) -> &'static str { "Alpha Texture" }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         if self.flags.contains(DistortionFlags::FlowMapMultiAsMask) {
             // #define FLAG2_FLOWMAP_MULTIASMASK                FLAG2_HDR_TONEMAP
             *flags |= ShaderFlag2::FLAG2_HDR_TONEMAP;

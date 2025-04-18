@@ -7,6 +7,6 @@ use imgui::{
 
 #[link(name = "riri_imgui_hook_reloaded", kind = "raw-dylib")]
 unsafe extern "C" {
-    pub unsafe fn add_gui_callback(cb: unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw));
+    pub unsafe fn add_gui_callback(cb: unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw), version: *const i8);
     pub unsafe fn remove_gui_callback(cb: unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw));
 }

@@ -11,6 +11,7 @@ use crate::{
         cmd_buffer::{ CmdBuffer, CmdBufferInterface },
         render::Render
     },
+    kernel::graphics::GraphicsGlobal,
     utility::misc::RGBA
 };
 use std::mem::size_of;
@@ -79,10 +80,10 @@ impl Draw2D for Im2DVertexG4 {
             let renderer = unsafe { globals::get_ngr_dx11_renderer_unchecked_mut() };
             unsafe { renderer.get_command_buffer_unchecked_mut().copy_from_slice(vtx) }
         };
-        let global = unsafe { globals::get_gfd_global_unchecked() };
+        let glb = GraphicsGlobal::get_gfd_graphics_global();
         unsafe {
-            Render::bind_vertex_shader(prio, global.graphics.get_vertex_shader_unchecked(4));
-            Render::bind_pixel_shader(prio, global.graphics.get_pixel_shader_unchecked(7));
+            Render::bind_vertex_shader(prio, glb.get_vertex_shader(4).unwrap());
+            Render::bind_pixel_shader(prio, glb.get_pixel_shader(7).unwrap());
             Render::make_immediate_render(prio, ty, vtx.len() as u32, vtx.as_ptr() as *mut u8, size_of::<Self>() as u32, 0x42);
         }
     }

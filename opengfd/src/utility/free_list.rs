@@ -2,6 +2,7 @@ use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
     device::ngr::allocator::AllocatorHook,
+    kernel::global::Global,
     utility::mutex::Mutex as GfdMutex
 };
 use std::{
@@ -77,7 +78,7 @@ where A: Allocator + Clone
     }
 
     pub fn link(&mut self) {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let glb2 = unsafe { &mut *(&raw mut *glb) };
         let mut glb_mutex = glb.get_free_list_mutex().lock(glb2);
         if (&mut *glb_mutex).get_free_list_head_mut().is_some() {

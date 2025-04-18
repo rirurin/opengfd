@@ -11,12 +11,12 @@ edition.workspace = true
 
 [dependencies]
 allocator-api2 = "0.2.21"
-cpp-types = { path = "../../cpp-types/cpp-types" }
+cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 glam = "0.29"
 opengfd = { path = "../opengfd" }
 opengfd-inspector = { path = "../opengfd-inspector" }
-riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
-riri-mod-tools-rt = { path = "../../riri-mod-tools/riri-mod-tools-rt" }
+riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.61.1"
@@ -33,5 +33,5 @@ features = [
 toml = "0.8"
 walkdir = "2.5"
 # csbindgen = "1.8"
-csbindgen = { version = "1.8", path = "../../csbindgen/csbindgen" }
-riri-mod-tools = { path = "../../riri-mod-tools/riri-mod-tools" }
+csbindgen = { git = "https://github.com/rirurin/csbindgen", branch = "riri-mod-tools" }
+riri-mod-tools = { git = "https://github.com/rirurin/riri-mod-tools" }

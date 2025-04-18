@@ -12,7 +12,7 @@ edition.workspace = true
 [dependencies]
 opengfd = { path = "../opengfd" }
 opengfd-proc = { path = "../opengfd-proc" }
-riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
 
 [build-dependencies]
 opengfd-proc-impl = { path = "../opengfd-proc-impl" }

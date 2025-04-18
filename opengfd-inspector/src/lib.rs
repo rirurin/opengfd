@@ -1,4 +1,5 @@
 pub mod components {
+    pub mod searchbar;
     pub mod table;
 }
 pub mod globals;

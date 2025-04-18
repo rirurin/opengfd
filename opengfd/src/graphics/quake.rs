@@ -2,7 +2,7 @@ use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
     kernel::allocator::GfdAllocator,
-    object::camera::Camera,
+    // object::camera::Camera,
     utility::reference::{
         GfdRc, GfdRcType, Reference
     }

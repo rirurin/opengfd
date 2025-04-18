@@ -350,8 +350,8 @@ pub mod tests {
 
     #[test]
     pub fn create_multiple_references() -> TestReturn {
-        let value: String = format!("True...");
         /*
+        let value: String = format!("True...");
         let mut smart = SmartPointer::new_in(value, Global);
         let mut smart = unsafe { Pin::new_unchecked(&mut smart) };
         // Add second entry onto chain

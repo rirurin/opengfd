@@ -100,7 +100,7 @@ where A: Allocator + Clone
         0
     }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         // let mat = self.get_material();
         if self.flags.contains(TwoLayerFlags::Automatic) {
             // #define FLAG2_TRIPLANARMAPPING_LAYER0 FLAG2_HDR_TONEMAP

@@ -78,6 +78,9 @@ Id = "riri.criadx"
 [[R2Dependencies]]
 Id = "riri.imguihookex"
 
+[[R2Dependencies]]
+Id = "riri.modruntime"
+
 [HookSettings]
 HookLibrary = "Reloaded2CSharpHooks"
 DefaultCallingConvention = "Microsoft"

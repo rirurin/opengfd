@@ -4,7 +4,6 @@ use crate::{
     graphics::{
         material::{ 
             Material, 
-            MaterialFlags,
             MaterialType, 
         },
         shader::{

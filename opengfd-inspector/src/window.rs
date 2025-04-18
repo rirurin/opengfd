@@ -31,6 +31,8 @@ pub unsafe extern "C" fn inspector_reloaded_new_window(ui: *mut ImUI, ctx: *mut 
     let state: Option<&mut GfdTask<GfdAllocator, Inspector>> = GfdTask::find_by_str_mut(Inspector::NAME);
     if let Some(state) = state {
         let ctx = state.get_work_data_mut().unwrap();
+        let mut block_lock = opengfd::io::keyboard::BLOCK_KEYBOARD_UPDATE.lock().unwrap();
+        *block_lock = ui.io().want_capture_keyboard;
         let ui_into = unsafe { &mut *(&raw mut *ui) };
         ui.window("GFD Inspector for Metaphor: Refantazio")
             .size([500., 400.], ImCond::FirstUseEver)
@@ -43,4 +45,9 @@ pub unsafe extern "C" fn inspector_reloaded_new_window(ui: *mut ImUI, ctx: *mut 
                 }
             });
     }
+}
+
+pub fn init() {
+    let ver = imgui::dear_imgui_version().as_ptr() as *const i8;
+    unsafe { crate::imgui_hook::add_gui_callback(inspector_reloaded_new_window, ver) };
 }

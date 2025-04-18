@@ -20,7 +20,7 @@ use crate::{
         render_ot::{ self, RenderOt, RenderOtBase, RenderOtEx },
         texture::Texture
     },
-    kernel::global::{ Global, GraphicsGlobal },
+    kernel::global::Global,
     globals
 };
 
@@ -132,9 +132,7 @@ impl Render {
 pub mod ffi {
     use crate::{
         device::ngr::renderer::state::RenderStateTable,
-        graphics::{
-            render_ot::RenderOt
-        }
+        graphics::render_ot::RenderOt
     };
     use super::Render;
 

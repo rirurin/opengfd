@@ -23,12 +23,18 @@ pub unsafe extern "C" fn set_key_code_for_mouse_click(ofs: usize) -> Option<NonN
     logln!(Information, "got keyCodeForMouseClick: 0x{:x}", addr.as_ptr() as usize);
     Some(addr)
 }
-
-#[riri_hook_static(dynamic_offset(
-    signature = "0F B6 05 ?? ?? ?? ?? 84 C0 74 ??",
-    resolve_type = set_key_code_for_mouse_click,
-    calling_convention = "microsoft",
-))]
+#[riri_hook_static({
+    XRD759_UWP_1011 => dynamic_offset(
+        signature = "0F B6 05 ?? ?? ?? ?? 48 89 AC 24 ?? ?? ?? ??",
+        resolve_type = set_key_code_for_mouse_click,
+        calling_convention = "microsoft",
+    ),
+    _ => dynamic_offset(
+        signature = "0F B6 05 ?? ?? ?? ?? 84 C0 74 ??",
+        resolve_type = set_key_code_for_mouse_click,
+        calling_convention = "microsoft",
+    )
+})]
 riri_static!(HOOK_KEYCODE_FOR_MOUSE_CLICK, usize);
 
 #[no_mangle]
@@ -68,11 +74,16 @@ pub unsafe extern "C" fn set_device_pad_get_data(ofs: usize) -> Option<std::ptr:
     Some(addr)
 }
 
-#[riri_hook_fn(dynamic_offset(
-    signature = "48 89 5C 24 ?? 57 48 83 EC 30 48 63 D9 48 8B FA",
-    resolve_type = set_device_pad_get_data,
-    calling_convention = "microsoft"
-))]
+#[riri_hook_fn({
+    XRD759_UWP_1011 => dynamic_offset(
+        signature = "40 55 53 56 57 41 54 41 57",
+        resolve_type = set_device_pad_get_data,
+        calling_convention = "microsoft"),
+    _ => dynamic_offset(
+        signature = "48 89 5C 24 ?? 57 48 83 EC 30 48 63 D9 48 8B FA",
+        resolve_type = set_device_pad_get_data,
+        calling_convention = "microsoft")
+})]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdDevicePadGetData(id: u32, result: *mut u8) -> bool {
     let result = &mut *(result as *mut ControllerPlatform); 

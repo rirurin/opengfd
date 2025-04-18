@@ -109,7 +109,7 @@ where A: Allocator + Clone
     // R: roughness, G: metallic, B: emissive, A: intensity
     fn get_tex8_name(&self) -> &'static str { "PBR Params Texture" }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         let mat = self.get_material();
         if self.flags.contains(FieldFlags::InfluencedBySky) {
             *flags |= ShaderFlag2::FLAG2_SKY;

@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.2.0"
 authors = [ "Rirurin" ]
 categories = [ "games" ]
 homepage = "https://riri.wtf"
@@ -29,3 +29,20 @@ strip = true  # Automatically strip symbols from the binary.
 [profile.release-debug]
 inherits = "release"
 debug = true # Allow us to debug using LLDB
+
+[patch."https://github.com/rirurin/cpp-types"]
+cpp-types = { path = "../cpp-types/cpp-types" }
+
+[patch."https://github.com/rirurin/cri-adx-rs"]
+cri-adx = { path = "../cri-adx-rs/cri-adx" }
+
+[patch."https://github.com/rirurin/csbindgen"]
+csbindgen = { path = "../csbindgen/csbindgen" }
+
+[patch."https://github.com/rirurin/imgui-rs"]
+imgui = { path = "../imgui-rs/imgui" }
+
+[patch."https://github.com/rirurin/riri-mod-tools"]
+riri-mod-tools-proc = { path = "../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-rt = { path = "../riri-mod-tools/riri-mod-tools-rt" }
+riri-mod-tools = { path = "../riri-mod-tools/riri-mod-tools" }

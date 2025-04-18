@@ -1,5 +1,9 @@
 use crate::globals;
-use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static };
+use opengfd::{
+    kernel::job::Job,
+    platform::utils::PlatformInfo
+};
+use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static, riri_init_fn, riri_mods_loaded_fn };
 use riri_mod_tools_rt::{
     address::get_thread_id,
     logln, 
@@ -9,7 +13,6 @@ use std::{
     ptr::NonNull,
     sync::OnceLock
 };
-use opengfd::kernel::job::Job;
 
 #[no_mangle]
 pub unsafe extern "C" fn set_gfd_job_list_hook(ofs: usize) -> Option<NonNull<u8>> { 
@@ -21,12 +24,18 @@ pub unsafe extern "C" fn set_gfd_job_list_hook(ofs: usize) -> Option<NonNull<u8>
     logln!(Information, "got gfdJobList: 0x{:x}", addr.as_ptr() as usize);
     Some(addr)
 }
-
-#[riri_hook_static(dynamic_offset(
-    signature = "4C 8D 35 ?? ?? ?? ?? 4C 89 7C 24 ?? 41 BF 00 00 00 80",
-    resolve_type = set_gfd_job_list_hook,
-    calling_convention = "microsoft",
-))]
+#[riri_hook_static({
+    XRD759_UWP_1011 => dynamic_offset(
+        signature = "4C 8D 35 ?? ?? ?? ?? 4C 89 7C 24 ?? 41 BF 00 00 4D 8F",
+        resolve_type = set_gfd_job_list_hook,
+        calling_convention = "microsoft",
+    ),
+    _ => dynamic_offset(
+        signature = "4C 8D 35 ?? ?? ?? ?? 4C 89 7C 24 ?? 41 BF 00 00 00 80",
+        resolve_type = set_gfd_job_list_hook,
+        calling_convention = "microsoft",
+    )
+})]
 riri_static!(GFD_JOB_LIST, usize);
 
 #[no_mangle]
@@ -51,4 +60,14 @@ pub unsafe extern "C" fn gfd_win32_start(p_exec: *const u8) -> bool {
     logln!(Verbose, "Main thread is {}", MAIN_THREAD_ID.get().unwrap());
     globals::set_main_thread_id(&raw const *MAIN_THREAD_ID.get().unwrap() as *mut u32);
     original_function!(p_exec)
+}
+
+#[riri_init_fn()]
+fn init_set_steam_check() {
+    PlatformInfo::set_platform_steam();
+}
+
+#[riri_mods_loaded_fn]
+fn end_init_test() {
+    logln!(Verbose, "Mod Loader finished initializing!");
 }

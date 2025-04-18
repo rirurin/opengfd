@@ -79,8 +79,8 @@ function BuildRustCrate {
         [string] $BuildStdFeatures,
         [string] $CrateType
     )
-    $Profile = if ($IsDebug) { "--profile=release-debug" } else { "--profile=release" }
-    cargo +nightly rustc --lib $Profile -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
+    $RustProfile = if ($IsDebug) { "--profile=release-debug" } else { "--profile=release" }
+    cargo +nightly rustc --lib $RustProfile -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
     if (!$?) {
         Write-Error "Failed to build the Rust crate ${FriendlyName}"
     }

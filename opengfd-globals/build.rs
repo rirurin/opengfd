@@ -5,7 +5,7 @@ use std::{
 use proc_macro2::Span;
 use opengfd_proc_impl::gfd_static::create_gfd_static_links;
 use syn;
-use quote::{ quote, ToTokens };
+use quote::ToTokens;
 
 fn get_global_file_relative() -> &'static str {
     #[cfg(feature = "v1-core")]

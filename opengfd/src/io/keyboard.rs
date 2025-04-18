@@ -36,6 +36,7 @@ bitflags! {
 
 const MAX_KEY_COUNT: usize = 6;
 static GFD_KEYBOARD_STATE: Mutex<Keyboard> = Mutex::new(Keyboard::new());
+pub static BLOCK_KEYBOARD_UPDATE: Mutex<bool> = Mutex::new(false);
 
 #[repr(C)]
 #[derive(Debug)]
@@ -88,6 +89,8 @@ impl Keyboard {
         let mut key_state: MaybeUninit<[u8; 256]> = MaybeUninit::uninit();
         unsafe { GetKeyboardState(key_state.assume_init_mut()).unwrap() }
         self.clear();
+        let block_lock = BLOCK_KEYBOARD_UPDATE.lock().unwrap();
+        if *block_lock { return false; }
         // set keyboard modifiers
         let key_state = unsafe { key_state.assume_init() };
         if Self::is_key_down(key_state[VK_LCONTROL.0 as usize])

@@ -79,7 +79,7 @@ where A: Allocator + Clone
     fn get_tex5_name(&self) -> &'static str { "Multiply Texture" }
     fn get_tex6_name(&self) -> &'static str { "Emissive Texture" }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
         // TODO
     }
     fn update(&mut self) {

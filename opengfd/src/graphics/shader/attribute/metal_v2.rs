@@ -8,7 +8,6 @@ use crate::{
         },
         shader::{
             flag::{
-                Flags0 as ShaderFlag0,
                 Flags1 as ShaderFlag1,
                 Flags2 as ShaderFlag2
             },

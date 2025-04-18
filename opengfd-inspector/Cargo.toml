@@ -11,7 +11,8 @@ edition.workspace = true
 [dependencies]
 allocator-api2 = "0.2.21"
 bitflags = "2.6"
-cpp-types = { path = "../../cpp-types/cpp-types" }
-imgui = { path = "../../imgui-rs/imgui", features = ["tables-api"] }
+cpp-types = { git = "https://github.com/rirurin/cpp-types" }
+imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["tables-api"] }
 opengfd = { path = "../opengfd" }
-riri-mod-tools-rt = { path = "../../riri-mod-tools/riri-mod-tools-rt" }
+regex = "1.11.1"
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }

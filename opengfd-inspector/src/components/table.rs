@@ -5,7 +5,7 @@ use std::{
 };
 
 pub trait TableDraw<TContext> {
-    fn draw_contents(&self, ui: &mut Ui, ctx: &mut TContext);
+    fn draw_contents(&self, ui: &mut Ui, ctx: &mut TContext, index: usize);
 }
 
 pub(crate) fn default_flags() -> TableFlags {
@@ -60,7 +60,11 @@ where TContents : TableDraw<TContext>
             let clipper = ListClipper::new(self.contents.len() as i32);
             let clip = clipper.begin(ui_copy0);
             for i in clip.iter() {
-                self.contents[i as usize].draw_contents(ui_copy1, ctx);
+                ui.table_next_row();
+                for j in 0..C {
+                    ui.table_set_column_index(j);
+                    self.contents[i as usize].draw_contents(ui_copy1, ctx, j);
+                }
             }
         }
     }

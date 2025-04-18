@@ -240,7 +240,9 @@ pub unsafe extern "C" fn ngrDeferredContextSetIndexBuffer(
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdPostRender(a1: u32, a2: u32) {
     // line draw test
-    opengfd::debug::perf_meter::draw_test();
+    // let glb = opengfd::kernel::graphics::GraphicsGlobal::get_gfd_graphics_global_mut();
+    // logln!(Verbose, "cmd buffer: 0x{:x}", &raw const *glb.get_current_cmd_buffer().unwrap() as usize);
+    // opengfd::debug::perf_meter::draw_test();
     original_function!(a1, a2)
 }
 
@@ -296,7 +298,7 @@ pub unsafe extern "C" fn gfdRenderSetTransformWorld(prio: u32, v: *mut u8) {
 #[allow(dead_code)]
 fn object_tests() {
     /* 
-    let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
+    let glb = Global::get_gfd_global_mut();
     let scene = glb.graphics.get_current_scene();
     if let Some(n) = scene.get_root_node() {
         let arch = n.find_by_name("mesh_arc_0006").unwrap();
@@ -398,7 +400,7 @@ pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
     if windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x74) & 1 != 0 {
         let new_task = GfdTask::<GfdAllocator, GfdInspector>::new_update(10, 0, 0, 0, GfdAllocator);
         logln!(Verbose, "Inspector task: {}", new_task);
-        opengfd_inspector::imgui_hook::add_gui_callback(opengfd_inspector::window::inspector_reloaded_new_window);
+        opengfd_inspector::window::init();
     }
     original_function!(delta)
 }

@@ -3,7 +3,7 @@ use crate::{
     device::ngr::allocator::AllocatorHook,
     kernel::{
         allocator::GfdAllocator,
-        global::GlobalFlags
+        global::{ Global, GlobalFlags }
     },
     utility::name::Name
 };
@@ -225,14 +225,14 @@ where A: Allocator + Clone
     }
 
     fn get_task_allocation() -> &'static mut Self {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        let task_allocator = unsafe { glb.get_task_free_list_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
+        let task_allocator = glb.get_task_free_list_unchecked_mut();
         let ptr = task_allocator.add() as *mut Self;
         unsafe { std::ptr::write_bytes(ptr, 0, size_of::<Self>()) }
         unsafe { &mut *ptr }
     }
     fn get_uid() -> u64 {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         glb.get_uid()
     }
     fn set_parameters(&mut self,
@@ -378,7 +378,7 @@ where A: Allocator + Clone
 {
     /// Original function: gfdTaskAttachUpdateList
     pub fn attach_to_update_list(&mut self) {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let glb2 = unsafe { &mut *(&raw mut *glb) };
         let mut mutex = glb.get_tasks_mut().mutex.lock(glb2);
         let pself = &raw mut *self as *mut Task<GfdAllocator>;
@@ -423,7 +423,7 @@ where A: Allocator + Clone
 
     /// Original function: gfdTaskAttachRenderList
     pub fn attach_to_render_list(&mut self) {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let glb2 = unsafe { &mut *(&raw mut *glb) };
         let mut mutex = glb.get_tasks_mut().mutex.lock(glb2);
         let pself = &raw mut *self as *mut Task<GfdAllocator>;
@@ -466,7 +466,7 @@ where A: Allocator + Clone
     }
 
     fn attach_to_begin_list(&mut self) {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let glb2 = unsafe { &mut *(&raw mut *glb) };
         let mut mutex = glb.get_tasks_mut().mutex.lock(glb2);
         if !(&*mutex).get_flags().contains(GlobalFlags::NO_INCREASE_TASK_START_TIMER) {
@@ -488,7 +488,7 @@ where A: Allocator + Clone
 
     /// Original function: gfdTaskExist
     pub fn exists(&self) -> bool {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let mut curr_task = match self.status {
             TaskStatus::Begin => glb.get_tasks().get_last_begin_task_mut(),
             TaskStatus::Update => glb.get_tasks().get_last_update_task_mut(),
@@ -531,7 +531,7 @@ where A: Allocator + Clone
     }
     /// Original function: gfdTaskGetCurrentID
     pub fn current_id() -> Option<&'static Self> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         if glb.get_tasks().current != std::ptr::null_mut() {
             Some(unsafe { &*(glb.get_tasks().current as *mut Self) })
         } else {
@@ -857,7 +857,7 @@ where D: 'static,
       A: Allocator + Clone
 {
     pub fn iter_begin() -> TaskBeginIterator<'static, A, D> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let mut curr = if glb.get_tasks().get_last_begin_task() != std::ptr::null_mut() {
             Some(unsafe { &*(glb.get_tasks().get_last_begin_task() as *mut Task<A, D>) })
         } else { None };
@@ -870,7 +870,7 @@ where D: 'static,
         TaskBeginIterator { curr }
     }
     pub fn iter_end() -> TaskEndIterator<'static, A, D> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let mut curr = if glb.get_tasks().get_last_ending_task() != std::ptr::null_mut() {
             Some(unsafe { &*(glb.get_tasks().get_last_ending_task() as *mut Task<A, D>) })
         } else { None };
@@ -883,7 +883,7 @@ where D: 'static,
         TaskEndIterator { curr }
     }
     pub fn iter_update() -> TaskUpdateIterator<'static, A, D> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let update_task = glb.get_tasks().get_last_update_task();
         let curr = if update_task != std::ptr::null_mut() {
             Some(unsafe { &*(update_task as *mut Task<A, D>) })
@@ -891,7 +891,7 @@ where D: 'static,
         TaskUpdateIterator { curr }
     }
     pub fn iter_render() -> TaskRenderIterator<'static, A, D> {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+        let glb = Global::get_gfd_global_mut();
         let update_task = glb.get_tasks().get_last_render_task();
         let curr = if update_task != std::ptr::null_mut() {
             Some(unsafe { &*(update_task as *mut Task<A, D>) })

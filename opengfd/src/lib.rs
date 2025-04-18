@@ -163,6 +163,7 @@ pub mod kernel {
     #[path = "global_xrd759.rs"]
     pub mod global;
     pub mod global_common;
+    pub mod graphics;
     pub mod init;
     pub mod job;
     pub mod task;

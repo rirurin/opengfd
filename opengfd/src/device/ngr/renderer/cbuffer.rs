@@ -2,11 +2,9 @@ use allocator_api2::alloc::Allocator;
 use crate::{
     device::ngr::{
         allocator::AllocatorHook, 
-        // hint::MemHint,
-        renderer::hint::{ BufferFieldType, BufferFieldRustType, BufferFieldHint },
+        renderer::hint::{ BufferFieldType, BufferFieldRustType },
         structures::{ Array, StringHashed }
     },
-    globals,
     utility::reference::Reference
 };
 use std::alloc::Layout;
@@ -45,7 +43,7 @@ pub struct ConstantBuffer {
     resource_count: u32,
     pub(super) slot: i32,
     buffer: Option<ID3D11Buffer>,
-    resources: [*const std::ffi::c_void; crate::kernel::global::RENDER_LISTS],
+    resources: [*const std::ffi::c_void; crate::kernel::global_common::RENDER_LISTS],
     // pub(super) active_buffers: u32,
     pub active_buffers: u32,
 }

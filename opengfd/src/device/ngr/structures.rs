@@ -432,7 +432,7 @@ where A: Allocator + Clone
             _allocator: alloc
         }
     }
-    pub fn from_c_string(text: *const std::ffi::c_char, alloc: A) -> Self {
+    pub fn from_c_string(_text: *const std::ffi::c_char, alloc: A) -> Self {
         Self {
             _cpp_vtable: std::ptr::null(),
             text: std::ptr::null(),

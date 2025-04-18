@@ -14,7 +14,10 @@ use crate::{
     },
     kernel::{
         allocator::GfdAllocator,
-        global::GraphicsFlags
+        graphics::{ 
+            GraphicsFlags,
+            GraphicsGlobal
+        }
     },
     object::geometry::VertexAttributeFlags,
     utility::{
@@ -329,9 +332,9 @@ where A: Allocator + Clone
     }
     /// Original function: gfdMaterialCheckShadowCaster
     pub fn check_shadow_caster(&self) -> bool {
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
+        let glb = GraphicsGlobal::get_gfd_graphics_global();
         self.flags.contains(MaterialFlags::ShadowCaster)
-        && glb.graphics.has_flags(GraphicsFlags::ShadowCaster)
+        && glb.has_flags(GraphicsFlags::ShadowCaster)
 
     }
 
@@ -467,7 +470,7 @@ where A: Allocator + Clone
     // 0x141071d70
     pub fn get_shader_flags(&self, map_id: u16, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         let param = self.get_data();
-        let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
+        let glb = GraphicsGlobal::get_gfd_graphics_global();
         flags.reset_flag0(ShaderFlag0::FLAG0_ALWAYS_ENABLED);
         flags.reset_flag1(ShaderFlag1::FLAG1_MATERIAL_AMBDIFF);
         flags.reset_flag2(ShaderFlag2::empty());
@@ -505,10 +508,10 @@ where A: Allocator + Clone
             *flags |= ShaderFlag1::FLAG1_MATERIAL_VERTEXCOLOR;
         }
         if self.flags.contains(MaterialFlags::Fog) {
-            if glb.graphics.has_flags(GraphicsFlags::Fog) {
+            if glb.has_flags(GraphicsFlags::Fog) {
                 *flags |= ShaderFlag1::FLAG1_MATERIAL_FOG;
             }
-            if glb.graphics.has_flags(GraphicsFlags::HeightFog) {
+            if glb.has_flags(GraphicsFlags::HeightFog) {
                 *flags |= ShaderFlag1::FLAG1_MATERIAL_HEIGHTFOG;
             }
             if self.blend.ty == BlendType::AddTrans
@@ -523,7 +526,7 @@ where A: Allocator + Clone
             *flags |= ShaderFlag1::FLAG1_MATERIAL_EMISSIVE;
         }
         if self.flags.contains(MaterialFlags::ShadowReceiver) 
-        && glb.graphics.has_flags(GraphicsFlags::ShadowCaster) {
+        && glb.has_flags(GraphicsFlags::ShadowCaster) {
             *flags |= ShaderFlag1::FLAG1_MATERIAL_SHADOW;
         }
         if self.flags.contains(MaterialFlags::Texture5) {

@@ -2,7 +2,6 @@ use allocator_api2::alloc::Allocator;
 use cpp_types::msvc::{
     string::String as CppString,
     shared_ptr::{
-        RefCountObject,
         SharedPtr, 
         WeakPtr 
     },

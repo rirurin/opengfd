@@ -105,7 +105,7 @@ where A: Allocator + Clone
     fn get_tex1_name(&self) -> &'static str { "Base Texture" }
     fn get_tex3_name(&self) -> &'static str { "Toon Shadow Color Texture" }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
         // TODO: Vertex
         if self.has_flag(Type3Flags::Flag10) {
             // TODO: Punchthrough

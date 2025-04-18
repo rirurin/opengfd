@@ -2,6 +2,7 @@ use allocator_api2::alloc::{ Allocator, AllocError };
 use crate::{
     kernel::{
         allocator::GfdAllocator,
+        global::Global,
         job::Job
     },
     utility::free_list::FreeList
@@ -39,7 +40,7 @@ unsafe impl Allocator for ChipAllocator {
             // async thread
             Some(v) => v.get_free_list_mut(),
             None => {
-                let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
+                let glb = Global::get_gfd_global_mut();
                 glb.get_chip_free_list_mut().unwrap()
             }
         };

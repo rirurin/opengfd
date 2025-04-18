@@ -73,11 +73,15 @@ unsafe impl Sync for Mutex {}
 
 pub(crate) const SPIN_COUNT_BEFORE_YIELDING: usize = 1500;
 
-pub struct MutexGuard<'a, T> {
+pub struct MutexGuard<'a, T> 
+where T: ?Sized
+{
     mutex: &'a mut Mutex,
     data: &'a mut T
 }
-impl<'a, T> MutexGuard<'a, T> {
+impl<'a, T> MutexGuard<'a, T> 
+where T: ?Sized
+{
     fn new(mutex: &'a mut Mutex, data: &'a mut T) -> Self {
         loop {
             for _ in 0..SPIN_COUNT_BEFORE_YIELDING {
@@ -90,19 +94,25 @@ impl<'a, T> MutexGuard<'a, T> {
         }
     }
 }
-impl<'a, T> Drop for MutexGuard<'a, T> {
+impl<'a, T> Drop for MutexGuard<'a, T> 
+where T: ?Sized
+{
     fn drop(&mut self) {
         self.mutex.0.store(0, Ordering::Release);
     }
 }
 
-impl<'a, T> Deref for MutexGuard<'a, T> {
+impl<'a, T> Deref for MutexGuard<'a, T> 
+where T: ?Sized
+{
     type Target = T;
     fn deref(&self) -> &Self::Target {
         self.data
     }
 }
-impl<'a, T> DerefMut for MutexGuard<'a, T> {
+impl<'a, T> DerefMut for MutexGuard<'a, T> 
+where T: ?Sized
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
@@ -110,7 +120,10 @@ impl<'a, T> DerefMut for MutexGuard<'a, T> {
 
 impl Mutex {
     pub fn new() -> Self { Self(AtomicU32::new(0)) }
-    pub fn lock<'a, T>(&'a mut self, data: &'a mut T) -> MutexGuard<'a, T> { MutexGuard::new(self, data) }
+    pub fn lock<'a, T>(&'a mut self, data: &'a mut T) -> MutexGuard<'a, T> 
+    where T: ?Sized { 
+        MutexGuard::new(self, data) 
+    }
 }
 
 pub mod ffi {

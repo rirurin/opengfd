@@ -172,7 +172,7 @@ where A: Allocator + Clone
     fn get_tex8_name(&self) -> &'static str { "Toon Params Texture" }
     fn get_tex9_name(&self) -> &'static str { "Toon Edge Color Texture" }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         if self._impl.metallic > 0. {
             *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION;
         }

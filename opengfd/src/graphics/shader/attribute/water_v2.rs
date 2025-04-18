@@ -14,7 +14,6 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
-use glam::Vec4;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -99,7 +98,7 @@ where A: Allocator + Clone
         0
     }
 
-    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         if self.flags.contains(WaterFlags::InfluencedBySky) {
             *flags |= ShaderFlag2::FLAG2_SKY;
         }

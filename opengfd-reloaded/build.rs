@@ -1,12 +1,7 @@
 use csbindgen;
 use riri_mod_tools::{ config_codegen, mod_package, reloaded_codegen };
-use toml;
 use walkdir::{ DirEntry, WalkDir };
-use std::{
-    borrow::Borrow,
-    env::var,
-    error::Error
-};
+use std::error::Error;
 // generate bindgen DllImport
 fn csbindgen_callback<P: AsRef<std::path::Path>>(this: &mut reloaded_codegen::HookEvaluator<P>, class: reloaded_codegen::ReloadedHookClass) -> Result<(), Box<dyn Error>> {
     let class_name = class.csharp_class_name();
@@ -54,7 +49,7 @@ fn main() {
     let base = std::env::current_dir().unwrap();
     let cargo_info = mod_package::CargoInfo::new(&base).unwrap();
     let package_toml = mod_package::reloaded3ririext::Package::new(&base, &cargo_info).unwrap();
-    let mut hash_e = mod_package::HashFile::new(&base, package_toml.get_mod_id(), package_toml.get_mod_name()).unwrap();
+    let mut hash_e = mod_package::HashFile::new_builtin(&base, package_toml.get_mod_id(), package_toml.get_mod_name()).unwrap();
     // Make FFI: Evaluate riri_hook macro, create hooked classes
     let mut hook_e = reloaded_codegen::HookEvaluator::new(&base, &package_toml, &cargo_info).unwrap();
     hook_e.set_ignore_files(vec![base.join("src/logger.rs"), base.join("src/config.rs")]);

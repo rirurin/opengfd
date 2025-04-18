@@ -2,9 +2,7 @@ use crate::{
     device::ngr::renderer::{
         cbuffer::BufferType,
         shader::{
-            PixelShaderPlatform,
             PixelShader,
-            VertexShaderPlatform,
             VertexShader
         },
         state::{
@@ -20,7 +18,8 @@ use crate::{
     graphics::{
         cull::CullObject,
         render::cmd_buffer::CmdBufferInterface
-    }
+    },
+    kernel::graphics::GraphicsGlobal
 };
 use std::mem::size_of;
 use windows::Win32::Graphics::Direct3D11::D3D11_VIEWPORT;
@@ -98,9 +97,10 @@ pub struct RenderOt {
 impl RenderOt {
     /// (Original function: gfdRenderOtSetup)
     pub unsafe fn setup(extra: usize) -> *mut Self {
-        let cmd_buffer = globals::get_gfd_global_unchecked_mut().graphics.get_current_cmd_buffer();
+        let glb = GraphicsGlobal::get_gfd_graphics_global_mut();
+        let cmd_buffer = glb.get_current_cmd_buffer().unwrap();
         let res = cmd_buffer.alloc_type::<Self>(extra); 
-        (&mut *res).geometry_cull = globals::get_gfd_global_unchecked().graphics.get_geometry_cull();
+        (&mut *res).geometry_cull = glb.get_geometry_cull().unwrap();
         res
     } 
 }
@@ -122,8 +122,9 @@ unsafe impl RenderOtBase for RenderOt {
         self.post_cb_data = data as *mut u8;
     }
     unsafe fn link(&mut self, prio: u32) {
-        let glb = globals::get_gfd_global_unchecked_mut();
-        let ot_list = glb.graphics.get_ot_render_list(glb.graphics.get_frame_id(), prio as usize);
+        let glb = GraphicsGlobal::get_gfd_graphics_global_mut();
+        let frame_id = glb.get_frame_id();
+        let ot_list = glb.get_ot_render_list(frame_id, prio as usize).unwrap();
         if !self.geometry_cull.is_null() {
             self.next_cull = std::ptr::null_mut();
             ot_list.cull.insert_entry_culled(self);
@@ -143,7 +144,8 @@ pub struct RenderOtEx<const D: usize = 0> {
 
 impl<const D: usize> RenderOtEx<D> {
     pub fn new() -> &'static mut Self {
-        let cmd_buffer = unsafe { globals::get_gfd_global_unchecked_mut().graphics.get_current_cmd_buffer() };
+        let glb = GraphicsGlobal::get_gfd_graphics_global_mut();
+        let cmd_buffer = glb.get_current_cmd_buffer().unwrap();
         let res = unsafe { cmd_buffer.alloc_ex::<Self>() };
         unsafe {
             libc::memset(
@@ -151,8 +153,9 @@ impl<const D: usize> RenderOtEx<D> {
                 0 as libc::c_int, 
                 std::mem::size_of::<Self>() as libc::size_t
             );
-        } 
-        res.base.geometry_cull = unsafe { globals::get_gfd_global_unchecked().graphics.get_geometry_cull() };
+        }
+        let glb = GraphicsGlobal::get_gfd_graphics_global_mut();
+        res.base.geometry_cull = glb.get_geometry_cull().unwrap();
         res
     }
 
@@ -230,9 +233,9 @@ pub(super) unsafe extern "C" fn pop_state_pre_callback(_ot: *mut RenderOt, buffe
 /// Original function: gfdShaderVertexBindOtPreCallback
 pub(super) unsafe extern "C" fn bind_vertex_shader_pre_callback(_ot: *mut RenderOt, id: *mut u8, shader: *mut u8) {
     let id = (id as u32) as usize;
-    let global = globals::get_gfd_global_unchecked_mut();
-    if *global.graphics.get_current_vertex_shader_ptr() != shader as *mut VertexShader {
-        std::ptr::write(global.graphics.get_current_vertex_shader_ptr(), shader as *mut VertexShader);
+    let global = GraphicsGlobal::get_gfd_graphics_global_mut();
+    if *global.get_current_vertex_shader_ptr() != shader as *mut VertexShader {
+        std::ptr::write(global.get_current_vertex_shader_ptr(), shader as *mut VertexShader);
         let shader_data = if shader.is_null() { None } else {
             let shader = &*(shader as *mut VertexShader);
             if shader.data != std::ptr::null_mut() { Some(&*shader.data) } else { None }
@@ -248,9 +251,9 @@ pub(super) unsafe extern "C" fn bind_vertex_shader_pre_callback(_ot: *mut Render
 /// Original function: gfdShaderFragmentBindOtPreCallback 
 pub(super) unsafe extern "C" fn bind_pixel_shader_pre_callback(_ot: *mut RenderOt, id: *mut u8, shader: *mut u8) {
     let id = (id as u32) as usize;
-    let global = globals::get_gfd_global_unchecked_mut();
-    if *global.graphics.get_current_pixel_shader_ptr() != shader as *mut PixelShader {
-        std::ptr::write(global.graphics.get_current_pixel_shader_ptr(), shader as *mut PixelShader);
+    let global = GraphicsGlobal::get_gfd_graphics_global_mut();
+    if *global.get_current_pixel_shader_ptr() != shader as *mut PixelShader {
+        std::ptr::write(global.get_current_pixel_shader_ptr(), shader as *mut PixelShader);
         let shader_data = if shader.is_null() { None } else {
             let shader = &*(shader as *mut PixelShader);
             if shader.data != std::ptr::null_mut() { Some(&*shader.data) } else { None }
@@ -268,7 +271,7 @@ pub(super) unsafe extern "C" fn bind_pixel_shader_pre_callback(_ot: *mut RenderO
 // TODO
 pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, buffer: *mut u8, data: *mut u8) {
     let draw_state = globals::get_ngr_draw_state_unchecked_mut();
-    let gfd_global = globals::get_gfd_global_unchecked_mut();
+    let gfd_global = GraphicsGlobal::get_gfd_graphics_global_mut();
     let frame_id = draw_state.get_ot_frame_id();
     let buffer_id = (buffer as u32) as usize;
     let upd = data as u32;
@@ -304,8 +307,8 @@ pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, b
     ctx.set_shader_resource_view(BufferType::Pixel, 3, None);
     ctx.set_shader_sample(BufferType::Pixel, 2, if draw_state.sampler_620.is_null() { None } else { Some(&*draw_state.sampler_620)});
     // let v0 = ;
-    ctx.set_vertex_shader(gfd_global.graphics.get_vertex_shader_platform(46));
-    ctx.set_pixel_shader(gfd_global.graphics.get_pixel_shader_platform(130));
+    ctx.set_vertex_shader(gfd_global.get_vertex_shader_platform(46));
+    ctx.set_pixel_shader(gfd_global.get_pixel_shader_platform(130));
     ctx.draw(IATopology::TriangleStrip, 4, 0);
     ctx.set_shader_resource_view(BufferType::Pixel, 3, None);
     // OMSetRenderTargets
@@ -319,8 +322,8 @@ pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, b
     };
     ctx.set_viewports(&viewport2);
     ctx.set_shader_resource_view(BufferType::Pixel, 0, None);
-    ctx.set_vertex_shader(gfd_global.graphics.get_vertex_shader_platform(23));
-    ctx.set_pixel_shader(gfd_global.graphics.get_pixel_shader_platform(105));
+    ctx.set_vertex_shader(gfd_global.get_vertex_shader_platform(23));
+    ctx.set_pixel_shader(gfd_global.get_pixel_shader_platform(105));
     crate::device::ngr::renderer::render::set_sampler_key_values(buffer_id, 2, true, true, TextureAddressMode::Clamp, TextureAddressMode::Clamp);
     crate::device::ngr::renderer::pkt::set_blend_key_preset2(buffer_id, 1, true);
     crate::device::ngr::renderer::render::set_depth_stencil_key_less_equal(buffer_id, true, DepthWriteMask::MaskNone);
@@ -335,5 +338,5 @@ pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, b
     buffer.sampler_flag |= 4;
     buffer.flags2 &= BufferFlags2::FLAG11;
     buffer.flags |= BufferFlags::USING_BLEND;
-    gfd_global.graphics.field44b8_clear();
+    gfd_global.field44b8_clear();
 }

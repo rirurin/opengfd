@@ -19,8 +19,8 @@ use crate::{
         draw2d::ImmediateRenderType,
         render::cmd_buffer::CmdBufferInterface,
         texture::Texture
-    }
-    // graphics::render::cmd_buffer::CmdBuffer
+    },
+    kernel::graphics::GraphicsGlobal
 };
 
 use super::state::DeferredContext;
@@ -44,7 +44,7 @@ impl<T> PktData<T>
 where T: PktFunction
 {
     fn allocate_for_pkt() -> &'static mut T {
-        let cmd_buffer = unsafe { globals::get_gfd_global_unchecked().graphics.get_current_cmd_buffer() };
+        let cmd_buffer = GraphicsGlobal::get_gfd_graphics_global_mut().get_current_cmd_buffer().unwrap();
         let new = unsafe { cmd_buffer.alloc_type::<T>(std::mem::size_of::<usize>()) };
         unsafe {
             libc::memset(
@@ -281,7 +281,7 @@ impl PktData<ImmediateRenderDraw> {
 impl ImmediateRenderPkt {
     pub fn new(ty: ImmediateRenderType, count: u32, verts: *mut u8, stride: u32, _fvf: u32) -> &'static mut Self {
         let new: &mut Self = PktData::allocate_for_pkt();
-        let frame_id = unsafe { globals::get_gfd_global_unchecked().graphics.get_frame_id() };
+        let frame_id = GraphicsGlobal::get_gfd_graphics_global_mut().get_frame_id();
         let renderer = unsafe { globals::get_ngr_dx11_renderer_unchecked() };
         let buf = unsafe { renderer.get_command_buffer_unchecked() };
         new.set_buffers.cb = PktData::<ImmediateRenderSetBuffers>::set_buffers;

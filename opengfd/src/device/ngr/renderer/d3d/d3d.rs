@@ -491,7 +491,7 @@ where A: Allocator + Clone
     // impl Drop: vtable + 0x38 and vtable + 0x40
     // 
 
-    pub unsafe fn create_resource_views(&mut self, width: usize, height: usize) {
+    pub unsafe fn create_resource_views(&mut self, _width: usize, _height: usize) {
         // TODO!
         let tex2d = self.swapchain.as_ref().unwrap().GetBuffer::<ID3D11Texture2D>(0).unwrap();
         let mut rtv: Option<ID3D11RenderTargetView> = None;
@@ -538,7 +538,7 @@ where A: Allocator + Clone
     // vtable + 0x100
     pub const fn vtable_32(&self) -> bool { true }
     // vtable + 0x108
-    pub fn create_constant_buffer(&self, cbuffer: &mut ConstantBuffer) {
+    pub fn create_constant_buffer(&self, _cbuffer: &mut ConstantBuffer) {
 
     }
     // vtable + 0x110
@@ -554,6 +554,7 @@ pub struct DeferredContextSpecial {
     // #[field_offset(0)] pub _super: DeferredContextBase
 }
 
+#[allow(non_camel_case_types)]
 #[repr(C)]
 #[derive(Debug)]
 pub struct ngr_1422a73b0 {
@@ -563,6 +564,7 @@ pub struct ngr_1422a73b0 {
     pub field18: u64,
 }
 
+#[allow(non_camel_case_types)]
 #[repr(C)]
 #[derive(Debug)]
 pub struct ngr_1420f21d0 {
@@ -614,6 +616,7 @@ impl BufferObject for CommandBuffer {
 }
 
 #[ensure_layout(size = 0xa78)]
+#[allow(non_camel_case_types)]
 pub struct ngr_142ed6270 {
     #[field_offset(0x8)] count0: usize,
     #[field_offset(0x10)] count1: usize,
