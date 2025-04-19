@@ -18,12 +18,13 @@ pub(crate) fn default_height() -> f32 { 300. }
 pub struct InspectorTable<'a, TContents, TContext, const C: usize>
 where TContents : TableDraw<TContext>
 {
-    pub(crate) contents: Vec<TContents>,
+    // pub(crate) contents: Option<&'a Vec<TContents>>,
     table_name: &'a str,
     columns: Option<[&'a str; C]>,
     flags: TableFlags,
     height: f32,
-    _context: PhantomData<TContext>
+    _context: PhantomData<TContext>,
+    _data_type: PhantomData<TContents>,
 }
 
 #[allow(dead_code)]
@@ -40,7 +41,7 @@ where TContents : TableDraw<TContext>
         })
     }
 
-    pub(crate) fn draw_table(&mut self, ui: &mut Ui, ctx: &mut TContext) {
+    pub(crate) fn draw_table(&mut self, ui: &mut Ui, ctx: &mut TContext, data: &[TContents]) {
         let ui_copy0 = unsafe { &mut *(&raw mut *ui) };
         let ui_copy1 = unsafe { &mut *(&raw mut *ui) };
         if let Some(_) = match self.create_header_column() {
@@ -57,21 +58,30 @@ where TContents : TableDraw<TContext>
                 [0. , self.height], 
                 0.),
         } {
-            let clipper = ListClipper::new(self.contents.len() as i32);
+            let clipper = ListClipper::new(data.len() as i32);
             let clip = clipper.begin(ui_copy0);
             for i in clip.iter() {
                 ui.table_next_row();
                 for j in 0..C {
                     ui.table_set_column_index(j);
-                    self.contents[i as usize].draw_contents(ui_copy1, ctx, j);
+                    data[i as usize].draw_contents(ui_copy1, ctx, j);
                 }
             }
         }
     }
 
-    pub(crate) fn set_entries(&mut self, contents: Vec<TContents>) {
-        self.contents = contents;
+    /*
+    pub(crate) fn set_entries(&mut self, contents: &'a Vec<TContents>) {
+        self.contents = Some(contents);
     }
+
+    pub(crate) fn get_entry_count(&self) -> usize {
+        match self.contents {
+            Some(v) => v.len(),
+            None => 0
+        }
+    }
+    */
 
     pub(crate) fn new(
         table_name: &'a str, 
@@ -80,12 +90,13 @@ where TContents : TableDraw<TContext>
         height: f32
     ) -> Self {
         Self {
-            contents: vec![],
+            // contents: None,
             table_name,
             columns,
             height,
             flags,
-            _context: PhantomData::<TContext>
+            _context: PhantomData::<TContext>,
+            _data_type: PhantomData::<TContents>
         }
     }
 }

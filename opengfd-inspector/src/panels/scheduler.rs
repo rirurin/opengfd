@@ -13,6 +13,8 @@ use opengfd::kernel::{
     allocator::GfdAllocator,
     task::Task as GfdTask
 };
+// use opengfd_tests::sample_font::SampleFont;
+// use opengfd_tests::hello_world_01::HelloWorld;
 use std::ops::Deref;
 
 type GfdDefaultTask = GfdTask<GfdAllocator, u8>;
@@ -56,6 +58,18 @@ pub struct SchedulerPanel {
     table: InspectorTable<'static, TaskTableEntry, SchedulerPanel, 6>,
     selected_task: Option<&'static GfdDefaultTask>,
 }
+
+/* 
+#[derive(Debug)]
+pub struct SchedulerStartTaskModal {
+    task_name: String,
+    task_state_size: String,
+    update_fn: String,
+    render_fn: String,
+    shutdown_fn: String
+}
+*/
+
 impl InspectorPanel for SchedulerPanel {
     fn get_panel_name(&self) -> &'static str { "Scheduler" }
     fn draw_contents(&mut self, ui: &mut Ui) {
@@ -66,12 +80,31 @@ impl InspectorPanel for SchedulerPanel {
         && entries.iter().find(|v| std::ptr::addr_eq(&***v, *self.selected_task.as_ref().unwrap())).is_none() {
             self.selected_task = None;
         }
-        // update entries
-        self.table.set_entries(entries);
-        self.table.draw_table(ui, self_ptr);
-        ui.text(&format!("Showing {} tasks", self.table.contents.len()));
+        // start to draw UI
+        // top row
+        if ui.button("Start a new task") {
+            // opengfd::kernel::task::Task::<GfdAllocator, SampleFont>::new_update(6, 0, 0, 0, GfdAllocator);
+            // opengfd::kernel::task::Task::<GfdAllocator, HelloWorld>::new_update(6, 0, 0, 0, GfdAllocator);
+            // ui.open_popup("Start a new task##SchedulerTaskPopup");
+            // TODO
+        }
+        ui.same_line_with_spacing(0., 10.);
+        if ui.button("Export task info") {
+            // TODO
+        }
+        // new task popup
+        /* 
+        ui.modal_popup_config("Start a new task##SchedulerTaskPopup")
+            .resizable(true)
+            .movable(true)
+            .build(|| {
+            });
+        */
+        // task table
+        self.table.draw_table(ui, self_ptr, entries.as_slice());
+        ui.text(&format!("Showing {} tasks", entries.len()));
         ui.separator();
-        // selected task details
+        // task details for selected task
         if let Some(t) = self.selected_task {
             ui.text(&format!("Selected task: {}", t.get_name_native()));
         } else {

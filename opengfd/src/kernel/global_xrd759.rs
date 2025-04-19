@@ -62,6 +62,7 @@ pub trait GlobalImpl {
     fn get_flags(&self) -> GlobalFlags;
     fn get_tasks(&self) -> &TaskGlobal;
     fn get_tasks_mut(&mut self) -> &mut TaskGlobal;
+    fn get_random_mut(&mut self) -> &mut RandomAligned;
     /// Original function: gfdGetUID
     fn get_uid(&mut self) -> u64;
     fn get_task_free_list_unchecked_mut(&mut self) 
@@ -121,6 +122,7 @@ impl GlobalImpl for Global {
     fn get_flags(&self) -> GlobalFlags { self.flags }
     fn get_tasks(&self) -> &TaskGlobal { &self.tasks }
     fn get_tasks_mut(&mut self) -> &mut TaskGlobal { &mut self.tasks }
+    fn get_random_mut(&mut self) -> &mut RandomAligned { &mut self.random }
     fn get_uid(&mut self) -> u64 {
         self.uid = self.uid.wrapping_add(1).max(1);
         self.uid
@@ -200,6 +202,7 @@ impl GlobalImpl for GlobalUWP {
     fn get_flags(&self) -> GlobalFlags { self.flags }
     fn get_tasks(&self) -> &TaskGlobal { &self.tasks }
     fn get_tasks_mut(&mut self) -> &mut TaskGlobal { &mut self.tasks }
+    fn get_random_mut(&mut self) -> &mut RandomAligned { &mut self.random }
     fn get_uid(&mut self) -> u64 {
         self.uid = self.uid.wrapping_add(1).max(1);
         self.uid
@@ -236,12 +239,12 @@ impl GlobalImpl for GlobalUWP {
 impl Global {
     pub fn get_gfd_global() -> &'static dyn GlobalImpl {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
-        if PlatformInfo::is_steam() { glb } 
+        if unsafe { *crate::globals::get_is_steam_unchecked() } { glb }
         else { unsafe { &*(&raw const *glb as *const GlobalUWP) } }
     }
     pub fn get_gfd_global_mut() -> &'static mut dyn GlobalImpl {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
-        if PlatformInfo::is_steam() { glb } 
+        if unsafe { *crate::globals::get_is_steam_unchecked() } { glb }
         else { unsafe { &mut *(&raw mut *glb as *mut GlobalUWP) } }
     }  
 }

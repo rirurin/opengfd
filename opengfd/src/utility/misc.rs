@@ -327,15 +327,15 @@ pub struct Range {
 #[repr(C)]
 #[derive(Debug)]
 pub struct LinkedList<T> {
-    head: *mut T,
-    tail: *mut T
+    pub(crate) head: *mut T,
+    pub(crate) tail: *mut T
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct LinkedListNode<T> {
-    prev: *mut T,
-    next: *mut T
+    pub(crate) prev: *mut T,
+    pub(crate) next: *mut T
 }
 
 #[repr(C)]

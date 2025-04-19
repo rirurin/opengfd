@@ -23,8 +23,6 @@ impl Inspector {
                 Box::new(crate::panels::scheduler::SchedulerPanel::new()),
                 Box::new(crate::panels::graphics::GraphicsPanel::new()),
                 Box::new(crate::panels::scene_graph::SceneGraphPanel::new()),
-                Box::new(crate::panels::resources::ResourcesPanel::new()),
-                Box::new(crate::panels::scripting::ScriptingPanel::new()),
                 Box::new(crate::panels::about::AboutPanel::new()),
             ]
         }

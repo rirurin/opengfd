@@ -10,7 +10,10 @@ use opengfd::{
         },
         structures::{ ListNodeFreeList, PointerListEntry }
     },
-    io::keyboard::Keyboard,
+    io::{
+        keyboard::Keyboard,
+        mouse::WindowMouseState,
+    },
     kernel::{
         global::Global,
         job::Job
@@ -53,3 +56,6 @@ create_gfd_static!(JOB_LIST3, *mut Job); // 0x2000 entries, 1 worker
 // IO
 create_gfd_static!(KEYCODE_FOR_MOUSE_CLICK, u8);
 create_gfd_static!(KEYBOARD_DATA, Keyboard);
+create_gfd_static!(WINDOW_MOUSE_STATE, WindowMouseState);
+// platform
+create_gfd_static!(IS_STEAM, bool);

@@ -1,6 +1,6 @@
 #![allow(dead_code, improper_ctypes)]
 // This file was automatically generated from opengfd-globals.
-use crate :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , io :: keyboard :: Keyboard , kernel :: { global :: Global , job :: Job } , tpl :: file_manager :: FileManager , } ;
+use crate :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , io :: { keyboard :: Keyboard , mouse :: WindowMouseState , } , kernel :: { global :: Global , job :: Job } , tpl :: file_manager :: FileManager , } ;
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of GFD_GLOBAL.
@@ -492,6 +492,44 @@ unsafe extern "C" {
    /// An unchecked version of `get_keyboard_data_mut`. This assumes that KEYBOARD_DATA
     /// is set and it's initialized.
     pub(crate) unsafe fn get_keyboard_data_unchecked_mut() -> & 'static mut Keyboard;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of WINDOW_MOUSE_STATE.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_window_mouse_state(ptr: *mut WindowMouseState);
+   /// Get a possible reference to WINDOW_MOUSE_STATE. This checks to see if `set_window_mouse_state`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_window_mouse_state() -> Option<& 'static WindowMouseState>;
+   /// Like `get_window_mouse_state_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_window_mouse_state_mut() -> Option<& 'static mut WindowMouseState>;
+   /// An unchecked version of `get_window_mouse_state`. This assumes that WINDOW_MOUSE_STATE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_window_mouse_state_unchecked() -> & 'static WindowMouseState;
+   /// An unchecked version of `get_window_mouse_state_mut`. This assumes that WINDOW_MOUSE_STATE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_window_mouse_state_unchecked_mut() -> & 'static mut WindowMouseState;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of IS_STEAM.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_is_steam(ptr: *mut bool);
+   /// Get a possible reference to IS_STEAM. This checks to see if `set_is_steam`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_is_steam() -> Option<& 'static bool>;
+   /// Like `get_is_steam_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_is_steam_mut() -> Option<& 'static mut bool>;
+   /// An unchecked version of `get_is_steam`. This assumes that IS_STEAM
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_is_steam_unchecked() -> & 'static bool;
+   /// An unchecked version of `get_is_steam_mut`. This assumes that IS_STEAM
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_is_steam_unchecked_mut() -> & 'static mut bool;
 
 }
 

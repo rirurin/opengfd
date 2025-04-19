@@ -1,7 +1,8 @@
 use crate::globals;
 use opengfd::io::{
     controller::ControllerPlatform,
-    keyboard::Keyboard
+    keyboard::Keyboard,
+    mouse::WindowMouseState
 };
 use std::ptr::NonNull;
 use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static };
@@ -70,7 +71,7 @@ pub unsafe extern "C" fn set_device_pad_get_data(ofs: usize) -> Option<std::ptr:
         Some(v) => v,
         None => return None
     };
-    logln!(Information, "got gfdDevicePadGetData 0x{:x}", addr.as_ptr() as usize);
+    logln!(Information, "got gfdDevicePadGetData: 0x{:x}", addr.as_ptr() as usize);
     Some(addr)
 }
 
@@ -92,4 +93,35 @@ pub unsafe extern "C" fn gfdDevicePadGetData(id: u32, result: *mut u8) -> bool {
     //     logln!(Verbose, "Controller {}: {}", id, result);
     // }
     success
+}
+
+// gfdMouse
+
+#[no_mangle]
+pub unsafe extern "C" fn set_gfd_mouse_from_wnd_proc(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    let glb = match sigscan_resolver::get_indirect_address_long_abs(addr.as_ptr().add(0x15)) {
+        Some(v) => v,
+        None => return None
+    };
+    // vmovups ymm0,YMMWORD PTR [rdx+r9*1+0x48] 
+    globals::set_window_mouse_state(glb.as_ptr().add(0x48) as *mut WindowMouseState);
+    logln!(Information, "got gfdMouseFromWindowProc: 0x{:x}", addr.as_ptr() as usize);
+    logln!(Information, "got WindowMouseState: 0x{:x}", glb.as_ptr().add(0x48) as usize);
+    Some(addr)
+}
+
+#[riri_hook_fn(dynamic_offset(
+    signature = "80 3D ?? ?? ?? ?? 00 4C 8B C2 75 ??",
+    resolve_type = set_gfd_mouse_from_wnd_proc,
+    calling_convention = "microsoft"
+))]
+#[allow(non_snake_case)]
+pub unsafe extern "C" fn gfdMouseFromWindowProc(_id: usize, p_state: *mut u8) -> bool {
+    let wnd = globals::get_window_mouse_state_unchecked();
+    let state= unsafe { &mut *(p_state as *mut WindowMouseState) };
+    state.update_from(wnd)
 }

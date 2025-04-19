@@ -9,3 +9,7 @@ license-file.workspace = true
 edition.workspace = true
 
 [dependencies]
+allocator-api2 = "0.2.21"
+cpp-types = { git = "https://github.com/rirurin/cpp-types" }
+opengfd = { path = "../opengfd" }
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }

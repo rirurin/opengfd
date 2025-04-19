@@ -4,7 +4,7 @@ use std::{
     ptr::NonNull
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GfdAllocator;
 
 unsafe impl Allocator for GfdAllocator {

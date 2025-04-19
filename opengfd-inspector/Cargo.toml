@@ -12,7 +12,9 @@ edition.workspace = true
 allocator-api2 = "0.2.21"
 bitflags = "2.6"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
+glam = "0.29"
 imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["tables-api"] }
 opengfd = { path = "../opengfd" }
+opengfd-tests = { path = "../opengfd-tests" }
 regex = "1.11.1"
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }

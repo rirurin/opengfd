@@ -12,12 +12,26 @@ use opengfd::kernel::{
         UpdateTask
     }
 };
-use std::sync::Mutex;
+use std::{
+    ops::{ Deref, DerefMut },
+    sync::Mutex
+};
 
 pub static CONTEXT_TEST: Mutex<ImContextWrapper> = Mutex::new(ImContextWrapper(None));
 
 #[allow(dead_code)]
 pub struct ImContextWrapper(Option<ImContext>);
+impl Deref for ImContextWrapper {
+    type Target = Option<ImContext>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for ImContextWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 unsafe impl Send for ImContextWrapper {}
 unsafe impl Sync for ImContextWrapper {}
 
@@ -31,8 +45,13 @@ pub unsafe extern "C" fn inspector_reloaded_new_window(ui: *mut ImUI, ctx: *mut 
     let state: Option<&mut GfdTask<GfdAllocator, Inspector>> = GfdTask::find_by_str_mut(Inspector::NAME);
     if let Some(state) = state {
         let ctx = state.get_work_data_mut().unwrap();
+
         let mut block_lock = opengfd::io::keyboard::BLOCK_KEYBOARD_UPDATE.lock().unwrap();
         *block_lock = ui.io().want_capture_keyboard;
+        let mut block_lock = opengfd::io::mouse::BLOCK_MOUSE_UPDATE.lock().unwrap();
+        *block_lock = ui.io().want_capture_mouse;
+        drop(block_lock);
+
         let ui_into = unsafe { &mut *(&raw mut *ui) };
         ui.window("GFD Inspector for Metaphor: Refantazio")
             .size([500., 400.], ImCond::FirstUseEver)

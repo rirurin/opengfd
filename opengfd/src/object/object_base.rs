@@ -5,8 +5,9 @@ use crate::{
 };
 use std::{
     fmt::Debug,
+    hash::{ Hash, Hasher },
     marker::PhantomPinned,
-    ptr::NonNull
+    ptr::NonNull,
 };
 
 #[repr(u32)]
@@ -44,6 +45,7 @@ pub enum ObjectErrorID {
 /// points to another node in hierarchy and if the type is node, it may have children itself).
 /// (Original struct: gfdObject)
 #[repr(C)]
+#[derive(Eq)]
 // #[derive(Debug)]
 pub struct Object<A = GfdAllocator> 
 where A: Allocator + Clone 
@@ -121,6 +123,22 @@ where A: Allocator + Clone
             let a = p.get_average_scale();
         }
         self.parent = parent.map(|v| unsafe { NonNull::new_unchecked(&raw mut *v) });
+    }
+}
+
+impl<A> PartialEq for Object<A> 
+where A: Allocator + Clone
+{
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::addr_eq(self, other)
+    }
+}
+impl<A> Hash for Object<A> 
+where A: Allocator + Clone
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let addr= &raw const *self as usize;
+        state.write_usize(addr);
     }
 }
 

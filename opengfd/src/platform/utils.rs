@@ -13,18 +13,21 @@ pub static IS_PLATFORM_STEAM: OnceLock<bool> = OnceLock::new();
 
 pub struct PlatformInfo;
 impl PlatformInfo {
+    /* 
     pub fn is_steam() -> bool {
         *IS_PLATFORM_STEAM.get().unwrap() 
     }
+    */
 
     pub fn set_platform_steam() {
         let is_steam = unsafe { LibraryLoader::GetModuleHandleA(PCSTR(STEAMWORKS_SDK_DLL.as_ptr())).is_ok() };
         if is_steam {
-            logln!(Information, "{} found, set platform type to Steam", steamworks_name());
+            logln!(Verbose, "{} found, set platform type to Steam", steamworks_name());
         } else {
-            logln!(Information, "{} not found, assuming platform type is Gamepass", steamworks_name());
+            logln!(Verbose, "{} not found, assuming platform type is Gamepass", steamworks_name());
         }
         
         let _ = IS_PLATFORM_STEAM.set(is_steam);
+        unsafe { crate::globals::set_is_steam(&raw const *IS_PLATFORM_STEAM.get().unwrap() as *mut bool) }
     }
 }

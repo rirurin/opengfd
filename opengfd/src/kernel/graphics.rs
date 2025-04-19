@@ -36,7 +36,6 @@ use crate::{
         },
         init::VideoMode,
     },
-    platform::utils::PlatformInfo,
     object::{
         camera::Camera,
         mesh::Mesh
@@ -99,12 +98,12 @@ pub struct GraphicsGlobal;
 impl GraphicsGlobal {
     pub fn get_gfd_graphics_global() -> &'static dyn GraphicsState {
         let glb = unsafe { &crate::globals::get_gfd_global_unchecked().graphics };
-        if PlatformInfo::is_steam() { glb } 
+        if unsafe { *crate::globals::get_is_steam_unchecked() } { glb }
         else { unsafe { &*(&raw const *glb as *const GraphicsStateUWP) } }
     }
     pub fn get_gfd_graphics_global_mut() -> &'static mut dyn GraphicsState {
         let glb = unsafe { &mut crate::globals::get_gfd_global_unchecked_mut().graphics };
-        if PlatformInfo::is_steam() { glb } 
+        if unsafe { *crate::globals::get_is_steam_unchecked() } { glb }
         else { unsafe { &mut *(&raw mut *glb as *mut GraphicsStateUWP) } }
     }
 }
