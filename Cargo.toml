@@ -3,7 +3,8 @@ resolver = "2"
 members = [ 
     "opengfd", 
     "opengfd-globals", 
-    "opengfd-inspector",
+    "opengfd-inspector", 
+    "opengfd-inspector-components",
     "opengfd-proc", 
     "opengfd-proc-impl",
     "opengfd-reloaded", 

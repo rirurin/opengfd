@@ -23,7 +23,7 @@ pub struct ShaderID {
 
 #[cfg(feature = "v2-core")]
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShaderID {
     id: i16,
     flags: ShaderFlags,
@@ -43,7 +43,7 @@ impl ShaderID {
 
 #[cfg(feature = "v2-core")]
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShaderFlags {
     flag0: Flags0,
     flag1: Flags1,

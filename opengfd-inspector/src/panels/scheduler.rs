@@ -1,12 +1,6 @@
-use crate::{
-    components::{
-        // searchbar::Searchbar,
-        table::{
-            InspectorTable,
-            TableDraw
-        }
-    },
-    panels::common::InspectorPanel
+use opengfd_inspector_components::{
+    panel::InspectorPanel,
+    table::{ InspectorTable, TableDraw }
 };
 use imgui::Ui;
 use opengfd::kernel::{
@@ -125,8 +119,8 @@ impl SchedulerPanel {
                     "Render",
                     "Shutdown"
                 ]),
-                crate::components::table::default_flags(),
-                crate::components::table::default_height()
+                opengfd_inspector_components::table::default_flags(),
+                opengfd_inspector_components::table::default_height(),
             ),
             selected_task: None
         }

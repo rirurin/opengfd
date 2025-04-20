@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
-use allocator_api2::alloc::{ Allocator, Global };
+use allocator_api2::alloc::Allocator;
+use crate::kernel::allocator::GfdAllocator;
 use std::{
     alloc::Layout,
     // borrow::Borrow,
@@ -15,7 +16,9 @@ type IndexType = i32;
 /// (Original file: gfdItemArray.c)
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct ItemArray<T, A: Allocator = Global> {
+pub struct ItemArray<T, A = GfdAllocator>
+where A: Allocator + Clone
+{
     /// The capacity of the buffer
     capacity: IndexType,
     /// The size of each element stored in the buffer
@@ -30,12 +33,13 @@ pub struct ItemArray<T, A: Allocator = Global> {
     /// drop method if it implements the Drop trait, otherwise it's left blank unless explicitly
     /// defined.
     // destructor: Option<fn(T) -> ()>,
-    destructor: Option<usize>,
+    destructor: Option<fn(&T)>,
     _allocator: A
 }
 
 // const CAPACITY_START: i32 = 8;
 
+/* 
 impl<T> ItemArray<T, Global> {
     pub fn new() -> Self {
         Self::new_unmanaged(Global)
@@ -44,6 +48,7 @@ impl<T> ItemArray<T, Global> {
         Self::with_capacity_unmanaged(cap, Global)
     }
 }
+*/
 /*
 impl<T> ItemArray<T, Global> 
     where T: Drop
@@ -53,7 +58,7 @@ impl<T> ItemArray<T, Global>
 */
 
 impl<T, A> ItemArray<T, A>
-    where A: Allocator 
+where A: Allocator + Clone
 {
     /// (Original function: gfdItemArrayCreateHint)
     pub fn new_unmanaged(alloc: A) -> Self {
@@ -120,6 +125,22 @@ impl<T, A> ItemArray<T, A>
         self.count
     }
 }
+
+impl<T, A> ItemArray<T, A>
+where A: Allocator + Clone
+{
+    pub fn as_slice(&self) -> &[T] {
+        match self.buffer {
+            Some(b) => {
+                unsafe { std::slice::from_raw_parts(
+                    b.as_ptr(), 
+                    self.count as usize) 
+                }
+            },
+            None => &[]
+        }
+    }
+}
 /*
 impl<T, A> ItemArray<T, A>
     where T: Drop,
@@ -145,7 +166,7 @@ impl<T, A> ItemArray<T, A>
 }
 */
 impl<T, A> Drop for ItemArray<T, A>
-    where A: Allocator
+where A: Allocator + Clone
 {
     /// (Original function: gfdItemArrayRelease)
     fn drop(&mut self) {

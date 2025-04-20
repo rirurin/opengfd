@@ -1,10 +1,11 @@
 use opengfd::kernel::{
     allocator::GfdAllocator,
-    task::Task as GfdTask,
+    task::{ Task as GfdTask, UpdateTask }
 };
 use opengfd_inspector::state::Inspector as GfdInspector;
 use riri_mod_tools_proc::riri_hook_fn;
 use riri_mod_tools_rt::logln;
+use windows::Win32::UI::Input::KeyboardAndMouse::{ GetAsyncKeyState, VK_F5 };
 
 /*
 #[riri_hook_fn(static_offset(0x1192e20))]
@@ -397,10 +398,10 @@ fn object_tests() {
 ))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
-    if windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x74) & 1 != 0 {
+    if GetAsyncKeyState(VK_F5.0 as i32) & 1 != 0 
+    && GfdTask::<GfdAllocator, GfdInspector>::find_by_str(GfdInspector::NAME).is_none() {
         let new_task = GfdTask::<GfdAllocator, GfdInspector>::new_update(10, 0, 0, 0, GfdAllocator);
         logln!(Verbose, "Inspector task: {}", new_task);
-        opengfd_inspector::window::init();
     }
     original_function!(delta)
 }

@@ -623,6 +623,11 @@ pub struct ngr_142ed6270 {
     #[field_offset(0xa30)] hint: MemHint,
     #[field_offset(0xa48)] hwnd: HWND,
 }
+impl ngr_142ed6270 {
+    pub fn get_hwnd(&self) -> HWND {
+        self.hwnd
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, GfdRcAuto)]

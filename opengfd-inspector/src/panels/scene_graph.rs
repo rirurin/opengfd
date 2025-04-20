@@ -1,13 +1,16 @@
 use bitflags::bitflags;
-use crate::{
-    components::{
-        searchbar::Searchbar,
-        table::{ InspectorTable, TableDraw }
+use crate::panels::attachment::{
+    camera::CameraProperties,
+    mesh::MeshProperties,
+    node::NodeProperties
+};
+use opengfd_inspector_components::{
+    panel::{
+        BasicPanel,
+        InspectorPanel
     },
-    panels::{
-        attachment::node::NodeProperties,
-        common::InspectorPanel
-    }
+    searchbar::Searchbar,
+    table::{ InspectorTable, TableDraw }
 };
 use imgui::{ Direction, Ui };
 use opengfd::{
@@ -25,7 +28,6 @@ use opengfd::{
         object::{ Object, ObjectId }
     }
 };
-use riri_mod_tools_rt::logln;
 use std::{
     collections::HashSet,
     ops::Deref
@@ -103,13 +105,13 @@ impl TableDraw<SceneGraphPanel> for TaskObjectEntry {
                 let is_open = !is_leaf && ctx.nodes_opened.contains(&obj);
                 ui.same_line_with_spacing(0., 10. * self.depth as f32);
                 if is_leaf {
-                    crate::components::bullet::bullet_ex(ui, self.depth);
+                    opengfd_inspector_components::bullet::bullet_ex(ui, self.depth);
                 } else {
                     let arrow_dir = match is_open {
                         true => Direction::Down,
                         false => Direction::Right
                     };
-                    crate::components::bullet::arrow_ex(ui, arrow_dir, self.depth);
+                    opengfd_inspector_components::bullet::arrow_ex(ui, arrow_dir, self.depth);
                 } 
                 if ui.selectable_config(&self.name).span_all_columns(true).build() {
                     // check nodes opened for table tree
@@ -149,7 +151,10 @@ pub struct SceneGraphPanel {
     scene_graph_visible: Vec<TaskObjectEntry>,
     nodes_opened: HashSet<&'static Object>,
     selected_attachment_history: Vec<&'static Object>,
-    show_disjoint_attachments: DisjointAttachmentFlags,
+    show_root_node_hierarchy: bool,
+    show_default_camera: bool,
+    show_disjoint_meshes: bool,
+    show_disjoint_epls: bool,
     root_node: Option<&'static Object>,
     default_camera: Option<&'static Object>,
 }
@@ -165,42 +170,71 @@ impl SceneGraphPanel {
     fn traverse_scene_graph(&self) -> Vec<TaskObjectEntry> {
         // update scene graph nodes
         let mut entries = vec![];
-        if let Some(n) = self.root_node {
-            TaskObjectEntry::add_hierarchy(&mut entries, n, &self.nodes_opened,0 );
+        if self.show_root_node_hierarchy && self.root_node.is_some() {
+            TaskObjectEntry::add_hierarchy(&mut entries, self.root_node.unwrap(), &self.nodes_opened,0 );
         }
-        if let Some(n) = self.default_camera {
-            entries.push(TaskObjectEntry::new(n));
+        if self.show_default_camera && self.default_camera.is_some() {
+            entries.push(TaskObjectEntry::new(self.default_camera.unwrap()));
         }
-        if self.show_disjoint_attachments.contains(DisjointAttachmentFlags::Meshes) {
+        if self.show_disjoint_meshes {
             Self::get_disjoint_attachment(ObjectId::Mesh, &mut entries);
         }
-        if self.show_disjoint_attachments.contains(DisjointAttachmentFlags::EPL) {
+        if self.show_disjoint_epls {
             Self::get_disjoint_attachment(ObjectId::EPL, &mut entries);
         }
         entries
     }
 }
 impl SceneGraphPanel {
-    // check global scene graph
-    fn history_last_valid_object(&mut self) {
-        let root = match self.root_node.map(|v| unsafe { 
-            std::mem::transmute::<_, &Node>(v) }) {
-            Some(v) => v,
-            None => return
-        };
-        
-        while self.selected_attachment_history.len() > 0 {
-            let att = self.selected_attachment_history.pop();
-            if RecursiveObjectIterator::<GfdAllocator, StandardNodeIterator>::from_node(root)
-                .find(|v| std::ptr::addr_eq(att.unwrap(), &**v)).is_some() {
-                    break;
-                }
+
+    fn is_object_default_camera(&self, obj: &Object) -> bool {
+        match self.default_camera.as_ref() {
+            Some(v) => std::ptr::addr_eq(*v, obj),
+            None => false
         }
     }
 
-    // fn get_root_node(&self) -> Option<&Node> {
-    //     self.root_node.map(|v| unsafe { std::mem::transmute::<_, &Node>(v) })
-    // }
+    // check global scene graph
+    fn history_last_valid_object(&mut self) {
+        while self.selected_attachment_history.len() > 0 {
+            let att = self.selected_attachment_history.pop();
+            if let Some(p) = att {
+                if !self.is_object_invalid(p) { break; }
+            }
+        }
+    }
+
+    fn is_object_invalid(&self, obj: &Object) -> bool {
+        let root = match self.root_node.map(|v| unsafe { 
+            std::mem::transmute::<_, &Node>(v) }) {
+            Some(v) => v,
+            None => return true
+        };
+        let mut invalid = true;
+        if self.show_default_camera {
+            invalid = !self.is_object_default_camera(obj);
+        }
+        if self.show_root_node_hierarchy && invalid {
+            invalid = RecursiveObjectIterator::<GfdAllocator, StandardNodeIterator>::from_node(root)
+                .find(|v| std::ptr::addr_eq(obj, *v)).is_none()
+        }
+        let scene = GraphicsGlobal::get_gfd_graphics_global().get_current_scene().unwrap();
+        if self.show_disjoint_meshes && invalid {
+            invalid = scene.iter_attachment_type(ObjectId::Mesh).find(|v| {
+                match v.get_object() {
+                    Some(v) => std::ptr::addr_eq(v, obj),
+                    None => false
+                }}).is_none();
+        }
+        if self.show_disjoint_epls && invalid {
+            invalid = scene.iter_attachment_type(ObjectId::EPL).find(|v| {
+                match v.get_object() {
+                    Some(v) => std::ptr::addr_eq(v, obj),
+                    None => false
+                }}).is_none();
+        }
+        invalid
+    }
 }
 impl InspectorPanel for SceneGraphPanel {
     fn get_panel_name(&self) -> &'static str { "Scene Graph" }
@@ -208,7 +242,14 @@ impl InspectorPanel for SceneGraphPanel {
     fn draw_contents(&mut self, ui: &mut Ui) {
         // debug
         let self_ptr = unsafe { &mut *(&raw mut *self) };
-        ui.text(&format!("want keyboard: {}, want mouse: {}", ui.io().want_capture_keyboard, ui.io().want_capture_mouse));
+        // settings
+        ui.checkbox("Show Node Hierarchy", &mut self.show_root_node_hierarchy);
+        ui.same_line_with_spacing(0., 10.);
+        ui.checkbox("Show Default Camera", &mut self.show_default_camera);
+        ui.same_line_with_spacing(0., 10.);
+        ui.checkbox("Show Root Meshes", &mut self.show_disjoint_meshes);
+        ui.same_line_with_spacing(0., 10.);
+        ui.checkbox("Show Root EPL", &mut self.show_disjoint_epls);
         // search nodes
         self.search.draw(ui);
         // get root node and camera if they exist
@@ -224,40 +265,26 @@ impl InspectorPanel for SceneGraphPanel {
         self.hierarchy.draw_table(ui, self_ptr, hier.as_slice());
         ui.separator();
         // node details
-        let root = match self.root_node.map(|v| unsafe { 
-            std::mem::transmute::<_, &Node>(v) }) {
-            Some(v) => v,
-            None => return
-        };
         if self.selected_attachment_history.is_empty() {
             ui.text("No object selected");
         } else {
-            // ui.text(format!("TODO: Selected attachment history (len: {})", self.selected_attachment_history.len()));
-            // let att = self.selected_attachment_history.last().unwrap();
-            // ui.text(format!("TODO: object 0x{:x}", &raw const **att as usize));
-            for o in RecursiveObjectIterator::<GfdAllocator, StandardNodeIterator>::from_node(root) {
-                // .find(|v| std::ptr::addr_eq(*att, *v)) {
-                // let obj = unsafe { std::mem::transmute::<_, &Object>(o) };
-                logln!(Verbose, "Object 0x{:x} (type {:?})", &raw const *o as usize, o.get_id());
-            }
-            self.selected_attachment_history.clear();
-            /* 
-            if RecursiveObjectIterator::<GfdAllocator, StandardNodeIterator>::from_node(root)
-                .find(|v| std::ptr::addr_eq(*att, *v)).is_none() {
-            // || ui.button("Go back") {
+            ui.text(format!("TODO: Selected attachment history (len: {})", self.selected_attachment_history.len()));
+            let att = self.selected_attachment_history.last().unwrap();
+            let att_addr = &raw const **att as usize;
+            if ui.button("Go back")
+            || self.is_object_invalid(*att) {
                 self.history_last_valid_object();
+            } 
+            if let Some(att) = self.selected_attachment_history.last() {
+                ui.same_line_with_spacing(0., 10.);
+                ui.text(format!("Address: 0x{:x}", att_addr));
+                match att.get_id() {
+                    ObjectId::Mesh => unsafe { MeshProperties::new(att).draw(ui) },
+                    ObjectId::Node => unsafe { NodeProperties::new(att).draw(ui) },
+                    ObjectId::Camera => unsafe { CameraProperties::new(att).draw(ui) },
+                    _ => ui.text(format!("Object type {:?} TODO", att.get_id()))
+                }
             }
-            */
-
-            /*
-            let v = self.selected_attachment_history.last().unwrap();
-            ui.same_line_with_spacing(0., 10.);
-            ui.text(format!("Address: 0x{:x}", &raw const **v as usize));
-            match v.get_id() {
-                ObjectId::Node => unsafe { NodeProperties::new(v).draw_contents(ui) },
-                _ => ui.text(format!("Object type {:?} TODO", v.get_id()))
-            }
-            */
         }
     }
 }
@@ -271,14 +298,17 @@ impl SceneGraphPanel {
                     "Name",
                     "Type"
                 ]),
-                crate::components::table::default_flags(),
-                crate::components::table::default_height()
+                opengfd_inspector_components::table::default_flags(),
+                opengfd_inspector_components::table::default_height(),
             ),
             scene_graph_visible: vec![],
             nodes_opened: HashSet::new(),
 
             selected_attachment_history: vec![],
-            show_disjoint_attachments: DisjointAttachmentFlags::empty(),
+            show_root_node_hierarchy: true,
+            show_default_camera: true,
+            show_disjoint_meshes: false,
+            show_disjoint_epls: false,
             root_node: None,
             default_camera: None
         }

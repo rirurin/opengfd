@@ -346,13 +346,9 @@ where A: Allocator + Clone
             _ => Err(PropertyChunkTypeError::new(ValueType::ByteArray, self.ty))
         }
     }
-}
 
-impl<A> Display for PropertyChunk<A>
-where A: Allocator + Clone 
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fmt_data = match self.ty {
+    pub fn format_data(&self) -> String {
+        match self.ty {
             ValueType::Int => format!("{}", self.get_integer_value().unwrap()),
             ValueType::Float => format!("{}", self.get_float_value().unwrap()),
             ValueType::Bool => format!("{:?}", self.get_bool_value().unwrap()),
@@ -362,7 +358,15 @@ where A: Allocator + Clone
             ValueType::Vector3 => format!("{}", self.get_vec3_value().unwrap()),
             ValueType::Vector4 => format!("{}", self.get_vec4_value().unwrap()),
             _ => "None".to_owned()
-        };
+        }
+    }
+}
+
+impl<A> Display for PropertyChunk<A>
+where A: Allocator + Clone 
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt_data = self.format_data();
         write!(f, "<{}: {}>", self.name, fmt_data)
     }
 }

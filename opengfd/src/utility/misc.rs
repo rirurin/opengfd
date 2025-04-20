@@ -10,6 +10,13 @@ pub struct BoundingBox {
 impl BoundingBox {
     pub fn get_max(&self) -> Vec3 { self.max }
     pub fn get_min(&self) -> Vec3 { self.min }
+    // for imgui
+    pub fn get_min_mut_f32(&mut self) -> &mut [f32; 3] { 
+        unsafe { std::mem::transmute::<_, &mut [f32; 3]>(&mut self.min) } 
+    }
+    pub fn get_max_mut_f32(&mut self) -> &mut [f32; 3] {
+        unsafe { std::mem::transmute::<_, &mut [f32; 3]>(&mut self.max) } 
+    }
 }
 
 #[repr(C)]
@@ -17,6 +24,13 @@ impl BoundingBox {
 pub struct BoundingSphere {
     center: Vec3,
     radius: f32
+}
+impl BoundingSphere {
+    // for imgui
+    pub fn get_center_mut_f32(&mut self) -> &mut [f32; 3] { 
+        unsafe { std::mem::transmute::<_, &mut [f32; 3]>(&mut self.center) }
+    }
+    pub fn get_radius_mut_f32(&mut self) -> &mut f32 { &mut self.radius }
 }
 #[derive(Debug, Clone, Copy)]
 pub struct RGB(glam::U8Vec3);

@@ -37,9 +37,21 @@ pub struct VertexShader {
     id: ShaderID,
     pub data: *mut VertexShaderPlatform,
     ref_: Reference,
-    prev: *mut VertexShader,
-    next: *mut VertexShader,
+    prev: *mut Self,
+    next: *mut Self,
     _pinned: PhantomPinned
+}
+
+impl VertexShader {
+    pub fn get_shader_id(&self) -> &ShaderID {
+        &self.id
+    }
+    pub fn get_next(&self) -> Option<&Self> {
+        unsafe { self.next.as_ref() }
+    }
+    pub fn get_prev(&self) -> Option<&Self> {
+        unsafe { self.prev.as_ref() }
+    }
 }
 
 #[repr(C)]

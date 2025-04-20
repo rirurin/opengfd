@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+use crate::kernel::global_common::RENDER_LISTS;
 use std::{
     ffi::c_void,
     mem::size_of,
@@ -57,11 +57,13 @@ pub trait CmdBufferInterface {
     }
 }
 
+pub const DEFAULT_CMD_BUFFER_SIZE: usize = 0x2000000; // ( 32 MB )
+
 #[cfg(feature = "v2-core")]
 #[repr(C)]
 #[derive(Debug)]
 pub struct CmdBuffer {
-    buffer: [*mut u8; 3],
+    buffer: [*mut u8; RENDER_LISTS],
     ptr: std::sync::atomic::AtomicUsize
 }
 
@@ -72,6 +74,14 @@ impl CmdBufferInterface for CmdBuffer {
     // For GFD command buffer: has to be allocated to nearest 0x10!
     unsafe fn alloc(&mut self, size: i32) -> *mut u8 {
         self.ptr.fetch_add((size as usize) + 0xf & !0xf, Ordering::Relaxed) as *mut u8
+    }
+}
+impl CmdBuffer {
+    pub fn get_buffer_val(&self, index: usize) -> *mut u8 {
+        self.buffer[index]
+    }
+    pub fn get_ptr_val(&self) -> usize {
+        unsafe { *self.ptr.as_ptr() }
     }
 }
 

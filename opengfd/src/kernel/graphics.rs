@@ -1,15 +1,12 @@
 use bitflags::bitflags;
 use crate::{
-    device::ngr::{
-        allocator::AllocatorHook,
-        renderer::shader::{
-           ComputeShader,
-           GeometryShader,
-           PixelShader, 
-           VertexShader,
-           PixelShaderPlatform,
-           VertexShaderPlatform
-        }
+    device::ngr::renderer::shader::{
+        ComputeShader,
+        GeometryShader,
+        PixelShader, 
+        VertexShader,
+        PixelShaderPlatform,
+        VertexShaderPlatform
     },
     graphics::{
         cull::CullObject,
@@ -21,6 +18,7 @@ use crate::{
         texture::Texture
     },
     kernel::{
+        allocator::GfdAllocator,
         asset::Asset,
         global_common::{
             RENDER_STATES,
@@ -42,7 +40,12 @@ use crate::{
     },
     utility::{
         item_array::ItemArray,
-        mutex::{ Mutex, RecursiveMutex },
+        mutex::{
+            Mutex,
+            MutexGuard,
+            RecursiveMutex,
+            RecursiveMutexGuard
+        },
         name::Name
     }
 };
@@ -52,10 +55,37 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct GraphicsFlags : u32 {
         const ShadowCaster = 1 << 0;
+        const Flag1 = 1 << 1;
+        const Flag2 = 1 << 2;
         const Fog = 1 << 3;
+        const Flag4 = 1 << 4;
+        const Flag5 = 1 << 5;
+        const Flag6 = 1 << 6;
         const HeightFog = 1 << 7;
+        const Flag8 = 1 << 8;
+        const Flag9 = 1 << 9;
+        const Flag10 = 1 << 10;
+        const Flag11 = 1 << 11;
+        const Flag12 = 1 << 12;
+        const Flag13 = 1 << 13;
+        const Flag14 = 1 << 14;
         const HasInfiniteOcean = 1 << 15;
+        const Flag16 = 1 << 16;
+        const Flag17 = 1 << 17;
         const HasTemperare = 1 << 18;
+        const Flag19 = 1 << 19;
+        const Flag20 = 1 << 20;
+        const Flag21 = 1 << 21;
+        const Flag22 = 1 << 22;
+        const Flag23 = 1 << 23;
+        const Flag24 = 1 << 24;
+        const Flag25 = 1 << 25;
+        const Flag26 = 1 << 26;
+        const Flag27 = 1 << 27;
+        const Flag28 = 1 << 28;
+        const Flag29 = 1 << 29;
+        const Flag30 = 1 << 30;
+        const Flag31 = 1 << 31;
     }
 }
 
@@ -112,6 +142,9 @@ pub trait GraphicsState {
     fn has_flags(&self, flag: GraphicsFlags) -> bool;
 
     fn has_any_flag(&self, flag: GraphicsFlags) -> bool;
+
+    fn get_flags(&self) -> GraphicsFlags;
+    fn get_flags_mut(&mut self) -> &mut GraphicsFlags;
     /// Get a reference to the target scene graph from global state
     /// (Original function: gfdRenderGetScene)
     fn get_scene(&self, num: usize) -> Option<&Scene>;
@@ -138,6 +171,18 @@ pub trait GraphicsState {
     fn get_current_scene_id(&self) -> usize;
 
     fn get_current_cmd_buffer(&mut self) -> Option<&mut CmdBuffer>;
+
+    fn get_texture_head(&self) -> Option<&Texture>;
+    fn lock_texture_mutex(&mut self) -> RecursiveMutexGuard<'_, *mut Texture>;
+    fn lock_vertex_shader_mutex(&mut self) -> MutexGuard<'_, *mut VertexShader>;
+    fn lock_pixel_shader_mutex(&mut self) -> MutexGuard<'_, *mut PixelShader>;
+    fn lock_geometry_shader_mutex(&mut self) -> MutexGuard<'_, *mut GeometryShader>;
+    fn lock_compute_shader_mutex(&mut self) -> MutexGuard<'_, *mut ComputeShader>;
+
+    fn get_max_ot_priority(&self) -> usize;
+    fn get_widget_ot_priority(&self) -> usize;
+    fn get_debug_font_ot_priority(&self) -> usize;
+    fn get_mouse_ot_priority(&self) -> usize;
 
     fn get_frame_id(&self) -> usize;
 
@@ -174,9 +219,9 @@ pub struct GraphicsStateSteam {
     shader_vtx_mutex: Mutex,
     shader_frg_head: *mut PixelShader,
     shader_frg_mutex: Mutex,
-    shader_geo_head: *mut u8,
+    shader_geo_head: *mut GeometryShader,
     shader_geo_mutex: Mutex,
-    shader_cmp_head: *mut u8,
+    shader_cmp_head: *mut ComputeShader,
     shader_cmp_mutex: Mutex,
     asset_head: *mut Asset,
     asset_mutex: Mutex,
@@ -236,12 +281,12 @@ pub struct GraphicsStateSteam {
     unk3: [u8; 0x60],
     pub(super) current_scene: u32,
     unk2: [u8; 0xc],
-    hdr_filename: Name<AllocatorHook>,
-    ibl_filename: Name<AllocatorHook>,
-    lut_filename: Name<AllocatorHook>,
-    env_toon_filename: Name<AllocatorHook>,
-    skybox_filename: Name<AllocatorHook>,
-    infinite_ocean_filename: Name<AllocatorHook>,
+    hdr_filename: Name<GfdAllocator>,
+    ibl_filename: Name<GfdAllocator>,
+    lut_filename: Name<GfdAllocator>,
+    env_toon_filename: Name<GfdAllocator>,
+    skybox_filename: Name<GfdAllocator>,
+    infinite_ocean_filename: Name<GfdAllocator>,
     env_field_784: f32,
     env_field_788: u8,
     scene_ambient_toon_r: f32,
@@ -257,6 +302,12 @@ impl GraphicsState for GraphicsStateSteam {
     }
     fn has_any_flag(&self, flag: GraphicsFlags) -> bool {
         self.flags.intersects(flag)
+    }
+    fn get_flags(&self) -> GraphicsFlags {
+        self.flags
+    }
+    fn get_flags_mut(&mut self) -> &mut GraphicsFlags {
+        &mut self.flags
     }
     fn get_scene(&self, num: usize) -> Option<&Scene> {
         unsafe { self.scene[num].as_ref() }
@@ -282,9 +333,33 @@ impl GraphicsState for GraphicsStateSteam {
     fn get_current_cmd_buffer(&mut self) -> Option<&mut CmdBuffer> {
         unsafe { self.cmd_buffer.as_mut() }
     }
+    fn get_texture_head(&self) -> Option<&Texture> {
+        unsafe { self.texture_head.as_ref() }
+    }
+    fn lock_texture_mutex(&mut self) -> RecursiveMutexGuard<'_, *mut Texture> {
+        self.texture_mutex.lock(&mut self.texture_head)
+    }
+    fn lock_vertex_shader_mutex(&mut self) -> MutexGuard<'_, *mut VertexShader> {
+        self.shader_vtx_mutex.lock(&mut self.shader_vtx_head)
+    }
+    fn lock_pixel_shader_mutex(&mut self) -> MutexGuard<'_, *mut PixelShader> {
+        self.shader_frg_mutex.lock(&mut self.shader_frg_head)
+    }
+    fn lock_geometry_shader_mutex(&mut self) -> MutexGuard<'_, *mut GeometryShader> {
+        self.shader_geo_mutex.lock(&mut self.shader_geo_head)
+    }
+    fn lock_compute_shader_mutex(&mut self) -> MutexGuard<'_, *mut ComputeShader> {
+        self.shader_cmp_mutex.lock(&mut self.shader_cmp_head)
+    }
     fn get_frame_id(&self) -> usize {
         self.frame_id as usize
     }
+
+    fn get_max_ot_priority(&self) -> usize { self.prio_max as usize }
+    fn get_widget_ot_priority(&self) -> usize { self.widget_prio as usize }
+    fn get_debug_font_ot_priority(&self) -> usize { self.dbg_fnt_prio as usize }
+    fn get_mouse_ot_priority(&self) -> usize { self.mouse_prio as usize }
+
     fn get_vertex_shader(&self, index: usize) -> Option<&VertexShader> {
         unsafe { self.shader_vertex.get_unchecked(index).as_ref() }
     }
@@ -345,9 +420,9 @@ pub struct GraphicsStateUWP {
     shader_vtx_mutex: Mutex,
     shader_frg_head: *mut PixelShader,
     shader_frg_mutex: Mutex,
-    shader_geo_head: *mut u8,
+    shader_geo_head: *mut GeometryShader,
     shader_geo_mutex: Mutex,
-    shader_cmp_head: *mut u8,
+    shader_cmp_head: *mut ComputeShader,
     shader_cmp_mutex: Mutex,
     asset_head: *mut Asset,
     asset_mutex: Mutex,
@@ -406,12 +481,12 @@ pub struct GraphicsStateUWP {
     unk3: [u8; 0x60],
     pub(super) current_scene: u32,
     unk2: [u8; 0xc],
-    hdr_filename: Name<AllocatorHook>,
-    ibl_filename: Name<AllocatorHook>,
-    lut_filename: Name<AllocatorHook>,
-    env_toon_filename: Name<AllocatorHook>,
-    skybox_filename: Name<AllocatorHook>,
-    infinite_ocean_filename: Name<AllocatorHook>,
+    hdr_filename: Name<GfdAllocator>,
+    ibl_filename: Name<GfdAllocator>,
+    lut_filename: Name<GfdAllocator>,
+    env_toon_filename: Name<GfdAllocator>,
+    skybox_filename: Name<GfdAllocator>,
+    infinite_ocean_filename: Name<GfdAllocator>,
     env_field_784: f32,
     env_field_788: u8,
     scene_ambient_toon_r: f32,
@@ -428,6 +503,12 @@ impl GraphicsState for GraphicsStateUWP {
     }
     fn has_any_flag(&self, flag: GraphicsFlags) -> bool {
         self.flags.intersects(flag)
+    }
+    fn get_flags(&self) -> GraphicsFlags {
+        self.flags
+    }
+    fn get_flags_mut(&mut self) -> &mut GraphicsFlags {
+        &mut self.flags
     }
     fn get_scene(&self, num: usize) -> Option<&Scene> {
         unsafe { self.scene[num].as_ref() }
@@ -453,9 +534,33 @@ impl GraphicsState for GraphicsStateUWP {
     fn get_current_cmd_buffer(&mut self) -> Option<&mut CmdBuffer> {
         unsafe { self.cmd_buffer.as_mut() }
     }
+    fn get_texture_head(&self) -> Option<&Texture> {
+        unsafe { self.texture_head.as_ref() }
+    }
+    fn lock_texture_mutex(&mut self) -> RecursiveMutexGuard<'_, *mut Texture> {
+        self.texture_mutex.lock(&mut self.texture_head)
+    }
+    fn lock_vertex_shader_mutex(&mut self) -> MutexGuard<'_, *mut VertexShader> {
+        self.shader_vtx_mutex.lock(&mut self.shader_vtx_head)
+    }
+    fn lock_pixel_shader_mutex(&mut self) -> MutexGuard<'_, *mut PixelShader> {
+        self.shader_frg_mutex.lock(&mut self.shader_frg_head)
+    }
+    fn lock_geometry_shader_mutex(&mut self) -> MutexGuard<'_, *mut GeometryShader> {
+        self.shader_geo_mutex.lock(&mut self.shader_geo_head)
+    }
+    fn lock_compute_shader_mutex(&mut self) -> MutexGuard<'_, *mut ComputeShader> {
+        self.shader_cmp_mutex.lock(&mut self.shader_cmp_head)
+    }
     fn get_frame_id(&self) -> usize {
         self.frame_id as usize
     }
+
+    fn get_max_ot_priority(&self) -> usize { self.prio_max as usize }
+    fn get_widget_ot_priority(&self) -> usize { self.widget_prio as usize }
+    fn get_debug_font_ot_priority(&self) -> usize { self.dbg_fnt_prio as usize }
+    fn get_mouse_ot_priority(&self) -> usize { self.mouse_prio as usize }
+
     fn get_vertex_shader(&self, index: usize) -> Option<&VertexShader> {
         unsafe { self.shader_vertex.get_unchecked(index).as_ref() }
     }

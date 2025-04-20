@@ -1,10 +1,17 @@
+use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
+    anim::{
+        anim_controller::AnimController,
+        anim_effector::AnimEffector,
+        animation::AnimInterpolator,
+    },
     graphics::{ 
         cull::CullObject,
         material::Material,
         skin::SkinBoneObject
     },
+    kernel::allocator::GfdAllocator,
     utility::{ 
         item_array::ItemArray, 
         misc::{ BoundingBox, BoundingSphere },
@@ -22,50 +29,150 @@ use super::{
     node::Node, 
     object::Object
 };
+use std::ptr::NonNull;
 use riri_mod_tools_proc::ensure_layout;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct MeshFlags: u32 {
-        const Blank = 1 << 0;
+        const Flag0  = 1 << 0;
+        const Flag1  = 1 << 1;
+        const Flag2  = 1 << 2;
+        const Flag3  = 1 << 3;
+        const Flag4  = 1 << 4;
+        const Flag5  = 1 << 5;
+        const Flag6  = 1 << 6;
+        const Flag7  = 1 << 7;
+        const Flag8  = 1 << 8;
+        const Flag9  = 1 << 9;
+        const Flag10 = 1 << 10;
+        const Flag11 = 1 << 11;
+        const Flag12 = 1 << 12;
+        const Flag13 = 1 << 13;
+        const Flag14 = 1 << 14;
+        const Flag15 = 1 << 15;
+        const Flag16 = 1 << 16;
+        const Flag17 = 1 << 17;
+        const Flag18 = 1 << 18;
+        const Flag19 = 1 << 19;
+        const Flag20 = 1 << 20;
+        const Flag21 = 1 << 21;
+        const Flag22 = 1 << 22;
+        const Flag23 = 1 << 23;
+        const Flag24 = 1 << 24;
+        const Flag25 = 1 << 25;
+        const Flag26 = 1 << 26;
+        const Flag27 = 1 << 27;
+        const Flag28 = 1 << 28;
+        const Flag29 = 1 << 29;
+        const Flag30 = 1 << 30;
+        const Flag31 = 1 << 31;
     }
 }
 
+const NECK_INTERPOLATOR_COUNT: usize = 2;
+const LOCAL_OBB_COUNT: usize = 8;
+const CULL_OBJECT_COUNT: usize = 3;
+
 #[repr(C)]
 #[derive(Debug)]
-pub struct Mesh {
+pub struct Mesh<A = GfdAllocator> 
+where A: Allocator + Clone
+{
     _super: Object,
     flags: MeshFlags,
-    hierarchy: *mut Node,
-    node_array: *mut ItemArray<*mut Node>,
-    geoemtry_array: *mut ItemArray<*mut Geometry>,
-    material_array: *mut ItemArray<*mut Material>,
+    hierarchy: Option<NonNull<Node<A>>>,
+    node_array: *mut ItemArray<*mut Node<A>>,
+    geometry_array: *mut ItemArray<*mut Geometry<A>>,
+    material_array: *mut ItemArray<*mut Material<A>>,
     morph_array: *mut ItemArray<*mut MorphController>,
-    camera_array: *mut ItemArray<*mut Camera>,
+    camera_array: *mut ItemArray<*mut Camera<A>>,
     light_array: *mut ItemArray<*mut Light>,
     effect_array: *mut ItemArray<*mut EPL>,
-    anim_interpolator: usize,
-    anim_controller: usize,
-    anim_effector: usize,
-    neck_interpolator: [usize; 2],
+    anim_interpolator: Option<NonNull<AnimInterpolator>>,
+    anim_controller: Option<NonNull<AnimController>>,
+    anim_effector: Option<NonNull<AnimEffector>>,
+    neck_interpolator: [Option<NonNull<AnimInterpolator>>; NECK_INTERPOLATOR_COUNT],
+    // For Bullet Physics, unused in Metaphor
     physics_sector: usize,
     bounding_box: BoundingBox,
     bounding_sphere: BoundingSphere,
-    local_obb: *mut [Vec3A; 8],
-    cull: [CullObject; 3],
+    local_obb: *mut [Vec3A; LOCAL_OBB_COUNT],
+    cull: [CullObject; CULL_OBJECT_COUNT],
     skin_bone_matrix_array: *mut ItemArray<usize>, // TODO
     skin_bone_object: *mut SkinBoneObject,
     light_container: *mut LightContainer,
     sync: *mut MeshSync,
-    property: *mut Property,
+    property: Option<NonNull<Property>>,
     // job data START
     #[cfg(feature = "v1-core")]
     field_140: *mut P5RMeshField140,
     #[cfg(feature = "v2-core")]
-    gradation: *mut Gradation,
+    gradation: Option<NonNull<Gradation>>,
     // job data END
     reference: Reference,
-    dirty: u32
+    dirty: u32,
+    _allocator: A
+}
+
+impl<A> Mesh<A>
+where A: Allocator + Clone
+{
+    pub fn get_flags(&self) -> MeshFlags { self.flags }
+    pub fn get_node_list(&self) -> &[*mut Node<A>] {
+        match unsafe { self.node_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_geometry_list(&self) -> &[*mut Geometry<A>] {
+        match unsafe { self.geometry_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_material_list(&self) -> &[*mut Material<A>] {
+        match unsafe { self.material_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_morph_list(&self) -> &[*mut MorphController] {
+        match unsafe { self.morph_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_camera_list(&self) -> &[*mut Camera<A>] {
+        match unsafe { self.camera_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_light_list(&self) -> &[*mut Light] {
+        match unsafe { self.light_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_effect_list(&self) -> &[*mut EPL] {
+        match unsafe { self.effect_array.as_ref() } {
+            Some(a) => a.as_slice(),
+            None => &[]
+        }
+    }
+    pub fn get_bounding_box(&self) -> &BoundingBox {
+        &self.bounding_box
+    }
+    pub fn get_bounding_box_mut(&mut self) -> &mut BoundingBox {
+        &mut self.bounding_box
+    }
+    pub fn get_bounding_sphere(&self) -> &BoundingSphere {
+        &self.bounding_sphere
+    }
+    pub fn get_bounding_sphere_mut(&mut self) -> &mut BoundingSphere {
+        &mut self.bounding_sphere
+    }
 }
 
 #[ensure_layout(size = 48usize)]

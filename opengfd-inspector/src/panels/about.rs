@@ -1,4 +1,4 @@
-use crate::panels::common::InspectorPanel;
+use opengfd_inspector_components::panel::InspectorPanel;
 use imgui::Ui;
 
 #[derive(Debug)]

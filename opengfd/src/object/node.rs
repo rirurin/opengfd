@@ -479,7 +479,7 @@ pub struct RecursiveObjectIterator<'a, A, S>
 where A: Allocator + Clone,
       S: ObjectIterationSettings
 {
-    nodes: Vec<&'a Node<A>>,
+    parents: Vec<&'a Node<A>>,
     curr: Option<&'a Object<A>>,
     _alloc_marker: std::marker::PhantomData<A>,
     _settings: std::marker::PhantomData<S>
@@ -493,13 +493,15 @@ where A: Allocator + Clone,
     fn next(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|v| {
             self.curr = match v.get_id() {
+                // node - check first object attachment, then fallback to checking next node
                 ObjectId::Node => {
                     let node = unsafe { std::mem::transmute::<_, &Node<A>>(v) };
                     node.get_first_object().or_else(|| self.find_next_node().map(
-                        |v| v.get_first_object().unwrap()))
+                        |v| unsafe { std::mem::transmute::<_, &Object<A>>(v) }))
                 },
+                // other attachment type - check if next in attachment chain, else check next node
                 _ => v.get_next().or_else(|| self.find_next_node().map(
-                    |v| v.get_first_object().unwrap()))
+                    |v| unsafe { std::mem::transmute::<_, &Object<A>>(v) }))
             };
             /* 
             self.curr = v.get_next().or_else(|| self.find_next_node().map(
@@ -515,39 +517,29 @@ where A: Allocator + Clone,
       S: ObjectIterationSettings
 {
     pub fn find_next_node(&mut self) -> Option<&'a Node<A>> {
-        /* 
-        let mut v = self.nodes.pop();
-            if S::allow_child_iteration() && v.link.child.is_some() {
-                if let Some(cn) = v.link.next {
-                    self.nodes.push(unsafe { cn.as_ref() });
-                }
-                self.curr = Some(unsafe { v.link.child.unwrap().as_ref() });
-            } else {
+        let result = match self.parents.pop() {
+            Some(v) => {
+                if let Some(c) = v.link.child {
+                    if let Some(mut cn) = v.link.next {
+                        self.parents.push(unsafe { cn.as_mut() });
+                    }
+                    Some(unsafe { c.as_ref() })
                 // then check siblings
-                self.curr = if let Some(s) = v.link.next {
+                } else if let Some(s) = v.link.next {
                     Some(unsafe { s.as_ref() })
                 // if at the end of the chain, go back to the parent
-                } else if !self.nodes.is_empty() {
-                    Some(self.nodes.pop().unwrap())
+                } else if !self.parents.is_empty() {
+                    Some(self.parents.pop().unwrap())
                 } else {
                     None
-                };
-            }
-        */
-        let mut curr = self.nodes.pop();
-        while let Some(v) = curr {
-            if let Some(n) = v.link.get_next() {
-                self.nodes.push(n);
-            }
-            if let Some(ch) = v.link.get_child() {
-                if S::allow_child_iteration() {
-                    self.nodes.push(ch);
                 }
-            }
-            if v.has_object() { return Some(v); }
-            curr = self.nodes.pop();
+            },
+            None => None
+        };
+        if let Some(n) = result {
+            self.parents.push(n);
         }
-        None
+        result
     }
 }
 
@@ -558,7 +550,7 @@ where A: Allocator + Clone,
     pub fn from_node(node: &'a Node<A>) -> Self {
         let first = unsafe { std::mem::transmute::<_, &Object<A>>(node) };
         Self {
-            nodes: vec![node],
+            parents: vec![node],
             curr: Some(first),
             _alloc_marker: std::marker::PhantomData::<A>,
             _settings: std::marker::PhantomData::<S>
@@ -744,6 +736,16 @@ where A: Allocator + Clone
         } else { None }
     }
 
+    pub fn get_property_mut(&mut self) -> Option<&mut Property<A>> {
+        self.property.map(|mut v| unsafe { v.as_mut() })
+    }
+
+    pub fn get_property_entry_mut(&mut self, name: &str) -> Option<&mut PropertyChunk<A>> {
+        if let Some(p) = self.get_property_mut() {
+            p.find_mut(name)
+        } else { None }
+    }
+
     /// Get a immutable reference to the root of the node hierarchy that this node is within
     /// Original function: gfdNodeGetRoot
     pub fn get_root(&self) -> Option<&Self> {
@@ -789,6 +791,9 @@ where A: Allocator + Clone
     }
     pub fn get_scale_mut_f32(&mut self) -> &mut [f32; 3] {
         unsafe { &mut *(&raw mut self.transform.scale as *mut [f32; 3]) }
+    }
+    pub fn get_world_transform_mut_f32(&mut self) -> &mut [f32; 3] {
+        unsafe { &mut *(&raw mut self.world_tm.w_axis as *mut [f32; 3]) }
     }
 
     /// Get the world transformation matrix for the current node

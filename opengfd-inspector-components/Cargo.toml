@@ -1,5 +1,5 @@
 [package]
-name = "opengfd-inspector"
+name = "opengfd-inspector-components"
 version.workspace = true
 authors.workspace = true
 categories.workspace = true
@@ -15,7 +15,5 @@ cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 glam = "0.29"
 imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["docking", "tables-api"] }
 opengfd = { path = "../opengfd" }
-opengfd-inspector-components = { path = "../opengfd-inspector-components" }
-opengfd-tests = { path = "../opengfd-tests" }
 regex = "1.11.1"
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }

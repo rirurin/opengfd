@@ -8,10 +8,10 @@ pub trait TableDraw<TContext> {
     fn draw_contents(&self, ui: &mut Ui, ctx: &mut TContext, index: usize);
 }
 
-pub(crate) fn default_flags() -> TableFlags {
+pub fn default_flags() -> TableFlags {
     TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::RESIZABLE | TableFlags::SCROLL_Y
 }
-pub(crate) fn default_height() -> f32 { 300. }
+pub fn default_height() -> f32 { 300. }
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -41,7 +41,7 @@ where TContents : TableDraw<TContext>
         })
     }
 
-    pub(crate) fn draw_table(&mut self, ui: &mut Ui, ctx: &mut TContext, data: &[TContents]) {
+    pub fn draw_table(&mut self, ui: &mut Ui, ctx: &mut TContext, data: &[TContents]) {
         let ui_copy0 = unsafe { &mut *(&raw mut *ui) };
         let ui_copy1 = unsafe { &mut *(&raw mut *ui) };
         if let Some(_) = match self.create_header_column() {
@@ -70,20 +70,7 @@ where TContents : TableDraw<TContext>
         }
     }
 
-    /*
-    pub(crate) fn set_entries(&mut self, contents: &'a Vec<TContents>) {
-        self.contents = Some(contents);
-    }
-
-    pub(crate) fn get_entry_count(&self) -> usize {
-        match self.contents {
-            Some(v) => v.len(),
-            None => 0
-        }
-    }
-    */
-
-    pub(crate) fn new(
+    pub fn new(
         table_name: &'a str, 
         columns: Option<[&'a str; C]>,
         flags: TableFlags,

@@ -7,7 +7,7 @@ use crate::{
     },
     utility::reference::Reference
 };
-use glam::{ Mat4, Vec3A, Vec4 };
+use glam::{ Mat4, Vec3, Vec3A, Vec4, Quat };
 use std::ptr::NonNull;
 
 #[repr(C)]
@@ -20,6 +20,7 @@ where A: Allocator + Clone
     projection: Mat4,
     plane_frustum: [Vec4; 6usize],
     vec_frustrum: [Vec3A; 8usize],
+    field180: f32,
     near_clip: f32,
     far_clip: f32,
     fovy: f32,
@@ -83,4 +84,28 @@ where A: Allocator + Clone
     pub fn set_view_transform(&mut self, value: Mat4) {
         self.view = value;
     }
+    pub fn get_translate(&self) -> Vec3A {
+        self.view.to_scale_rotation_translation().2.into()
+    }
+    pub fn get_rotate(&self) -> Quat {
+        self.view.to_scale_rotation_translation().1
+    }
+    pub fn get_scale(&self) -> Vec3A {
+        self.view.to_scale_rotation_translation().0.into()
+    }
+    pub fn get_scale_rotation_translation(&self) -> (Vec3, Quat, Vec3) {
+        self.view.to_scale_rotation_translation()
+    }
+    pub fn get_scale_rotation_translation_mut(&mut self) -> (Vec3, Quat, Vec3) {
+        self.view.to_scale_rotation_translation()
+    }
+    // For imgui
+    pub fn get_near_clip_mut(&mut self) -> &mut f32 { &mut self.near_clip }
+    pub fn get_far_clip_mut(&mut self) -> &mut f32 { &mut self.far_clip }
+    pub fn get_fovy_mut(&mut self) -> &mut f32 { &mut self.fovy }
+    pub fn get_aspect_ratio_mut(&mut self) -> &mut f32 { &mut self.aspect }
+    pub fn get_roll_mut(&mut self) -> &mut f32 { &mut self.roll }
+    pub fn get_field198_mut(&mut self) -> &mut f32 { &mut self.field11_0x198 }
+    pub fn get_field19c_mut(&mut self) -> &mut f32 { &mut self.field12_0x19c }
+    pub fn get_field1a0_mut(&mut self) -> &mut f32 { &mut self.field13_0x1a0 }
 }

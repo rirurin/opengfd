@@ -1,3 +1,4 @@
+// #![allow(dead_code)]
 use imgui::{
     ComboBoxFlags,
     Ui
@@ -65,7 +66,7 @@ pub struct Searchbar {
     type_selected: NonNull<Box<dyn SearchType>>
 }
 impl Searchbar {
-    pub(crate) fn new<T>(label: T, show_label: bool) -> Self
+    pub fn new<T>(label: T, show_label: bool) -> Self
     where T: Into<String>
     { 
         let mut out = Self {
@@ -81,7 +82,7 @@ impl Searchbar {
         out.type_selected = unsafe { NonNull::new_unchecked(&raw mut out.search_types[0]) };
         out
     }
-    pub(crate) fn draw(&mut self, ui: &mut Ui) {
+    pub fn draw(&mut self, ui: &mut Ui) {
         let region = ui.content_region_avail();
         ui.set_next_item_width(region[0] * 0.6);
         let label_fmt = match self.show_label {
