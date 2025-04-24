@@ -516,6 +516,44 @@ unsafe extern "C" {
 
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of BLOCK_KEYBOARD_FOCUS.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_block_keyboard_focus(ptr: *mut bool);
+   /// Get a possible reference to BLOCK_KEYBOARD_FOCUS. This checks to see if `set_block_keyboard_focus`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_block_keyboard_focus() -> Option<& 'static bool>;
+   /// Like `get_block_keyboard_focus_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_block_keyboard_focus_mut() -> Option<& 'static mut bool>;
+   /// An unchecked version of `get_block_keyboard_focus`. This assumes that BLOCK_KEYBOARD_FOCUS
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_block_keyboard_focus_unchecked() -> & 'static bool;
+   /// An unchecked version of `get_block_keyboard_focus_mut`. This assumes that BLOCK_KEYBOARD_FOCUS
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_block_keyboard_focus_unchecked_mut() -> & 'static mut bool;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of BLOCK_MOUSE_FOCUS.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_block_mouse_focus(ptr: *mut bool);
+   /// Get a possible reference to BLOCK_MOUSE_FOCUS. This checks to see if `set_block_mouse_focus`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_block_mouse_focus() -> Option<& 'static bool>;
+   /// Like `get_block_mouse_focus_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_block_mouse_focus_mut() -> Option<& 'static mut bool>;
+   /// An unchecked version of `get_block_mouse_focus`. This assumes that BLOCK_MOUSE_FOCUS
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_block_mouse_focus_unchecked() -> & 'static bool;
+   /// An unchecked version of `get_block_mouse_focus_mut`. This assumes that BLOCK_MOUSE_FOCUS
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_block_mouse_focus_unchecked_mut() -> & 'static mut bool;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of IS_STEAM.
     /// This method must only be called once, otherwise it will panic.
     pub(crate) unsafe fn set_is_steam(ptr: *mut bool);
@@ -530,6 +568,25 @@ unsafe extern "C" {
    /// An unchecked version of `get_is_steam_mut`. This assumes that IS_STEAM
     /// is set and it's initialized.
     pub(crate) unsafe fn get_is_steam_unchecked_mut() -> & 'static mut bool;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of TPL_RESOURCE_LOAD_TEMPORARY.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_tpl_resource_load_temporary(ptr: *mut u8);
+   /// Get a possible reference to TPL_RESOURCE_LOAD_TEMPORARY. This checks to see if `set_tpl_resource_load_temporary`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_tpl_resource_load_temporary() -> Option<& 'static u8>;
+   /// Like `get_tpl_resource_load_temporary_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_tpl_resource_load_temporary_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_tpl_resource_load_temporary`. This assumes that TPL_RESOURCE_LOAD_TEMPORARY
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_tpl_resource_load_temporary_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_tpl_resource_load_temporary_mut`. This assumes that TPL_RESOURCE_LOAD_TEMPORARY
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_tpl_resource_load_temporary_unchecked_mut() -> & 'static mut u8;
 
 }
 

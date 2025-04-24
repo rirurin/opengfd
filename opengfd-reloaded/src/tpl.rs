@@ -1,7 +1,13 @@
 use crate::globals;
+use cpp_types::msvc::{
+    string::String as CppString,
+    shared_ptr::SharedPtr
+};
+use opengfd::device::ngr::allocator::AllocatorHook;
 use opengfd::tpl::{
     file_manager::FileManager,
-    sound::player::SoundPlayer
+    sound::player::SoundPlayer,
+    resource::Resource
 };
 use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static };
 use riri_mod_tools_rt::{
@@ -20,13 +26,36 @@ pub unsafe extern "C" fn set_file_manager_instance_hook(ofs: usize) -> Option<No
     globals::set_file_manager_instance(addr.as_ptr() as *mut *mut FileManager);
     Some(addr)
 }
-/*
 #[riri_hook_static(dynamic_offset(
     signature = "48 8B 2D ?? ?? ?? ?? 45 33 F6 C5 F9 EF C0",
     resolve_type = set_file_manager_instance_hook,
     calling_convention = "microsoft",
 ))]
 riri_static!(FILE_MANAGER_INSTANCE_HOOK, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_tpl_resource_shared_ptr_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    let addr = match sigscan_resolver::get_indirect_address_long_abs(addr.add(0x57).as_ptr()) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_tpl_resource_shared_ptr(addr.as_ptr() as *mut u8);
+    logln!(Information, "got std::shared_ptr<TPL::Resource> vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 4C 24 ?? 56 57 41 54 41 56 41 57 48 83 EC 50 49 8B D9 49 8B F8 4C 8B E2 4C 8B F1 33 ED B9 A0 00 00 00",
+    resolve_type = set_tpl_resource_shared_ptr_hook,
+    calling_convention = "microsoft",
+))]
+riri_static!(TPL_RESOURCE_SHARED_PTR_HOOK, usize);
+
+/* 
 #[riri_hook_fn(static_offset(0x147c470))]
 pub unsafe extern "C" fn tplResourceCreate(mgmt: *mut u8, ret_storage: *mut u8, filename: *mut u8, a4: u32) -> *mut u8 {
     let filename_cast = unsafe { &*(filename as *mut CppString) };
@@ -57,11 +86,13 @@ pub unsafe extern "C" fn tplResourceCreate(mgmt: *mut u8, ret_storage: *mut u8, 
 }
 */
 
-/*
-
+/* 
+// 40 53 55 56 57 41 56 48 83 EC 60 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 44 24 ?? 49 8B F8
 #[riri_hook_fn(static_offset(0x147c470))]
 pub unsafe extern "C" fn tplResourceCreate(mgmt: *mut u8, ret_storage: *mut u8, filename: *mut u8, _a4: u32, _a5: u32) -> *mut u8 {
     let filename_cast = unsafe { &mut *(filename as *mut CppString<u8, AllocatorHook>) };
+    logln!(Verbose, "TPL::Resource::Create: {}", filename_cast);
+    // original_function!(mgmt, ret_storage, filename, _a4, _a5)
     let mgmt_cast = unsafe { &mut *(mgmt as *mut FileManager<AllocatorHook>) };
     let ret = unsafe { &mut *(ret_storage as *mut SharedPtr<Resource<usize, AllocatorHook>, AllocatorHook>) };
     // logln!(Information, "tplResourceCreate: GET {}", filename_cast);
@@ -91,6 +122,8 @@ pub unsafe extern "C" fn tplResourceCreate(mgmt: *mut u8, ret_storage: *mut u8, 
     unsafe { std::ptr::drop_in_place(filename_cast); }
     ret_storage
 }
+*/
+/*
 /*
 #[riri_hook_fn(static_offset(0x147a9e0))]
 pub unsafe extern "C" fn tplSetLoadStateReady(res: *mut u8, a2: usize) {
@@ -132,28 +165,6 @@ pub unsafe extern "C" fn tplResourceInitialize(a1: *mut u8, a2: *mut u8, a3: i32
     out
 }
 */
-
-#[no_mangle]
-pub unsafe extern "C" fn set_tpl_resource_shared_ptr_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
-    let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
-        Some(v) => v,
-        None => return None
-    };
-    let addr = match sigscan_resolver::get_indirect_address_long_abs(addr.add(0x57).as_ptr()) {
-        Some(v) => v,
-        None => return None
-    };
-    globals::set_tpl_resource_shared_ptr(addr.as_ptr() as *mut u8);
-    logln!(Information, "got std::shared_ptr<TPL::Resource> vtable: 0x{:x}", addr.as_ptr() as usize);
-    Some(addr)
-}
-// 0x1411b0ce0, inside ngrInitFreeList
-#[riri_hook_static(dynamic_offset(
-    signature = "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 4C 24 ?? 56 57 41 54 41 56 41 57 48 83 EC 50 49 8B D9 49 8B F8 4C 8B E2 4C 8B F1 33 ED B9 A0 00 00 00",
-    resolve_type = set_tpl_resource_shared_ptr_hook,
-    calling_convention = "microsoft",
-))]
-riri_static!(TPL_RESOURCE_SHARED_PTR_HOOK, usize);
 
 #[riri_hook_fn(static_offset(0x147d420))]
 pub unsafe extern "C" fn TplFileManagerThreadEventLoop(p_mgmt: *mut u8) {

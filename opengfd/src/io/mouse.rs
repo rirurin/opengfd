@@ -2,7 +2,8 @@ use bitflags::bitflags;
 use crate::graphics::texture::Texture;
 use std::{
     ptr::NonNull,
-    sync::Mutex
+    // sync::{ Mutex, OnceLock }
+    sync::OnceLock
 };
 
 bitflags! {
@@ -16,27 +17,38 @@ bitflags! {
     }
 }
 
-pub static BLOCK_MOUSE_UPDATE: Mutex<bool> = Mutex::new(false);
+// pub static BLOCK_MOUSE_UPDATE: Mutex<bool> = Mutex::new(false);
+pub static BLOCK_MOUSE_UPDATE: OnceLock<bool> = OnceLock::new();
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct WindowMouseState {
     button: MouseButton,
     pos: [u16; 2],
-    scroll: [u16; 2],
+    scroll: [i16; 2],
     fielda: [u8; 0x16]
 }
 
 impl WindowMouseState {
     pub fn update_from(&mut self, other: &WindowMouseState) -> bool {
-        let block_lock = BLOCK_MOUSE_UPDATE.lock().unwrap(); 
-        if !*block_lock {
+        // let block_lock = BLOCK_MOUSE_UPDATE.lock().unwrap(); 
+        if unsafe { !*crate::globals::get_block_mouse_focus_unchecked() } {
+        // if !*block_lock {
             self.button = other.button;
+        } else { 
+            self.button = MouseButton::empty()
         }
         self.pos = other.pos;
         self.scroll = other.scroll;
         self.fielda = other.fielda;
+        self.scroll[0] *= 5;
         true
+    }
+    pub fn get_scroll(&self) -> i16 {
+        self.scroll[0]
+    }
+    pub fn set_scroll(&mut self, scroll: i16) {
+        self.scroll[0] = scroll;
     }
 }
 

@@ -9,4 +9,9 @@ use imgui::{
 unsafe extern "C" {
     pub unsafe fn add_gui_callback(cb: unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw), version: *const i8);
     pub unsafe fn remove_gui_callback(cb: unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw));
+    pub unsafe fn add_allocator(cb: unsafe extern "C" fn(
+        imgui::sys::ImGuiMemAllocFunc,
+        imgui::sys::ImGuiMemFreeFunc,
+        *mut std::ffi::c_void   
+    ));
 }

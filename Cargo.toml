@@ -31,6 +31,15 @@ strip = true  # Automatically strip symbols from the binary.
 inherits = "release"
 debug = true # Allow us to debug using LLDB
 
+# Slow Debug, for fast iteration
+[profile.slow-debug]
+inherits = "release"
+debug = true
+lto = "thin"
+# lto = false
+incremental = true
+codegen-units = 64 
+
 [patch."https://github.com/rirurin/cpp-types"]
 cpp-types = { path = "../cpp-types/cpp-types" }
 

@@ -5,7 +5,7 @@ use opengfd::io::{
     mouse::WindowMouseState
 };
 use std::ptr::NonNull;
-use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static };
+use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static, riri_init_fn };
 use riri_mod_tools_rt::{ logln, sigscan_resolver };
 
 // gfdKeyboard
@@ -61,6 +61,12 @@ pub unsafe extern "C" fn gfdDeviceKeyboardGetData(_board_id: usize, result: *mut
     }
     let keyboard_data = &mut *(result as *mut Keyboard);
     keyboard_data.update()
+}
+
+#[riri_init_fn]
+fn set_block_keyboard_update() {
+    let _ = opengfd::io::keyboard::BLOCK_KEYBOARD_UPDATE.set(false);
+    crate::globals::set_block_keyboard_focus(&raw const *opengfd::io::keyboard::BLOCK_KEYBOARD_UPDATE.get().unwrap() as *mut bool);
 }
 
 // gfdPad
@@ -121,7 +127,15 @@ pub unsafe extern "C" fn set_gfd_mouse_from_wnd_proc(ofs: usize) -> Option<std::
 ))]
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn gfdMouseFromWindowProc(_id: usize, p_state: *mut u8) -> bool {
-    let wnd = globals::get_window_mouse_state_unchecked();
+    let wnd = globals::get_window_mouse_state_unchecked_mut();
     let state= unsafe { &mut *(p_state as *mut WindowMouseState) };
-    state.update_from(wnd)
+    let ret = state.update_from(wnd);
+    wnd.set_scroll(0);
+    ret
+}
+
+#[riri_init_fn]
+fn set_block_mouse_update() {
+    let _ = opengfd::io::mouse::BLOCK_MOUSE_UPDATE.set(false);
+    crate::globals::set_block_mouse_focus(&raw const *opengfd::io::mouse::BLOCK_MOUSE_UPDATE.get().unwrap() as *mut bool);
 }

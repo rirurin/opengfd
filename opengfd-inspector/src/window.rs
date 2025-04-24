@@ -46,11 +46,16 @@ pub unsafe extern "C" fn inspector_reloaded_new_window(ui: *mut ImUI, ctx: *mut 
     if let Some(state) = state {
         let ctx = state.get_work_data_mut().unwrap();
 
+        /* 
         let mut block_lock = opengfd::io::keyboard::BLOCK_KEYBOARD_UPDATE.lock().unwrap();
         *block_lock = ui.io().want_capture_keyboard;
         let mut block_lock = opengfd::io::mouse::BLOCK_MOUSE_UPDATE.lock().unwrap();
         *block_lock = ui.io().want_capture_mouse;
         drop(block_lock);
+        */
+        *crate::globals::get_block_keyboard_focus_unchecked_mut() = ui.io().want_capture_keyboard;
+        *crate::globals::get_block_mouse_focus_unchecked_mut() = ui.io().want_capture_mouse;
+        // println!("{}, {}", *crate::globals::get_block_keyboard_focus_unchecked_mut(), *crate::globals::get_block_mouse_focus_unchecked_mut());
 
         let ui_into = unsafe { &mut *(&raw mut *ui) };
         ui.window("GFD Inspector for Metaphor: Refantazio")
@@ -66,7 +71,15 @@ pub unsafe extern "C" fn inspector_reloaded_new_window(ui: *mut ImUI, ctx: *mut 
     }
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn set_imgui_allocator(
+      alloc: imgui::sys::ImGuiMemAllocFunc,
+      free: imgui::sys::ImGuiMemFreeFunc,
+      user: *mut std::ffi::c_void   
+) { ImContext::set_allocator_functions(alloc, free, user); }
+
 pub fn init() {
     let ver = imgui::dear_imgui_version().as_ptr() as *const i8;
     unsafe { crate::imgui_hook::add_gui_callback(inspector_reloaded_new_window, ver) };
+    unsafe { crate::imgui_hook::add_allocator(set_imgui_allocator);}
 }

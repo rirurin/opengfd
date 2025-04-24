@@ -36,7 +36,7 @@ use crate::{
     utility::{
         free_list::FreeList as GfdFreeList,
         item_array::ItemArray,
-        math::RandomAligned,
+        math::RandomUnaligned,
         misc::Range,
         mutex::{ Mutex, RecursiveMutex },
         name::Name
@@ -89,7 +89,7 @@ pub trait GlobalImpl {
     fn get_flags(&self) -> GlobalFlags;
     fn get_tasks(&self) -> &TaskGlobal;
     fn get_tasks_mut(&mut self) -> &mut TaskGlobal;
-    fn get_random_mut(&mut self) -> &mut RandomAligned;
+    fn get_random_mut(&mut self) -> &mut RandomUnaligned;
     /// Original function: gfdGetUID
     fn get_uid(&mut self) -> u64;
     fn get_task_free_list_unchecked_mut(&mut self) 
@@ -101,6 +101,8 @@ pub trait GlobalImpl {
     fn set_free_list_head_mut(&mut self, new: *mut GfdFreeList);
     fn get_chip_free_list(&self) -> Option<&GfdFreeList<Chip, GfdAllocator>>;
     fn get_chip_free_list_mut(&self) -> Option<&mut GfdFreeList<Chip, GfdAllocator>>;
+    fn get_task_free_list(&self) -> Option<&GfdFreeList<GfdTask, GfdAllocator>>;
+    fn get_task_free_list_mut(&self) -> Option<&mut GfdFreeList<GfdTask, GfdAllocator>>;
 }
 
 #[repr(C)]
@@ -115,7 +117,7 @@ pub struct Global { // (GlobalSteam, default state)
     pub(crate) graphics: GraphicsStateSteam,
     physics: PhysicsGlobal,
     tasks: TaskGlobal,
-    random: RandomAligned,
+    random: RandomUnaligned,
     controller_callback: *mut u8, // callback for controller
     controller_arg: *mut u8,
     field58d0: *mut u8,
@@ -149,7 +151,7 @@ impl GlobalImpl for Global {
     fn get_flags(&self) -> GlobalFlags { self.flags }
     fn get_tasks(&self) -> &TaskGlobal { &self.tasks }
     fn get_tasks_mut(&mut self) -> &mut TaskGlobal { &mut self.tasks }
-    fn get_random_mut(&mut self) -> &mut RandomAligned { &mut self.random }
+    fn get_random_mut(&mut self) -> &mut RandomUnaligned { &mut self.random }
     fn get_uid(&mut self) -> u64 {
         self.uid = self.uid.wrapping_add(1).max(1);
         self.uid
@@ -181,6 +183,12 @@ impl GlobalImpl for Global {
     fn get_chip_free_list_mut(&self) -> Option<&mut GfdFreeList<Chip, GfdAllocator>> {
         unsafe { self.chip_free_list.as_mut() }
     }
+    fn get_task_free_list(&self) -> Option<&GfdFreeList<GfdTask, GfdAllocator>> {
+        unsafe { self.task_free_list.as_ref() }
+    }
+    fn get_task_free_list_mut(&self) -> Option<&mut GfdFreeList<GfdTask, GfdAllocator>> {
+        unsafe { self.task_free_list.as_mut() }
+    }
 }
 
 #[repr(C)]
@@ -195,7 +203,7 @@ pub struct GlobalUWP {
     graphics: GraphicsStateUWP,
     physics: PhysicsGlobal,
     tasks: TaskGlobal,
-    random: RandomAligned,
+    random: RandomUnaligned,
     controller_callback: *mut u8, // callback for controller
     controller_arg: *mut u8,
     field58d0: *mut u8,
@@ -229,7 +237,7 @@ impl GlobalImpl for GlobalUWP {
     fn get_flags(&self) -> GlobalFlags { self.flags }
     fn get_tasks(&self) -> &TaskGlobal { &self.tasks }
     fn get_tasks_mut(&mut self) -> &mut TaskGlobal { &mut self.tasks }
-    fn get_random_mut(&mut self) -> &mut RandomAligned { &mut self.random }
+    fn get_random_mut(&mut self) -> &mut RandomUnaligned { &mut self.random }
     fn get_uid(&mut self) -> u64 {
         self.uid = self.uid.wrapping_add(1).max(1);
         self.uid
@@ -260,6 +268,12 @@ impl GlobalImpl for GlobalUWP {
     }
     fn get_chip_free_list_mut(&self) -> Option<&mut GfdFreeList<Chip, GfdAllocator>> {
         unsafe { self.chip_free_list.as_mut() }
+    }
+    fn get_task_free_list(&self) -> Option<&GfdFreeList<GfdTask, GfdAllocator>> {
+        unsafe { self.task_free_list.as_ref() }
+    }
+    fn get_task_free_list_mut(&self) -> Option<&mut GfdFreeList<GfdTask, GfdAllocator>> {
+        unsafe { self.task_free_list.as_mut() }
     }
 }
 

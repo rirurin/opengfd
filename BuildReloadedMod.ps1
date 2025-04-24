@@ -68,7 +68,8 @@ function GetRustCrateTargetDirectory {
     param (
         [string] $Path
     )
-    $ProfileFolder = if ($IsDebug) { "release-debug" } else { "release" }
+    # $ProfileFolder = if ($IsDebug) { "release-debug" } else { "release" }
+    $ProfileFolder = if ($IsDebug) { "slow-debug" } else { "release" }
     GoToFolder -Path ([IO.Path]::Combine($Path, "target", $global:TARGET, $ProfileFolder))
 }
 
@@ -79,7 +80,8 @@ function BuildRustCrate {
         [string] $BuildStdFeatures,
         [string] $CrateType
     )
-    $RustProfile = if ($IsDebug) { "--profile=release-debug" } else { "--profile=release" }
+    # $RustProfile = if ($IsDebug) { "--profile=release-debug" } else { "--profile=release" }
+    $RustProfile = if ($IsDebug) { "--profile=slow-debug" } else { "--profile=release" }
     cargo +nightly rustc --lib $RustProfile -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
     if (!$?) {
         Write-Error "Failed to build the Rust crate ${FriendlyName}"
@@ -117,7 +119,8 @@ Split-Path $MyInvocation.MyCommand.Path | Push-Location
 [Environment]::CurrentDirectory = $PWD
 $BASE_PATH = (Get-Location).ToString();
 [System.Environment]::SetEnvironmentVariable("RUST_BACKTRACE", 1)
-[System.Environment]::SetEnvironmentVariable("RUSTFLAGS", "-C panic=abort -C lto=fat -C embed-bitcode=yes -C target_cpu=native")
+# [System.Environment]::SetEnvironmentVariable("RUSTFLAGS", "-C panic=abort -C lto=fat -C embed-bitcode=yes -C target_cpu=native")
+[System.Environment]::SetEnvironmentVariable("RUSTFLAGS", "-C panic=abort -C embed-bitcode=yes -C target-feature=+avx2")
 # set env var for OpenGFD
 SetEnvironmentVariableIfNull -EnvVariable OPENGFD_PATH -EnvValue (Get-Location).ToString()
 $OPENGFD_DIRECTORY = GetNonNullEnvironmentVariable -EnvVariable OPENGFD_PATH

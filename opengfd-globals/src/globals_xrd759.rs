@@ -57,5 +57,8 @@ create_gfd_static!(JOB_LIST3, *mut Job); // 0x2000 entries, 1 worker
 create_gfd_static!(KEYCODE_FOR_MOUSE_CLICK, u8);
 create_gfd_static!(KEYBOARD_DATA, Keyboard);
 create_gfd_static!(WINDOW_MOUSE_STATE, WindowMouseState);
+create_gfd_static!(BLOCK_KEYBOARD_FOCUS, bool);
+create_gfd_static!(BLOCK_MOUSE_FOCUS, bool);
 // platform
 create_gfd_static!(IS_STEAM, bool);
+create_gfd_static!(TPL_RESOURCE_LOAD_TEMPORARY, u8);
