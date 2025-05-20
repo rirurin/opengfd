@@ -11,6 +11,7 @@ use opengfd::{
         structures::{ ListNodeFreeList, PointerListEntry }
     },
     io::{
+        controller::Controller,
         keyboard::Keyboard,
         mouse::WindowMouseState,
     },
@@ -59,6 +60,7 @@ create_gfd_static!(KEYBOARD_DATA, Keyboard);
 create_gfd_static!(WINDOW_MOUSE_STATE, WindowMouseState);
 create_gfd_static!(BLOCK_KEYBOARD_FOCUS, bool);
 create_gfd_static!(BLOCK_MOUSE_FOCUS, bool);
+create_gfd_static!(CONTROLLER_DATA, Controller);
 // platform
 create_gfd_static!(IS_STEAM, bool);
 create_gfd_static!(TPL_RESOURCE_LOAD_TEMPORARY, u8);

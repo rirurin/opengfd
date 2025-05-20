@@ -1,3 +1,4 @@
+use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
     anim::key::{ 
@@ -5,6 +6,7 @@ use crate::{
         KeyShape, KeyCamera, KeyLight,
         KeyList
     },
+    kernel::allocator::GfdAllocator,
     object::epl::EPL,
     utility::{
         item_array::ItemArray,
@@ -58,19 +60,22 @@ bitflags! {
 }
 
 #[repr(C)]
-pub struct Animation {
+pub struct Animation<A = GfdAllocator> 
+where A: Allocator + Clone
+{
     flags: AnimationFlags,
     duration: f32,
     num_joints: u32,
     joints: Option<NonNull<AnimationJoint>>,
-    effect: Option<NonNull<ItemArray<EPL>>>,
+    effect: Option<NonNull<ItemArray<EPL, A>>>,
     neck: Option<NonNull<AnimationNeck>>,
     bounding_box: *mut BoundingBox,
-    translation: AnimationTranslation,
+    translation: *mut AnimationTranslation,
     properties: *mut Property,
     frequency: f32,
     cfb_data: AnimationCFB,
-    ref_: Reference
+    ref_: Reference,
+    _allocator: A
 }
 
 impl Animation {
@@ -127,7 +132,7 @@ pub struct AnimationJoint {
 pub struct AnimationTranslation {
     field_0: u64,
     name: Name,
-    keys: *mut KeyList
+    keys: KeyList
 }
 
 bitflags! {

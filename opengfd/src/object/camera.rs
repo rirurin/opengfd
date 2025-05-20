@@ -99,6 +99,14 @@ where A: Allocator + Clone
     pub fn get_scale_rotation_translation_mut(&mut self) -> (Vec3, Quat, Vec3) {
         self.view.to_scale_rotation_translation()
     }
+    pub fn set_projection_transform(&mut self, value: Mat4) {
+        self.projection = value;
+    }
+
+    pub fn set_translate(&mut self, value: Vec3A) {
+        self.view.w_axis = Vec4::new(value.x, value.y, value.z, 1.);
+    }
+
     // For imgui
     pub fn get_near_clip_mut(&mut self) -> &mut f32 { &mut self.near_clip }
     pub fn get_far_clip_mut(&mut self) -> &mut f32 { &mut self.far_clip }
@@ -108,4 +116,7 @@ where A: Allocator + Clone
     pub fn get_field198_mut(&mut self) -> &mut f32 { &mut self.field11_0x198 }
     pub fn get_field19c_mut(&mut self) -> &mut f32 { &mut self.field12_0x19c }
     pub fn get_field1a0_mut(&mut self) -> &mut f32 { &mut self.field13_0x1a0 }
+
+    pub fn get_super(&self) -> &Object<A> { &self._super }
+    pub fn get_super_mut(&mut self) -> &mut Object<A> { &mut self._super }
 }

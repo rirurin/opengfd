@@ -51,7 +51,7 @@ bitflags! {
 pub(crate) const CONTROLLER_STICK_ZERO_POINT: u16 = 0x80;
 
 #[repr(align(2))]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ControllerStickInput(u16);
 impl Display for ControllerStickInput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -71,11 +71,11 @@ impl From<i16> for ControllerStickInput {
 }
 
 
-pub(crate) const MAX_CONTROLLER_COUNT: usize = 2;
-pub(crate) const XINPUT_TRIGGER_ANALOG_THRESHOLD: u8 = 30;
+pub const MAX_CONTROLLER_COUNT: usize = 2;
+pub const XINPUT_TRIGGER_ANALOG_THRESHOLD: u8 = 30;
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ControllerPlatform {
     button: ControllerButton,
     rstick_hori: ControllerStickInput,
@@ -171,5 +171,83 @@ impl ControllerPlatform {
 
     pub fn get_button(&self) -> ControllerButton {
         self.button
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct ControllerStick {
+    horizontal: u8,
+    vertical: u8
+}
+
+const STICK_ZERO: u8 = 128;
+
+impl ControllerStick {
+    pub fn get_horizontal(&self) -> i8 {
+        self.horizontal.overflowing_sub(STICK_ZERO).0 as i8
+    }
+    pub fn get_vertical(&self) -> i8 {
+        self.vertical.overflowing_sub(STICK_ZERO).0 as i8
+    }
+}
+
+impl Display for ControllerStick {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Stick <{}, {}>", self.get_horizontal(), self.get_vertical())
+    }
+}
+
+const CONTROLLER_COUNT: usize = 2;
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ControllerPad {
+    start_press: [ControllerButton; CONTROLLER_COUNT],
+    end_press: [ControllerButton; CONTROLLER_COUNT],
+    hold_press: [ControllerButton; CONTROLLER_COUNT],
+    rstick: [ControllerStick; CONTROLLER_COUNT],
+    lstick: [ControllerStick; CONTROLLER_COUNT],
+}
+
+impl ControllerPad {
+    pub fn get_start_press(&self, id: usize) -> ControllerButton {
+        self.start_press[id]
+    }
+    pub fn get_end_press(&self, id: usize) -> ControllerButton {
+        self.end_press[id]
+    }
+    pub fn get_hold_press(&self, id: usize) -> ControllerButton {
+        self.hold_press[id]
+    }
+    pub fn get_lstick(&self, id: usize) -> ControllerStick {
+        self.lstick[id]
+    }
+    pub fn get_rstick(&self, id: usize) -> ControllerStick {
+        self.rstick[id]
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Controller {
+    current: ControllerPad,
+    default: ControllerPad,
+    delta1: f32,
+    delta2: f32,
+    control_init: bool,
+    field31: u8,
+    is_matching_control: bool,
+    control_id: u32,
+    field38: [u32; 2],
+    pad3: ControllerPad
+}
+
+impl Controller {
+    pub fn get_current(&self) -> &ControllerPad {
+        &self.current
+    }
+    pub fn get_control_id(&self) -> usize {
+        self.control_id as usize
     }
 }

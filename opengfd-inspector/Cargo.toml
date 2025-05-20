@@ -12,7 +12,7 @@ edition.workspace = true
 allocator-api2 = "0.2.21"
 bitflags = "2.6"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
-glam = "0.29"
+glam = "0.30.3"
 imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["docking", "tables-api"] }
 opengfd = { path = "../opengfd" }
 opengfd-inspector-components = { path = "../opengfd-inspector-components" }

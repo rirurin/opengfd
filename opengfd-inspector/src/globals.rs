@@ -1,6 +1,6 @@
 #![allow(dead_code, improper_ctypes)]
 // This file was automatically generated from opengfd-globals.
-use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , io :: { keyboard :: Keyboard , mouse :: WindowMouseState , } , kernel :: { global :: Global , job :: Job } , tpl :: file_manager :: FileManager , } ;
+use opengfd :: { device :: ngr :: { allocator :: Allocator , renderer :: { platform :: d3d :: { ngr_142ed6270 , ngrDX11Renderer } , state :: DrawState } , structures :: { ListNodeFreeList , PointerListEntry } } , io :: { controller :: Controller , keyboard :: Keyboard , mouse :: WindowMouseState , } , kernel :: { global :: Global , job :: Job } , tpl :: file_manager :: FileManager , } ;
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
    /// Set the pointer to the memory location containing the beginning of GFD_GLOBAL.
@@ -549,6 +549,25 @@ unsafe extern "C" {
    /// An unchecked version of `get_block_mouse_focus_mut`. This assumes that BLOCK_MOUSE_FOCUS
     /// is set and it's initialized.
     pub(crate) unsafe fn get_block_mouse_focus_unchecked_mut() -> & 'static mut bool;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of CONTROLLER_DATA.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_controller_data(ptr: *mut Controller);
+   /// Get a possible reference to CONTROLLER_DATA. This checks to see if `set_controller_data`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_controller_data() -> Option<& 'static Controller>;
+   /// Like `get_controller_data_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_controller_data_mut() -> Option<& 'static mut Controller>;
+   /// An unchecked version of `get_controller_data`. This assumes that CONTROLLER_DATA
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_controller_data_unchecked() -> & 'static Controller;
+   /// An unchecked version of `get_controller_data_mut`. This assumes that CONTROLLER_DATA
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_controller_data_unchecked_mut() -> & 'static mut Controller;
 
 }
 

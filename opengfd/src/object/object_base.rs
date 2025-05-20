@@ -52,8 +52,8 @@ where A: Allocator + Clone
 {
     id: ObjectId,
     parent: Option<NonNull<Node<A>>>,
-    prev: Option<NonNull<Object<A>>>,
-    next: Option<NonNull<Object<A>>>,
+    prev: Option<NonNull<Self>>,
+    next: Option<NonNull<Self>>,
     _pinned: PhantomPinned,
     _allocator: A
 }

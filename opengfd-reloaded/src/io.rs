@@ -1,6 +1,9 @@
 use crate::globals;
 use opengfd::io::{
-    controller::ControllerPlatform,
+    controller::{
+        ControllerPlatform,
+        Controller
+    },
     keyboard::Keyboard,
     mouse::WindowMouseState
 };
@@ -95,11 +98,26 @@ pub unsafe extern "C" fn set_device_pad_get_data(ofs: usize) -> Option<std::ptr:
 pub unsafe extern "C" fn gfdDevicePadGetData(id: u32, result: *mut u8) -> bool {
     let result = &mut *(result as *mut ControllerPlatform); 
     let success = result.update(id);
-    // if id == 0 {
-    //     logln!(Verbose, "Controller {}: {}", id, result);
-    // }
     success
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn set_controller_data_hook(ofs: usize) -> Option<NonNull<u8>> { 
+    let addr_ptr = match sigscan_resolver::get_indirect_address_short2(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    let addr = NonNull::new_unchecked(addr_ptr.as_ptr().sub(0x30));
+    globals::set_controller_data(addr.as_ptr() as *mut Controller);
+    logln!(Information, "got gfdController: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+#[riri_hook_static(dynamic_offset(
+    signature = "C6 05 ?? ?? ?? ?? 00 74 ?? 0F B7 05 ?? ?? ?? ??",
+    resolve_type = set_controller_data_hook,
+    calling_convention = "microsoft",
+))]
+riri_static!(CONTROLLER_DATA_HOOK, usize);
 
 // gfdMouse
 

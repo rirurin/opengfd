@@ -160,6 +160,15 @@ where A: Allocator + Clone
     pub fn get_current_camera_mut(&mut self) -> Option<&mut Camera<A>> {
         unsafe { self.camera.as_mut() }
     }
+    pub fn get_frequency(&self) -> f32 {
+        self.frequency
+    }
+    pub fn set_frequency(&mut self, freq: f32) {
+        self.frequency = freq;
+    }
+    pub fn get_frequency_ref(&mut self) -> &mut f32 {
+        &mut self.frequency
+    }
 }
 
 pub struct SceneFieldIterator<'a, A> 

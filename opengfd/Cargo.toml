@@ -15,7 +15,7 @@ byteorder = "1"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 cri-adx = { git = "https://github.com/rirurin/cri-adx-rs" }
 crc32fast = "1.4.2"
-glam = "0.29"
+glam = "0.30.3"
 half = "2.4.1"
 libc = "0.2.169"
 opengfd-proc = { path = "../opengfd-proc" }

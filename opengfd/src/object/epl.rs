@@ -1,7 +1,9 @@
+use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
     anim::timeline::Timeline,
     effect::parts::Part,
+    kernel::allocator::GfdAllocator,
     utility::{
         item_array::ItemArray,
         misc::{ RGBA, Fade, Range },
@@ -15,7 +17,6 @@ use super::{
     object::Object
 };
 use std::ptr::NonNull;
-use riri_mod_tools_proc::ensure_layout;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -55,32 +56,25 @@ bitflags! {
     }
 }
 
-#[ensure_layout(size = 144usize)]
-pub struct EPL {
-    #[field_offset(0usize)]
-    pub super_: Object,
-    #[field_offset(32usize)]
-    pub scale: Vec3A,
-    #[field_offset(48usize)]
-    pub flag: EplFlags,
-    #[field_offset(52usize)]
-    pub dirty: i32,
-    #[field_offset(56usize)]
-    pub time: f32,
-    #[field_offset(64usize)]
-    pub root: *mut Node,
-    #[field_offset(72usize)]
-    pub timeline: *mut Timeline,
-    #[field_offset(80usize)]
-    pub leaves: *mut ItemArray<EPLLeaf>,
-    #[field_offset(88usize)]
-    pub rgba: RGBA,
-    #[field_offset(92usize)]
-    pub frequency: f32,
-    #[field_offset(120usize)]
-    pub field35_0x78: *mut ::std::os::raw::c_void,
-    #[field_offset(132usize)]
-    pub ref_: Reference,
+#[repr(C)]
+pub struct EPL<A = GfdAllocator> 
+where A: Allocator + Clone
+{
+    super_: Object<A>,
+    scale: Vec3A,
+    flag: EplFlags,
+    dirty: i32,
+    time: f32,
+    root: *mut Node<A>,
+    timeline: *mut Timeline,
+    leaves: *mut ItemArray<EPLLeaf, A>,
+    rgba: RGBA,
+    frequency: f32,
+    field60: [u8; 0x18],
+    field35_0x78: *mut u8,
+    field80: u32,
+    ref_: Reference,
+    _allocator: A
 }
 
 bitflags! {

@@ -12,7 +12,7 @@ edition.workspace = true
 [dependencies]
 allocator-api2 = "0.2.21"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
-glam = "0.29"
+glam = "0.30.3"
 opengfd = { path = "../opengfd" }
 opengfd-inspector = { path = "../opengfd-inspector" }
 riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
