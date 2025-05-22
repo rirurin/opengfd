@@ -845,6 +845,17 @@ pub enum CullMode {
     Back
 }
 
+impl TryFrom<u16> for CullMode {
+    type Error = ();
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        if value <= CullMode::Back as u16 {
+            Ok(unsafe { std::mem::transmute(value as u32) })
+        } else {
+            Err(())
+        }
+    }
+}
+
 impl Hash for RasterizerKey {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) { 
         state.write_u8(self.field_mode as u8);

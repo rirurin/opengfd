@@ -50,6 +50,7 @@ use crate::{
     }
 };
 use glam::{ Vec3, Mat4 };
+use std::fmt::Debug;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -118,7 +119,18 @@ pub struct GraphicsCBuffer {
     todo: [u8; 0x324]
 }
 
-impl std::fmt::Debug for GraphicsCBuffer {
+impl Debug for GraphicsCBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TODO!")
+    }
+}
+
+#[repr(C, packed(4))]
+pub struct GraphicsCBuffer1 {
+    data: [u8; 0x59c]
+}
+
+impl Debug for GraphicsCBuffer1 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "TODO!")
     }
@@ -240,7 +252,10 @@ pub struct GraphicsStateSteam {
     resources: *mut Resources,
     setup: *mut ResBuffer,
     info: [GraphicsCBuffer; 3],
-    unk: [u8; 4352],
+    field128c: [f32; 5],
+    info1: [GraphicsCBuffer1; 3],
+    field2374: [u32; 5],
+    field2388: *const u8,
     field2390: *const u8,
     field2398: *const u8,
     pub render_state_current: [usize; RENDER_STATES],
@@ -258,8 +273,8 @@ pub struct GraphicsStateSteam {
     // split before here
     pub(crate) field44b8: *mut u8,
     pub(crate) field44c0: *mut u8, 
-    field44c8: usize,
-    field44d0: usize,
+    // field44c8: usize,
+    // field44d0: usize,
     shader_hash_vertex: [u32; 3],
     shader_hash_pixel: [u32; 3],
     shader_hash_geometry: [u32; 3],
@@ -293,7 +308,8 @@ pub struct GraphicsStateSteam {
     scene_ambient_toon_g: f32,
     field5798: f32,
     field579c: f32,
-    field57a0: [u32; 8],
+    // field57a0: [u32; 8],
+    field57a0: [u32; 10],
 }
 
 impl GraphicsState for GraphicsStateSteam {

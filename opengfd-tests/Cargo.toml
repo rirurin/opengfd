@@ -11,5 +11,9 @@ edition.workspace = true
 [dependencies]
 allocator-api2 = "0.2.21"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
-opengfd = { path = "../opengfd" }
+opengfd = { path = "../opengfd", default-features = false }
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }
+
+[features]
+v1 = ["opengfd/v1-core"]
+v2 = ["opengfd/v2-core"]

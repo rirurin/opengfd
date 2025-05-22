@@ -7,7 +7,7 @@ members = [
     "opengfd-inspector-components",
     "opengfd-proc", 
     "opengfd-proc-impl",
-    "opengfd-reloaded", 
+    "opengfd-reloaded",
     "opengfd-tests"
 ]
 

@@ -83,8 +83,12 @@ pub unsafe extern "C" fn set_ngr_memhint_vtable_hook(ofs: usize) -> Option<NonNu
 
 // 0x1411b0ce0, inside ngrInitFreeList
 #[riri_hook_static({
+    XRD759_STEAM_1013 => dynamic_offset(
+        signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? 44 8B 05 ?? ?? ?? ??",
+        resolve_type = set_ngr_memhint_vtable_hook,
+        calling_convention = "microsoft",
+    ),
     XRD759_UWP_1011 => dynamic_offset(
-        // signature = "48 8D 15 ?? ?? ?? ?? 48 89 54 24 ?? 44 8B 05 ?? ?? ?? ??",
         signature = "49 89 E3 48 81 EC 88 00 00 00 48 8D 05 ?? ?? ?? ?? 45 31 C9 49 89 43 ?? 48 8D 15 ?? ?? ?? ?? 49 8D 43 ?? 31 C9",
         resolve_type = set_ngr_memhint_vtable_hook,
         calling_convention = "microsoft",
@@ -147,6 +151,11 @@ pub unsafe extern "C" fn set_ngr_pointer_freelist_hook(ofs: usize) -> Option<Non
     ),
     XRD759_UWP_1011 => dynamic_offset(
         signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? 8B 0D ?? ?? ?? ??",
+        resolve_type = set_ngr_pointer_freelist_hook,
+        calling_convention = "microsoft",
+    ),
+    XRD759_STEAM_1013 => dynamic_offset(
+        signature = "48 83 3D ?? ?? ?? ?? 00 0F 85 ?? ?? ?? ?? B9 10 00 00 00 E8 ?? ?? ?? ?? 48 89 C3",
         resolve_type = set_ngr_pointer_freelist_hook,
         calling_convention = "microsoft",
     ),

@@ -3,11 +3,13 @@
 /*/target
 /*/Cargo.lock
 
-/metaphor.opengfd/obj
-/metaphor.opengfd/riri_hook
+/*.opengfd/obj
+/*.opengfd/riri_hook
 .vs/
 
 /*/incl/
 /*/middata/
 *.g.cs
-BuildPrivate.ps1
+
+# See sample script in SetEnv.ps1
+/SetEnv.local.ps1

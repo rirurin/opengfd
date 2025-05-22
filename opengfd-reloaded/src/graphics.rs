@@ -46,12 +46,35 @@ pub unsafe extern "C" fn set_ngr_draw_state_hook(ofs: usize) -> Option<NonNull<u
     Some(addr)
 }
 
-#[riri_hook_static(dynamic_offset(
-    // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
-    signature = "48 83 EC 28 E8 ?? ?? ?? ?? B9 E0 17 00 00",
-    resolve_type = set_ngr_draw_state_hook,
-    calling_convention = "microsoft",
-))]
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_draw_state_hook_denuvo_moment_1(ofs: usize) -> Option<NonNull<u8>> { 
+    let ngr_init_state = match sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v,
+        None => return None
+    };
+    let addr = match sigscan_resolver::get_indirect_address_long_abs(ngr_init_state.add(0x2d).as_ptr()) {
+        Some(v) => v,
+        None => return None
+    };
+    globals::set_ngr_draw_state(addr.as_ptr() as 
+        *mut *mut opengfd::device::ngr::renderer::state::DrawState);
+    logln!(Information, "got ngrDrawState: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+
+#[riri_hook_static({
+    XRD759_STEAM_1013 => dynamic_offset(
+        signature = "48 83 EC 28 E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 81 F1 E0 17 4D 0F",
+        resolve_type = set_ngr_draw_state_hook_denuvo_moment_1,
+        calling_convention = "microsoft",
+    ),
+    _ => dynamic_offset(
+        // Checked with Steam 1.02, Steam 1.011 and UWP 1.011
+        signature = "48 83 EC 28 E8 ?? ?? ?? ?? B9 E0 17 00 00",
+        resolve_type = set_ngr_draw_state_hook,
+        calling_convention = "microsoft",
+    )
+})]
 riri_static!(NGR_DRAWSTATE, usize);
 
 #[no_mangle]

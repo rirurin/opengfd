@@ -68,6 +68,26 @@ where P: AsRef<Path>
     std::fs::write(output_path, output_file).unwrap();
 }
 
+#[cfg(feature = "v1-core")]
+fn get_self_filename() -> &'static str {
+    "self_xrd744.rs"
+}
+
+#[cfg(feature = "v2-core")]
+fn get_self_filename() -> &'static str {
+    "self.rs"
+}
+
+#[cfg(feature = "v1-core")]
+fn get_external_filename() -> &'static str {
+    "ext_xrd744.rs"
+}
+
+#[cfg(feature = "v2-core")]
+fn get_external_filename() -> &'static str {
+    "ext.rs"
+}
+
 fn main() {
     let source_dir = std::env::current_dir().unwrap();
     println!("{}", format!("cargo::rerun-if-changed={}", get_global_file_relative()));
@@ -76,6 +96,7 @@ fn main() {
     let source_ast = syn::parse_file(&std::fs::read_to_string(global_source).unwrap()).unwrap();
     let glb_self= generate_codegen_from_ast(source_ast.clone(), true);
     let glb_ext= generate_codegen_from_ast(source_ast, false);
-    save_codegen(source_dir.clone(), "self.rs", glb_self);
-    save_codegen(source_dir, "ext.rs", glb_ext);
+    
+    save_codegen(source_dir.clone(), get_self_filename(), glb_self);
+    save_codegen(source_dir, get_external_filename(), glb_ext);
 }

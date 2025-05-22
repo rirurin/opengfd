@@ -122,6 +122,7 @@ pub struct Global { // (GlobalSteam, default state)
     controller_arg: *mut u8,
     field58d0: *mut u8,
     field58d8: *mut u8,
+    // field58e0: *mut u8,
     current_dir: *mut u8,
     init_path: *mut u8,
     field58f0: *mut u8,
