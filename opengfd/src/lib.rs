@@ -97,7 +97,12 @@ pub mod graphics {
     pub mod draw2d;
     pub mod draw3d;
     pub mod environment;
+    pub mod font;
+    pub mod image;
+    pub mod infinite_ocean;
+    pub mod lensflare;
     pub mod material;
+    pub mod post_effect;
     pub mod render {
         pub mod cmd_buffer;
         pub mod render;
@@ -145,6 +150,7 @@ pub mod graphics {
     pub mod quake;
     pub mod scene;
     pub mod skin;
+    pub mod terrain;
     pub mod texture;
 }
 pub mod io {

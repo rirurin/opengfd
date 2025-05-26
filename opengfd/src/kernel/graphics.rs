@@ -10,6 +10,7 @@ use crate::{
     },
     graphics::{
         cull::CullObject,
+        infinite_ocean::InfiniteOcean,
         render::cmd_buffer::CmdBuffer,
         render_ot::{ RenderOtGroup, RenderOtList },
         resources::{ Resources, ResBuffer },
@@ -49,7 +50,7 @@ use crate::{
         name::Name
     }
 };
-use glam::{ Vec3, Mat4 };
+use glam::{ Vec2, Vec3, Mat4 };
 use std::fmt::Debug;
 
 bitflags! {
@@ -261,7 +262,6 @@ pub struct GraphicsStateSteam {
     pub render_state_current: [usize; RENDER_STATES],
     pub render_state_stack: [[usize; 2]; RENDER_STATES],
     shader_source: [[*mut ShaderSource; RENDER_LISTS]; SHADER_SOURCE],
-    // split after here
     pub shader_vertex: [*mut VertexShader; FIXED_VERTEX_SHADERS],
     pub shader_pixel: [*mut PixelShader; FIXED_PIXEL_SHADERS],
     pub shader_geometry: [*mut u8; FIXED_GEOMETRY_SHADERS],
@@ -270,11 +270,8 @@ pub struct GraphicsStateSteam {
     pub shader_current_fragment: *mut PixelShader,
     pub shader_current_geometry: *mut GeometryShader,
     pub shader_current_compute: *mut ComputeShader,
-    // split before here
     pub(crate) field44b8: *mut u8,
     pub(crate) field44c0: *mut u8, 
-    // field44c8: usize,
-    // field44d0: usize,
     shader_hash_vertex: [u32; 3],
     shader_hash_pixel: [u32; 3],
     shader_hash_geometry: [u32; 3],
@@ -286,7 +283,15 @@ pub struct GraphicsStateSteam {
     shader_noise_texture: *mut Texture,
     shader_edge_dark_texture: *mut Texture,
     texture_4558: *mut Texture,
-    unk1: [u8; 0x10d8],
+    unk1: [u8; 0xc44],
+    clouds: [u8; 0x48],
+    field522c: [u8; 0xc],
+    infinite_ocean: InfiniteOcean,
+    // VANILLA:
+    // image_path: [i8; 0x400],
+    image_path: [i8; 0x400],
+    field5668: usize,
+    adjustment: Vec2,
     widget_surface: *mut u8,
     widget_ref: *mut u8,
     swap_cb: *mut u8,

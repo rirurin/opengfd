@@ -42,6 +42,7 @@ use crate::{
 use opengfd_proc::GfdRcAuto;
 use std::{
     alloc::Layout,
+    ffi::c_void,
     sync::atomic::Ordering
 };
 use riri_mod_tools_proc::ensure_layout;
@@ -558,7 +559,7 @@ pub struct DeferredContextSpecial {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ngr_1422a73b0 {
-    pub _cpp_vtable: *mut ::std::os::raw::c_void,
+    pub _cpp_vtable: *mut c_void,
     pub field08: *mut u8,
     pub field10: *mut u8,
     pub field18: u64,
@@ -568,16 +569,16 @@ pub struct ngr_1422a73b0 {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ngr_1420f21d0 {
-    pub field0_0x0: *mut ::std::os::raw::c_void,
+    pub field0_0x0: *mut c_void,
     pub field1_0x8: i32,
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct PlatformCmdBuffer {
-    pub _cpp_vtable: *const std::ffi::c_void,
+    pub _cpp_vtable: *const c_void,
     pub buffers: *mut CommandBuffer,
-    pub bufStart: *mut std::ffi::c_void,
+    pub bufStart: *mut c_void,
     pub bufSize: std::sync::atomic::AtomicI32,
 }
 
@@ -610,7 +611,7 @@ impl BufferObject for CommandBuffer {
     unsafe fn get_buffer_ptr(&self, index: usize) -> *const Option<ID3D11Buffer> {
         &raw const *self.buffers.get_unchecked(index)
     }
-    unsafe fn get_buffer_raw(&self, index: usize) -> *mut std::ffi::c_void {
+    unsafe fn get_buffer_raw(&self, index: usize) -> *mut c_void {
         match self.buffers.get_unchecked(index) { Some(v) => v.as_raw(), None => std::ptr::null_mut() } 
     }
 }
@@ -648,6 +649,25 @@ where A: Allocator + Clone
     field88: usize,
     desc: TextureResourceDescription,
     _allocator: A
+}
+
+impl<A> TextureResource<A>
+where A: Allocator + Clone
+{
+    pub fn get_width(&self) -> u32 { self.desc.get_width() }
+    pub fn get_height(&self) -> u32 { self.desc.get_height() }
+    /* 
+    pub fn get_raw(&self) -> *mut c_void { 
+        match self.shader_view.as_ref() { Some(v) => {
+            &raw const *v as *mut c_void
+        }, None => std::ptr::null_mut() }
+    }
+    */
+    pub fn get_raw(&self) -> *mut c_void {
+        match self.shader_view.as_ref() { Some(v) => {
+            v.clone().into_raw()
+        }, None => std::ptr::null_mut() }
+    }
 }
 
 #[repr(u32)]
@@ -694,6 +714,11 @@ pub struct TextureResourceDescription {
     array_size: u32,
     format: TextureResourceFormat,
     field1c: u32
+}
+
+impl TextureResourceDescription {
+    pub fn get_width(&self) -> u32 { self.width }
+    pub fn get_height(&self) -> u32 { self.height }
 }
 
 impl From<D3D11_TEXTURE1D_DESC> for TextureResourceDescription {
