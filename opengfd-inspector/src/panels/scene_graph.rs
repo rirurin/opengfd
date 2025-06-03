@@ -4,7 +4,7 @@ use crate::panels::attachment::{
     mesh::MeshProperties,
     node::NodeProperties
 };
-use opengfd_inspector_components::{
+use riri_inspector_components::{
     panel::{
         BasicPanel,
         InspectorPanel
@@ -90,7 +90,7 @@ impl TaskObjectEntry {
     }
 }
 impl TableDraw<SceneGraphPanel> for TaskObjectEntry {
-    fn draw_contents(&self, ui: &mut Ui, ctx: &mut SceneGraphPanel, index: usize) {
+    fn draw_contents(&self, ui: &Ui, ctx: &mut SceneGraphPanel, index: usize) {
         match index {
             // OBJECT NAME
             0 => {
@@ -105,13 +105,13 @@ impl TableDraw<SceneGraphPanel> for TaskObjectEntry {
                 let is_open = !is_leaf && ctx.nodes_opened.contains(&obj);
                 ui.same_line_with_spacing(0., 10. * self.depth as f32);
                 if is_leaf {
-                    opengfd_inspector_components::bullet::bullet_ex(ui, self.depth);
+                    riri_inspector_components::bullet::bullet_ex(ui, self.depth);
                 } else {
                     let arrow_dir = match is_open {
                         true => Direction::Down,
                         false => Direction::Right
                     };
-                    opengfd_inspector_components::bullet::arrow_ex(ui, arrow_dir, self.depth);
+                    riri_inspector_components::bullet::arrow_ex(ui, arrow_dir, self.depth);
                 } 
                 if ui.selectable_config(&self.name).span_all_columns(true).build() {
                     // check nodes opened for table tree
@@ -239,7 +239,7 @@ impl SceneGraphPanel {
 impl InspectorPanel for SceneGraphPanel {
     fn get_panel_name(&self) -> &'static str { "Scene Graph" }
     
-    fn draw_contents(&mut self, ui: &mut Ui) {
+    fn draw_contents(&mut self, ui: &Ui) {
         // debug
         let self_ptr = unsafe { &mut *(&raw mut *self) };
         // settings
@@ -298,8 +298,8 @@ impl SceneGraphPanel {
                     "Name",
                     "Type"
                 ]),
-                opengfd_inspector_components::table::default_flags(),
-                opengfd_inspector_components::table::default_height(),
+                riri_inspector_components::table::default_flags(),
+                riri_inspector_components::table::default_height(),
             ),
             scene_graph_visible: vec![],
             nodes_opened: HashSet::new(),

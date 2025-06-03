@@ -1,11 +1,11 @@
-use opengfd_inspector_components::panel::InspectorPanel;
+use riri_inspector_components::panel::InspectorPanel;
 use imgui::Ui;
 
 #[derive(Debug)]
 pub struct AboutPanel;
 impl InspectorPanel for AboutPanel {
     fn get_panel_name(&self) -> &'static str { "About" }
-    fn draw_contents(&mut self, ui: &mut Ui) {
+    fn draw_contents(&mut self, ui: &Ui) {
         ui.text("OpenGFD Inspector by Rirurin");
         ui.text("Tested with Metaphor: Refantazio");
         ui.text("To report any issues, either make a new issue on the repository at ");

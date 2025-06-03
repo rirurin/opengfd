@@ -99,6 +99,14 @@ impl FieldOffsetStructure {
             std::slice::from_raw_parts(slice_start, field_ptr.size as usize)
         }
     }
+    pub(super) unsafe fn get_field_mut(&mut self, index: usize, field: usize) -> &mut [u8] {
+        if index >= self.get_entry_count() as usize { &mut [] } 
+        else {
+            let field_ptr = &*(&raw const *self as *const FieldOffsetField).add(1 + index * self.field_count as usize + field);
+            let slice_start = (&raw const *self as *mut u8).add((self.header_size as usize * 2) + field_ptr.offset as usize);
+            std::slice::from_raw_parts_mut(slice_start, field_ptr.size as usize)
+        }
+    }
 }
 
 #[repr(C)]
@@ -171,6 +179,14 @@ where A: Allocator + Clone
 impl<A> Resource<FieldOffsetStructure, A>
 where A: Allocator + Clone
 {
+    pub fn get_entry_count(&self) -> usize {
+        let offsets = unsafe { &*(self.get_raw_stream() as *const FieldOffsetStructure) };
+        offsets.get_entry_count() as usize
+    }
+    pub fn get_field_count(&self) -> usize {
+        let offsets = unsafe { &*(self.get_raw_stream() as *const FieldOffsetStructure) };
+        offsets.field_count as usize
+    }
     pub fn get_field_as_slice(&self, index: usize, field: usize) -> &[u8] {
         if !self.is_ready() { &[] }
         else {
@@ -178,10 +194,22 @@ where A: Allocator + Clone
             unsafe { offsets.get_field(index, field) }
         }  
     }
+    pub fn get_field_as_slice_mut(&mut self, index: usize, field: usize) -> &mut [u8] {
+        if !self.is_ready() { &mut [] }
+        else {
+            let offsets = unsafe { &mut *(self.get_raw_stream() as *mut FieldOffsetStructure) };
+            unsafe { offsets.get_field_mut(index, field) }
+        }  
+    }
     pub fn get_field_as_type<T>(&self, index: usize, field: usize) -> T {
         let slice = self.get_field_as_slice(index, field);
         assert!(slice.len() == std::mem::size_of::<T>(), "type does not match slice size");
         unsafe { std::ptr::read(slice.as_ptr() as *const T) }
+    }
+    pub fn set_field_as_type<T>(&mut self, index: usize, field: usize, value: T) {
+        let slice = self.get_field_as_slice_mut(index, field);
+        assert!(slice.len() == std::mem::size_of::<T>(), "type does not match slice size");
+        unsafe { std::ptr::write(slice.as_ptr() as *mut T, value) };
     }
     pub fn get_field_as_ref<T>(&self, index: usize, field: usize) -> &T {
         let slice = self.get_field_as_slice(index, field);
@@ -190,7 +218,8 @@ where A: Allocator + Clone
     }
     pub fn get_field_as_str(&self, index: usize, field: usize) -> &str {
         let slice = self.get_field_as_slice(index, field);
-        unsafe { std::str::from_utf8_unchecked(slice) }
+        // remove last character, this is usually a null terminator
+        unsafe { &std::str::from_utf8_unchecked(slice)[..slice.len() - 1] }
     }
 }
 

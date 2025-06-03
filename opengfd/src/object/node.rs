@@ -655,7 +655,7 @@ where A: Allocator + Clone
     /// Original function: gfdNodeFindHierarchyByHelperID 
     /// and gfdNodeFindHierarchyByHelperIDRecursive
     pub fn find_by_helper_id(&self, id: i32) -> Option<&Self> {
-        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| self.has_helper_id(id))
+        NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| n.has_helper_id(id))
     }
 
     /// Original function: gfdNodeFindHierarchyByName
@@ -800,6 +800,10 @@ where A: Allocator + Clone
     /// Original function: gfdNodeGetWorldTransform
     pub fn get_world_transform(&self) -> Mat4 {
         self.world_tm
+    }
+
+    pub fn get_world_translation(&self) -> Vec3A {
+        Vec3A::from_vec4(self.world_tm.w_axis.into())
     }
 
     pub fn has_object(&self) -> bool {

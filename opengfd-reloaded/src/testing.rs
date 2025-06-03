@@ -1,11 +1,13 @@
+/* 
 use opengfd::kernel::{
     allocator::GfdAllocator,
     task::{ Task as GfdTask, UpdateTask }
 };
-use opengfd_inspector::state::Inspector as GfdInspector;
+*/
+// use opengfd_inspector::state::Inspector as GfdInspector;
 use riri_mod_tools_proc::riri_hook_fn;
-use riri_mod_tools_rt::logln;
-use windows::Win32::UI::Input::KeyboardAndMouse::{ GetAsyncKeyState, VK_F5 };
+// use riri_mod_tools_rt::logln;
+// use windows::Win32::UI::Input::KeyboardAndMouse::{ GetAsyncKeyState, VK_F5 };
 
 /*
 #[riri_hook_fn(static_offset(0x1192e20))]
@@ -392,6 +394,7 @@ fn object_tests() {
 }
 
 
+/* 
 #[riri_hook_fn(dynamic_offset(
     signature = "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 83 0D ?? ?? ?? ?? 01",
     calling_convention = "microsoft"
@@ -405,3 +408,4 @@ pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
     }
     original_function!(delta)
 }
+*/

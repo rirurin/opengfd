@@ -1,4 +1,4 @@
-use opengfd_inspector_components::{
+use riri_inspector_components::{
     panel::InspectorPanel,
     table::{ InspectorTable, TableDraw }
 };
@@ -21,7 +21,7 @@ impl<'a> Deref for TextureTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<GraphicsPanel> for TextureTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut GraphicsPanel, index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut GraphicsPanel, index: usize) {
         match index {
             0 => ui.text(format!("{}", self.get_name())),
             1 => ui.text(format!("0x{:x}", &raw const **self as usize)),
@@ -38,7 +38,7 @@ impl Deref for GraphicsFlagEntry {
     }
 }
 impl TableDraw<GraphicsFlags> for GraphicsFlagEntry {
-    fn draw_contents(&self, ui: &mut Ui, ctx: &mut GraphicsFlags, index: usize) {
+    fn draw_contents(&self, ui: &Ui, ctx: &mut GraphicsFlags, index: usize) {
         match index {
             0 => GraphicsPanel::checkbox_for_graphics_flag(ctx, **self << 1, ui),
             1 => GraphicsPanel::checkbox_for_graphics_flag(ctx, (**self << 1) + 1, ui),
@@ -55,7 +55,7 @@ impl<'a> Deref for VertexShaderTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<GraphicsPanel> for VertexShaderTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut GraphicsPanel, index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut GraphicsPanel, index: usize) {
         match index {
             0 => ui.text("TODO"),
             // 0 => ui.text(format!("{}", self.get_name())),
@@ -69,7 +69,7 @@ impl<'a> TableDraw<GraphicsPanel> for VertexShaderTableEntry<'a> {
 pub struct GraphicsPanel;
 impl InspectorPanel for GraphicsPanel {
     fn get_panel_name(&self) -> &'static str { "Graphics" }
-    fn draw_contents(&mut self, ui: &mut Ui) {
+    fn draw_contents(&mut self, ui: &Ui) {
         let self_ptr = unsafe { &mut *(&raw mut *self) };
         let graphics = GraphicsGlobal::get_gfd_graphics_global_mut();
         let frame_id = graphics.get_frame_id();
@@ -81,7 +81,7 @@ impl InspectorPanel for GraphicsPanel {
                 "Graphics Flags",
                 None,
                 TableFlags::SCROLL_Y,
-                opengfd_inspector_components::table::default_height(),
+                riri_inspector_components::table::default_height(),
             );
             let flag_entries: Vec<GraphicsFlagEntry> = (0..(u32::BITS as usize) >> 1).into_iter().map(|v| GraphicsFlagEntry(v)).collect();
             flag_table.draw_table(ui, &mut flags, flag_entries.as_slice());
@@ -104,8 +104,8 @@ impl InspectorPanel for GraphicsPanel {
                 "Name",
                 "Address",
             ]),
-            opengfd_inspector_components::table::default_flags(),
-            opengfd_inspector_components::table::default_height(),
+            riri_inspector_components::table::default_flags(),
+            riri_inspector_components::table::default_height(),
         );
         let tex_mutex = graphics.lock_texture_mutex();
         let mut tex_entries = vec![];
@@ -128,8 +128,8 @@ impl InspectorPanel for GraphicsPanel {
                 "Name",
                 "Address",
             ]),
-            opengfd_inspector_components::table::default_flags(),
-            opengfd_inspector_components::table::default_height(),
+            riri_inspector_components::table::default_flags(),
+            riri_inspector_components::table::default_height(),
         );
         let vtx_mutex = graphics.lock_vertex_shader_mutex();
         let mut vtx_entries = vec![];
@@ -157,7 +157,7 @@ impl InspectorPanel for GraphicsPanel {
 impl GraphicsPanel {
     pub(crate) fn new() -> Self { Self }
 
-    fn checkbox_for_graphics_flag(flags: &mut GraphicsFlags, flag_id: usize, ui: &mut Ui) {
+    fn checkbox_for_graphics_flag(flags: &mut GraphicsFlags, flag_id: usize, ui: &Ui) {
         let target_flag = GraphicsFlags::from_bits_truncate(1 << flag_id as u32);
         let mut value = flags.contains(target_flag);
         if ui.checkbox(format!("{:?}", target_flag), &mut value) {

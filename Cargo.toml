@@ -56,3 +56,6 @@ imgui = { path = "../imgui-rs/imgui" }
 riri-mod-tools-proc = { path = "../riri-mod-tools/riri-mod-tools-proc" }
 riri-mod-tools-rt = { path = "../riri-mod-tools/riri-mod-tools-rt" }
 riri-mod-tools = { path = "../riri-mod-tools/riri-mod-tools" }
+
+[patch."https://github.com/rirurin/riri-imgui-components"]
+riri-inspector-components = { path = "../riri-imgui-components/riri-inspector-components" }

@@ -16,6 +16,7 @@ glam = "0.30.3"
 imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["docking", "tables-api"] }
 opengfd = { path = "../opengfd" }
 opengfd-inspector-components = { path = "../opengfd-inspector-components" }
+riri-inspector-components = { git = "https://github.com/rirurin/riri-imgui-components", features = ["imgui-riri"] }
 opengfd-tests = { path = "../opengfd-tests" }
 regex = "1.11.1"
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }

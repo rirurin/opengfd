@@ -3,7 +3,7 @@ use opengfd::object::{
     camera::Camera,
     object::Object
 };
-use opengfd_inspector_components::panel::BasicPanel;
+use riri_inspector_components::panel::BasicPanel;
 use std::ops::{ Deref, DerefMut };
 #[derive(Debug)]
 pub struct CameraProperties(&'static mut Camera);
@@ -24,7 +24,7 @@ impl CameraProperties {
     } 
 }
 impl BasicPanel for CameraProperties {
-    fn draw(&mut self, ui: &mut Ui) {
+    fn draw(&mut self, ui: &Ui) {
         ui.text("From View Matrix:");
         // note: this isn't correct...
         let trs = self.get_scale_rotation_translation_mut();

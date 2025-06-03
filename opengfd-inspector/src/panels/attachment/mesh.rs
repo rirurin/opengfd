@@ -1,5 +1,8 @@
-use opengfd_inspector_components::{
-    bounding_box::{ draw_bounding_box, draw_bounding_circle },
+use opengfd_inspector_components::bounding_box::{ 
+    draw_bounding_box, 
+    draw_bounding_circle,
+};
+use riri_inspector_components::{
     panel::BasicPanel,
     table::{ InspectorTable, TableDraw }
 };
@@ -57,7 +60,7 @@ impl<'a> MeshTableEntry<'a> for NodeTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for NodeTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -79,7 +82,7 @@ impl<'a> MeshTableEntry<'a> for GeometryTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for GeometryTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -101,7 +104,7 @@ impl<'a> MeshTableEntry<'a> for MaterialTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for MaterialTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -123,7 +126,7 @@ impl<'a> MeshTableEntry<'a> for MorphTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for MorphTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -145,7 +148,7 @@ impl<'a> MeshTableEntry<'a> for CameraTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for CameraTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -167,7 +170,7 @@ impl<'a> MeshTableEntry<'a> for LightTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for LightTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -189,7 +192,7 @@ impl<'a> MeshTableEntry<'a> for EPLTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for EPLTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => ui.text(format!("0x{:x}", &raw const **self as usize)),
             _ => ()
@@ -200,14 +203,14 @@ impl<'a> TableDraw<()> for EPLTableEntry<'a> {
 impl MeshProperties {
     fn draw_object_list<'a, TContent>(
         &'a self, 
-        ui: &'a mut Ui, 
+        ui: &'a  Ui, 
         cb: fn(&'a <Self as Deref>::Target) -> &'a [*mut <TContent as Deref>::Target]
     ) where TContent: TableDraw<()> + MeshTableEntry<'a> {
         let table_name = format!("{}## {}Table for 0x{:x}", TContent::DISP_NAME, TContent::DISP_NAME, &raw const **self as usize);
         let mut table = InspectorTable::<TContent, (), 1>::new(
             &table_name, 
             None, 
-            opengfd_inspector_components::table::default_flags(), 
+            riri_inspector_components::table::default_flags(), 
             // crate::components::table::default_flags(), 
             100. 
         );
@@ -220,7 +223,7 @@ impl MeshProperties {
 }
 
 impl BasicPanel for MeshProperties {
-    fn draw(&mut self, ui: &mut Ui) {
+    fn draw(&mut self, ui: &Ui) {
         ui.text(format!("Mesh flags: {:?}", self.get_flags()));
         ui.separator();
         // object lists

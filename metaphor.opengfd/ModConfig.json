@@ -12,15 +12,15 @@
             "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
           },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
         },
-        "Reloaded.Memory.SigScan.ReloadedII": {
-          "Config": {
-            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
-        },
         "SharedScans.Reloaded": {
           "Config": {
             "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
+        },
+        "Reloaded.Memory.SigScan.ReloadedII": {
+          "Config": {
+            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
         }
       }
     },"GameBananaDependencies": {
@@ -40,7 +40,6 @@
     "Reloaded.Memory.SigScan.ReloadedII",
     "SharedScans.Reloaded",
     "riri.criadx",
-    "riri.imguihookex",
     "riri.modruntime"
   ],"OptionalDependencies": [],"SupportedAppId": [
     "metaphorrefantazio",

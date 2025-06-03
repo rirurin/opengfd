@@ -1,4 +1,4 @@
-use opengfd_inspector_components::{
+use riri_inspector_components::{
     panel::BasicPanel,
     table::{ InspectorTable, TableDraw }
 };
@@ -20,7 +20,7 @@ impl<'a> Deref for UserPropertyTableEntry<'a> {
     }
 }
 impl<'a> TableDraw<()> for UserPropertyTableEntry<'a> {
-    fn draw_contents(&self, ui: &mut Ui, _ctx: &mut (), index: usize) {
+    fn draw_contents(&self, ui: &Ui, _ctx: &mut (), index: usize) {
         match index {
             0 => match self.get_name() {
                 Some(v) => ui.text(format!("{}", v)),
@@ -38,7 +38,7 @@ impl<'a> UserPropertyDetails<'a> {
     }
 }
 impl<'a> BasicPanel for UserPropertyDetails<'a> {
-    fn draw(&mut self, ui: &mut Ui) {
+    fn draw(&mut self, ui: &Ui) {
         match self.0.as_mut() {
             Some(p) => {
                 ui.text(format!("{} properties:", p.len()));
@@ -50,7 +50,7 @@ impl<'a> BasicPanel for UserPropertyDetails<'a> {
                         "Type",
                         "Value"
                     ]),
-                    opengfd_inspector_components::table::default_flags(),
+                    riri_inspector_components::table::default_flags(),
                     150.,
                 );
                 let entries: Vec<UserPropertyTableEntry> = p.into_iter().map(|v| UserPropertyTableEntry(v)).collect();

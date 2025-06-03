@@ -1,4 +1,4 @@
-use opengfd_inspector_components::{
+use riri_inspector_components::{
     panel::InspectorPanel,
     table::{ InspectorTable, TableDraw }
 };
@@ -23,7 +23,7 @@ impl Deref for TaskTableEntry {
     }
 }
 impl TableDraw<SchedulerPanel> for TaskTableEntry {
-    fn draw_contents(&self, ui: &mut Ui, ctx: &mut SchedulerPanel, index: usize) {
+    fn draw_contents(&self, ui: &Ui, ctx: &mut SchedulerPanel, index: usize) {
         match index {
             0 => {
                 if ui.selectable_config(&format!("{}", self.get_name_native()))
@@ -66,7 +66,7 @@ pub struct SchedulerStartTaskModal {
 
 impl InspectorPanel for SchedulerPanel {
     fn get_panel_name(&self) -> &'static str { "Scheduler" }
-    fn draw_contents(&mut self, ui: &mut Ui) {
+    fn draw_contents(&mut self, ui: &Ui) {
         let self_ptr = unsafe { &mut *(&raw mut *self) };
         let entries: Vec<TaskTableEntry> = GfdDefaultTask::iter_update().map(|v| TaskTableEntry(v)).collect();
         // check if selected task still exists
@@ -119,8 +119,8 @@ impl SchedulerPanel {
                     "Render",
                     "Shutdown"
                 ]),
-                opengfd_inspector_components::table::default_flags(),
-                opengfd_inspector_components::table::default_height(),
+                riri_inspector_components::table::default_flags(),
+                riri_inspector_components::table::default_height(),
             ),
             selected_task: None
         }

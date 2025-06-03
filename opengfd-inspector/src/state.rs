@@ -1,4 +1,4 @@
-use opengfd_inspector_components::panel::InspectorPanel;
+use riri_inspector_components::panel::InspectorPanel;
 use opengfd::kernel::{
     allocator::GfdAllocator,
     task::{ 
