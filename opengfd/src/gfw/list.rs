@@ -63,16 +63,21 @@ where A: Allocator + Clone
 
 impl<T> List<T, Global> {
     pub fn new() -> Self { Self::new_in(Global) }
+    pub fn new_with_vtable(vtable: *const u8) -> Self { Self::new_in_with_vtable(vtable, Global) }
     pub fn from_vec(vec: Vec<T>) -> Self { Self::from_vec_in(vec, Global) }
+    pub fn from_vec_and_vtable(vtable: *const u8, vec: Vec<T>) -> Self { Self::from_vec_in_and_vtable(vtable, vec, Global) }
 }
 
 impl<T, A> List<T, A>
 where A: Allocator + Clone
 {
     pub fn new_in(alloc: A) -> Self {
+        Self::new_in_with_vtable(std::ptr::null(), alloc)
+    }
+    pub fn new_in_with_vtable(vtable: *const u8, alloc: A) -> Self {
         assert!(std::mem::size_of::<A>() == 0, "Allocator must be zero-sized!");
         Self {
-            _cpp_vtable: std::ptr::null(),
+            _cpp_vtable: vtable,
             head: None,
             tail: None,
             count: 0,
@@ -147,8 +152,12 @@ where A: Allocator + Clone
     pub fn iter_mut(&mut self) -> ListIteratorMut<'_, T, A> { self.into_iter() }
 
     pub fn from_vec_in(vec: Vec<T>, alloc: A) -> Self {
+        Self::from_vec_in_and_vtable(std::ptr::null(), vec, alloc)
+    }
+
+    pub fn from_vec_in_and_vtable(vtable: *const u8, vec: Vec<T>, alloc: A) -> Self {
         assert!(std::mem::size_of::<A>() == 0, "Allocator must be zero-sized!");
-        let mut new = List::new_in(alloc);
+        let mut new = List::new_in_with_vtable(vtable, alloc);
         for el in vec { new.push(el) }
         new
     }

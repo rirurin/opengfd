@@ -121,6 +121,14 @@ where A: Allocator + Clone
     pub fn get_stream_size(&self) -> usize { self.size }
     pub fn get_raw_stream(&self) -> *const u8 { self.stream }
 
+    pub fn get_stream(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.get_raw_stream(), self.get_stream_size()) }
+    }
+
+    pub fn get_stream_mut(&self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.get_raw_stream() as *mut u8, self.get_stream_size()) }
+    }
+
     pub fn get_stream_type(&self) -> StreamType { self.stream_type }
 
     // 0x1414725b0

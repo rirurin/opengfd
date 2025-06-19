@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use glam::Vec3;
+use glam::{ swizzles::Vec4Swizzles, Vec3, Vec4 };
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -32,7 +32,22 @@ impl BoundingSphere {
     }
     pub fn get_radius_mut_f32(&mut self) -> &mut f32 { &mut self.radius }
 }
-#[derive(Debug, Clone, Copy)]
+
+
+pub struct ColorConverter;
+impl ColorConverter {
+    pub fn hsv_to_rgb(hue: f32, sat: f32, val: f32) -> Vec3 {
+        Self::hsv_to_rgb_vec(Vec3::new(hue, sat, val))
+    }
+    pub fn hsv_to_rgb_vec(c: Vec3) -> Vec3 {
+        // From Metaphor Refantazio HLSL shader source (45.HLSL)
+        let k = Vec4::new(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+        let p = ((c.x + k.xyz()).fract() * 6.0 - k.w).abs();
+        c.z * k.xxx().lerp((p - k.x).clamp(Vec3::ZERO, Vec3::ONE), c.y)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RGB(glam::U8Vec3);
 
 impl RGB {
@@ -47,12 +62,41 @@ impl RGB {
         Self(glam::U8Vec3::new(r, g, b))
     }
 
+    pub const fn from_rgb_f32(r: f32, g: f32, b: f32) -> Self {
+        Self::from_rgb_u8(
+            (r * 255.) as u8,
+            (g * 255.) as u8,
+            (b * 255.) as u8
+        )
+    }
+
+    pub const fn from_rgb_vec3(v: Vec3) -> Self {
+        Self::from_rgb_f32(v.x, v.y, v.z)
+    }
+
+    pub fn from_hsv(hue: f32, sat: f32, val: f32) -> Self {
+        let rgb = ColorConverter::hsv_to_rgb(hue, sat, val) * 255.;
+        Self(glam::U8Vec3::new(rgb.x as u8, rgb.y as u8, rgb.z as u8))
+    }
+
     pub fn get_red(&self) -> u8 { self.0.x }
     pub fn get_green(&self) -> u8 { self.0.y }
     pub fn get_blue(&self) -> u8 { self.0.z }
+
+    pub fn get_values(&self) -> [u8; 3] { self.0.into() }
+    pub fn get_values_f32(&self) -> [f32; 3] {[
+        self.get_red() as f32 / 255., 
+        self.get_green() as f32 / 255., 
+        self.get_blue() as f32 / 255.
+    ]}
+    pub fn get_values_vec3(&self) -> Vec3 { Vec3::new(
+        self.get_red() as f32 / 255., 
+        self.get_green() as f32 / 255., 
+        self.get_blue() as f32 / 255.
+    )}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RGBA(glam::U8Vec4);
 impl RGBA {
     pub const fn from_argb_u32(v: u32) -> Self {
@@ -80,25 +124,72 @@ impl RGBA {
     pub const fn from_rgb_u8(r: u8, g: u8, b: u8) -> Self { 
         Self::from_argb_u8(0xff, r, g, b) 
     }
+
+    pub const fn from_rgb_f32(r: f32, g: f32, b: f32) -> Self {
+        Self::from_rgb_u8(
+            (r * 255.) as u8,
+            (g * 255.) as u8,
+            (b * 255.) as u8
+        )
+    }
+
+    pub const fn from_rgb_vec3(v: Vec3) -> Self {
+        Self::from_rgb_f32(v.x, v.y, v.z)
+    }
+
+    pub const fn from_rgba_f32(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self::from_rgba_u8(
+            (r * 255.) as u8,
+            (g * 255.) as u8,
+            (b * 255.) as u8,
+            (a * 255.) as u8,
+        )
+    }
+
+    pub fn from_rgba_vec4(v: Vec4) -> Self {
+        Self::from_rgba_f32(v.x, v.y, v.z, v.w)
+    }
+
     pub fn get_red(&self) -> u8 { self.0.x }
     pub fn get_green(&self) -> u8 { self.0.y }
     pub fn get_blue(&self) -> u8 { self.0.z }
     pub fn get_alpha(&self) -> u8 { self.0.w }
+
+    pub fn get_values(&self) -> [u8; 4] { self.0.into() }
+    pub fn get_values_f32(&self) -> [f32; 3] {[
+        self.get_red() as f32 / 255., 
+        self.get_green() as f32 / 255., 
+        self.get_blue() as f32 / 255.
+    ]}
+    pub fn get_values_vec3(&self) -> Vec3 { Vec3::new(
+        self.get_red() as f32 / 255., 
+        self.get_green() as f32 / 255., 
+        self.get_blue() as f32 / 255.
+    )}
+
+    // SAFETY: U8Vec4 has same layout as u32
+    pub fn as_raw(&self) -> u32 { unsafe { std::mem::transmute(self.0) } }
 }
 
-#[derive(Debug, Clone, Copy)]
+impl From<RGB> for RGBA {
+    fn from(value: RGB) -> Self {
+        Self(glam::U8Vec4::new(value.0.x, value.0.y, value.0.z, 0xff))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RGBFloat(glam::Vec3);
 
 impl RGBFloat {
     pub const fn from_rgb_array_f32(val: [f32; 3]) -> Self { 
-        RGBFloat(glam::Vec3::new(val[0], val[1], val[2])) 
+        Self(glam::Vec3::new(val[0], val[1], val[2])) 
     }
-    pub const fn from_single_f32(val: f32) -> Self { RGBFloat(glam::Vec3::splat(val))}
+    pub const fn from_single_f32(val: f32) -> Self { Self(glam::Vec3::splat(val))}
 
     pub const fn from_rgb_u8(r: u8, g: u8, b: u8) -> Self { Self::from_rgb_array_u8([r, g, b]) }
     pub const fn from_single_u8(v: u8) -> Self { Self::from_rgb_array_u8([v; 3])}
     pub const fn from_rgb_array_u8(val: [u8; 3]) -> Self {
-        RGBFloat(glam::Vec3::new(
+        Self(glam::Vec3::new(
             val[0] as f32 / 255f32,
             val[1] as f32 / 255f32,
             val[2] as f32 / 255f32,
@@ -112,12 +203,21 @@ impl RGBFloat {
             (val & 0xff) as u8,
         ])
     }
+
+    pub fn from_hsv(hue: f32, sat: f32, val: f32) -> Self {
+        Self(ColorConverter::hsv_to_rgb(hue, sat, val))
+    }
+
     pub const fn get_red(&self) -> u8 { (self.0.x * 255f32) as u8 }
     pub const fn get_green(&self) -> u8 { (self.0.y * 255f32) as u8 }
     pub const fn get_blue(&self) -> u8 { (self.0.z * 255f32) as u8 }
+
+    pub const fn get_red_f32(&self) -> f32 { self.0.x }
+    pub const fn get_green_f32(&self) -> f32 { self.0.y }
+    pub const fn get_blue_f32(&self) -> f32 { self.0.z }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RGBAFloat([f32; 4]);
 impl RGBAFloat {
     pub const fn from_rgba_array_f32(val: [f32; 4]) -> Self { RGBAFloat(val) }

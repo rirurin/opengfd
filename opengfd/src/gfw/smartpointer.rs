@@ -44,9 +44,13 @@ where A: Allocator + Clone
 
 impl<T> SmartPointer<T, Global> {
     pub fn new(data: T) -> Self { Self::new_in(data, Global) }
+    pub fn new_with_vtable(vtable: *const u8, data: T) -> Self { Self::new_in_with_vtable(vtable, data, Global) }
     pub unsafe fn new_ref(data: &T) -> Self { Self::new_ref_in(data, Global) }
+    pub unsafe fn new_ref_with_vtable(vtable: *const u8, data: &T) -> Self { Self::new_ref_in_with_vtable(vtable, data, Global) }
     pub unsafe fn new_mut(data: &mut T) -> Self { Self::new_mut_in(data, Global) }
-    pub unsafe fn new_ptr(data: *mut T) -> Self { Self::new_ptr_in(data, Global) }
+    pub unsafe fn new_mut_with_vtable(vtable: *const u8, data: &mut T) -> Self { Self::new_mut_in_with_vtable(vtable, data, Global) }
+    pub unsafe fn new_ptr(data: *mut T) -> Self { Self::new_ptr_in(std::ptr::null(), data, Global) }
+    pub unsafe fn new_ptr_with_vtable(vtable: *const u8, data: *mut T) -> Self { Self::new_ptr_in(vtable, data, Global) }
 }
 
 impl<T, A> SmartPointer<T, A>
@@ -55,27 +59,44 @@ where A: Allocator + Clone
     /// Create a new SmartPointer to some value. This will provide reference counted ownership
     /// semantics to the value, only dropping it if every referant is dropped
     pub fn new_in(data: T, alloc: A) -> Self {
+        Self::new_in_with_vtable(std::ptr::null(), data, alloc)
+    }
+    /// Create a new SmartPointer to some value. This will provide reference counted ownership
+    /// semantics to the value, only dropping it if every referant is dropped
+    pub fn new_in_with_vtable(vtable: *const u8, data: T, alloc: A) -> Self {
         let ptr = alloc.allocate(Self::get_layout()).unwrap().as_ptr() as *mut T;
         unsafe { std::ptr::write(ptr, data) }
-        unsafe { Self::new_ptr_in(ptr, alloc) }
+        unsafe { Self::new_ptr_in(vtable, ptr, alloc) }
     }
     /// Create a new SmartPointer to an existing shared reference. This is marked unsafe since
     /// SmartPointer assumes that the data was heap-allocated using a matching allocator. Failing
     /// to meet that will cause a panic when dropped
     pub unsafe fn new_ref_in(data: &T, alloc: A) -> Self {
-        Self::new_ptr_in(&raw const *data as *mut T, alloc)
+        Self::new_ref_in_with_vtable(std::ptr::null(), data, alloc)
+    }
+    /// Create a new SmartPointer to an existing shared reference. This is marked unsafe since
+    /// SmartPointer assumes that the data was heap-allocated using a matching allocator. Failing
+    /// to meet that will cause a panic when dropped
+    pub unsafe fn new_ref_in_with_vtable(vtable: *const u8, data: &T, alloc: A) -> Self {
+        Self::new_ptr_in(vtable, &raw const *data as *mut T, alloc)
     }
     /// Create a new SmartPointer to an existing mutable reference. This is marked unsafe since
     /// SmartPointer assumes that the data was heap-allocated using a matching allocator. Failing
     /// to meet that will cause a panic when dropped
     pub unsafe fn new_mut_in(data: &mut T, alloc: A) -> Self {
-        Self::new_ptr_in(&raw mut *data, alloc)
+        Self::new_mut_in_with_vtable(std::ptr::null(), data, alloc)
+    }
+    /// Create a new SmartPointer to an existing mutable reference. This is marked unsafe since
+    /// SmartPointer assumes that the data was heap-allocated using a matching allocator. Failing
+    /// to meet that will cause a panic when dropped
+    pub unsafe fn new_mut_in_with_vtable(vtable: *const u8, data: &mut T, alloc: A) -> Self {
+        Self::new_ptr_in(vtable, &raw mut *data, alloc)
     }
     /// Create a new SmartPointer to an existing heap allocation. Ensure that the allocated data
     /// uses the same allocator as this type.
-    pub unsafe fn new_ptr_in(data: *mut T, alloc: A) -> Self {
+    pub unsafe fn new_ptr_in(vtable: *const u8, data: *mut T, alloc: A) -> Self {
         Self {
-            _cpp_vtable: std::ptr::null(),
+            _cpp_vtable: vtable,
             prev: None,
             next: None,
             data: if data != std::ptr::null_mut() {
@@ -87,7 +108,10 @@ where A: Allocator + Clone
     }
     /// Create an uninitialized SmartPointer. Ensure that this is linked before using it since
     /// trying to access the value of an uninitialized SmartPointer will cause a panic.
-    pub fn uninit(alloc: A) -> Self { unsafe { Self::new_ptr_in(std::ptr::null_mut(), alloc) } }
+    pub fn uninit(alloc: A) -> Self { unsafe { Self::new_ptr_in(std::ptr::null(), std::ptr::null_mut(), alloc) } }
+    /// Create an uninitialized SmartPointer with a defined C++ vtable. Ensure that this is linked before
+    /// using it since trying to access the value of an uninitialized SmartPointer will cause a panic.
+    pub fn uninit_with_vtable(vtable: *const u8, alloc: A) -> Self { unsafe { Self::new_ptr_in(vtable, std::ptr::null_mut(), alloc) } }
     /// Link an uninitalized pointer at `new` onto the existing referant chain in `src`. `new` will
     /// be inserted after `src`.
     /// Original function: gfw::SmartPointer::SmartPointer and gfw::SmartPointer::operator=
