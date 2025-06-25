@@ -56,6 +56,7 @@ impl Time {
 
 const RAND_TO_F32: f32 = 0.000000059604645f32;
 const RAND_F32_SUB: f32 = 0.5f32;
+const RAND_UNIT_MASK: u32 = 0xffffff;
 
 /// A psuedo-random value generator used throughout GFD and in game for logic that requires
 /// randomization.
@@ -69,7 +70,7 @@ pub trait Random {
     fn rand(&mut self) -> u32;
     /// (gfdUnitRandEx)
     fn rand_f32_unit(&mut self) -> f32 {
-        self.rand() as f32 * RAND_TO_F32
+        (self.rand() & RAND_UNIT_MASK) as f32 * RAND_TO_F32
     }
     /// (gfdSymmetricRandEx)
     fn rand_f32_symmetric(&mut self) -> f32 {

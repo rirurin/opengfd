@@ -156,15 +156,22 @@ impl RGBA {
     pub fn get_alpha(&self) -> u8 { self.0.w }
 
     pub fn get_values(&self) -> [u8; 4] { self.0.into() }
-    pub fn get_values_f32(&self) -> [f32; 3] {[
+    pub fn get_values_f32(&self) -> [f32; 4] {[
         self.get_red() as f32 / 255., 
         self.get_green() as f32 / 255., 
-        self.get_blue() as f32 / 255.
+        self.get_blue() as f32 / 255.,
+        self.get_alpha() as f32 / 255.
     ]}
     pub fn get_values_vec3(&self) -> Vec3 { Vec3::new(
         self.get_red() as f32 / 255., 
         self.get_green() as f32 / 255., 
         self.get_blue() as f32 / 255.
+    )}
+    pub fn get_values_vec4(&self) -> Vec4 { Vec4::new(
+        self.get_red() as f32 / 255., 
+        self.get_green() as f32 / 255., 
+        self.get_blue() as f32 / 255.,
+        self.get_alpha() as f32 / 255.
     )}
 
     // SAFETY: U8Vec4 has same layout as u32
