@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use crate::globals;
 use cpp_types::msvc::{
     string::String as CppString,

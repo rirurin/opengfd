@@ -18,7 +18,7 @@ fn is_path_correct(path: &syn::Path) -> bool {
    true
 }
 
-fn get_reference_fields(item: &syn::ItemStruct) -> syn::Result<ReferenceField> {
+fn get_reference_fields(item: &syn::ItemStruct) -> syn::Result<ReferenceField<'_>> {
     match &item.fields {
         syn::Fields::Named(n) => {
             let mut ref_fields = vec![];

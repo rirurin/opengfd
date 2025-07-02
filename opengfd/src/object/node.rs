@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use allocator_api2::alloc::Allocator;
 use glam::{ Vec3A, Quat, Mat4 };
 use crate::{

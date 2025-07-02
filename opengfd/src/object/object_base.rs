@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use allocator_api2::alloc::Allocator;
 use crate::{
     kernel::allocator::GfdAllocator,
@@ -120,7 +121,7 @@ where A: Allocator + Clone
                 }
             }
             */
-            let a = p.get_average_scale();
+            let _ = p.get_average_scale();
         }
         self.parent = parent.map(|v| unsafe { NonNull::new_unchecked(&raw mut *v) });
     }
