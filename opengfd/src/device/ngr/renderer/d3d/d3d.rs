@@ -43,11 +43,13 @@ use opengfd_proc::GfdRcAuto;
 use std::{
     alloc::Layout,
     ffi::c_void,
+    fmt::Debug,
+    ops::Deref,
     sync::atomic::Ordering
 };
 use riri_mod_tools_proc::ensure_layout;
 use windows::{
-    core::{ BOOL, Interface },
+    core::{ BOOL, Interface, Result as WinRes },
     Win32::{
         Foundation::{ HMODULE, HWND },
         Graphics::{
@@ -62,6 +64,7 @@ use windows::{
                 D3D11_DEPTH_STENCIL_VIEW_DESC,
                 D3D11_RASTERIZER_DESC,
                 D3D11_SHADER_RESOURCE_VIEW_DESC,
+                D3D11_SUBRESOURCE_DATA,
                 D3D11_TEXTURE1D_DESC,
                 D3D11_TEXTURE2D_DESC,
                 D3D11_TEXTURE3D_DESC,
@@ -104,6 +107,9 @@ use windows::{
         }
     }
 };
+
+#[cfg(feature = "image_loader")]
+use image::{ ImageBuffer, Pixel, Rgba };
 
 #[repr(C)]
 #[derive(Debug)]
@@ -172,12 +178,12 @@ where A: Allocator + Clone
     pub rasterizers: PointerList<RasterizerState>,
     pub samplers: PointerList<SamplerState>,
     pub mutexes: [*mut CriticalSection; 4],
-    field13_0xf8: ngr_1420f21d0,
+    hint0: MemHint,
     cmdBuffer: *mut PlatformCmdBuffer,
     unk0: [u8; 0x8],
     use_srgb: u32,
     unk2: [u8; 0xc],
-    field39_0x128: ngr_1420f21d0,
+    hint1: MemHint,
     device: Option<ID3D11Device>,
     device_context: Option<ID3D11DeviceContext>,
     swapchain: Option<IDXGISwapChain>,
@@ -489,7 +495,7 @@ where A: Allocator + Clone
         }
     }
     
-    // impl Drop: vtable + 0x38 and vtable + 0x40
+    // impl Drop: vtable + 0x50 
     // 
 
     pub unsafe fn create_resource_views(&mut self, _width: usize, _height: usize) {
@@ -498,6 +504,28 @@ where A: Allocator + Clone
         let mut rtv: Option<ID3D11RenderTargetView> = None;
         self.device.as_ref().unwrap().CreateRenderTargetView(&tex2d, None, Some(&raw mut rtv)).unwrap();
     }
+
+    // vtable + 0x48
+    pub fn vtable_9(&mut self) {
+        unsafe {
+            let vtable_offset = self.vtable.add(0x48);
+            let func = *std::mem::transmute::<_, *const fn(&mut Self)>(vtable_offset);
+            (func)(self);
+        }
+    }
+
+    // vtable + 0xb0
+    pub fn load_dds_into_texture(&mut self, tex: &mut TextureResource<A>, dds: &[u8]) -> Result<(), u32> {
+        unsafe {
+            let vtable_offset = self.vtable.add(0xb0);
+            let func = *std::mem::transmute::<_, *const fn(&mut Self, &mut TextureResource<A>, *const u8, usize)>(vtable_offset);
+            (func)(self, tex, dds.as_ptr(), dds.len());
+        }
+        Ok(())
+    }
+
+    // vtable + 0xb8
+    pub fn vtable_17(&self) -> bool { true }
 
     // vtable + 0xc0
     pub fn set_blend_state(&self, state: &mut BlendState) {
@@ -565,14 +593,6 @@ pub struct ngr_1422a73b0 {
     pub field18: u64,
 }
 
-#[allow(non_camel_case_types)]
-#[repr(C)]
-#[derive(Debug)]
-pub struct ngr_1420f21d0 {
-    pub field0_0x0: *mut c_void,
-    pub field1_0x8: i32,
-}
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct PlatformCmdBuffer {
@@ -638,7 +658,7 @@ where A: Allocator + Clone
     _cpp_vtable: *const u8,
     ref_: Reference,
     field10: usize,
-    name: StringHashed<AllocatorHook>,
+    name: StringHashed<A>,
     field50: u32,
     field58: usize,
     shader_view: Option<ID3D11ShaderResourceView>,
@@ -649,6 +669,56 @@ where A: Allocator + Clone
     field88: usize,
     desc: TextureResourceDescription,
     _allocator: A
+}
+
+impl TextureResource<AllocatorHook> {
+    pub fn new() -> GfdRc<Self, AllocatorHook> {
+        Self::new_in(AllocatorHook)
+    }
+    // Original function: 0x14108cc60 (Metaphor Steam Prologue Demo 1.01)
+    pub fn new_from_dds(stream: &[u8]) -> Option<GfdRc<Self, AllocatorHook>> {
+        let mut out = Self::new();
+        let d3d11 = unsafe { globals::get_ngr_dx11_renderer_mut().unwrap() };
+        match d3d11.load_dds_into_texture(out.get_mut().unwrap(), stream) {
+            Ok(_) => Some(out),
+            Err(_) => None
+        }
+    }
+}
+
+#[cfg(feature = "image_loader")]
+impl TextureResource<AllocatorHook> {
+    pub fn new_from_image<C>(buffer: &ImageBuffer<Rgba<u8>, C>) -> WinRes<GfdRc<Self, AllocatorHook>> 
+    where C: Deref<Target = [<Rgba<u8> as Pixel>::Subpixel]> {
+        let mut new = Self::new();
+        let d3d11 = unsafe { globals::get_ngr_dx11_renderer_mut().unwrap() };
+        let mut tex_desc = D3D11_TEXTURE2D_DESC::default();
+        tex_desc.Width = buffer.width();
+        tex_desc.Height = buffer.height();
+        tex_desc.MipLevels = 1;
+        tex_desc.ArraySize = 1;
+        tex_desc.Format = windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM;
+        tex_desc.SampleDesc = DXGI_SAMPLE_DESC { Count: 1, Quality: 0 };
+        tex_desc.Usage = windows::Win32::Graphics::Direct3D11::D3D11_USAGE_DEFAULT;
+        tex_desc.BindFlags = windows::Win32::Graphics::Direct3D11::D3D11_BIND_SHADER_RESOURCE.0 as u32;
+        tex_desc.CPUAccessFlags = 0;
+        new.desc = tex_desc.into();
+
+        let initial = D3D11_SUBRESOURCE_DATA {
+            pSysMem: buffer.as_ptr() as *const c_void,
+            SysMemPitch: tex_desc.Width * 4,
+            SysMemSlicePitch: 0
+        };
+
+        unsafe { d3d11.device.as_ref().unwrap().CreateTexture2D(&raw const tex_desc, Some(&raw const initial), Some(&raw mut new.resource as *mut Option<ID3D11Texture2D>))? };
+        let mut srv_desc = D3D11_SHADER_RESOURCE_VIEW_DESC::default();
+        srv_desc.Format = windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM;
+        srv_desc.ViewDimension = windows::Win32::Graphics::Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D;
+        srv_desc.Anonymous.Texture2D.MipLevels = tex_desc.MipLevels;
+        srv_desc.Anonymous.Texture2D.MostDetailedMip = 0;
+        unsafe { d3d11.device.as_ref().unwrap().CreateShaderResourceView(new.resource.as_ref(),Some(&raw const srv_desc), Some(&raw const new.shader_view as *mut _ ))? };
+        Ok(new)
+    }
 }
 
 impl<A> TextureResource<A>
@@ -667,6 +737,29 @@ where A: Allocator + Clone
         match self.shader_view.as_ref() { Some(v) => {
             v.clone().into_raw()
         }, None => std::ptr::null_mut() }
+    }
+}
+
+impl<A> TextureResource<A>
+where A: Allocator + Clone + Debug
+{
+    pub fn new_in(allocator: A) -> GfdRc<Self, A> {
+        GfdRc::new_in( Self {
+            _cpp_vtable: unsafe { globals::get_ngr_texture_resource_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
+            ref_: Reference::new(),
+            field10: 0,
+            name: StringHashed::<A>::new_in(allocator.clone()),
+            field50: 1,
+            field58: 0,
+            shader_view: None,
+            field68: 0,
+            resource: None,
+            field78: 0,
+            field80: 0,
+            field88: 0,
+            desc: TextureResourceDescription::default(),
+            _allocator: allocator.clone()
+        }, allocator)
     }
 }
 
@@ -763,6 +856,12 @@ impl From<D3D11_TEXTURE3D_DESC> for TextureResourceDescription {
             format: value.Format.into(),
             field1c: 0
         }
+    }
+}
+
+impl Default for TextureResourceDescription {
+    fn default() -> Self {
+        D3D11_TEXTURE2D_DESC::default().into()
     }
 }
 

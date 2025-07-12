@@ -13,3 +13,8 @@
 
 # See sample script in SetEnv.ps1
 /SetEnv.local.ps1
+/env.local.yaml
+
+# Build script 
+/buildscript/*/bin
+/buildscript/*/obj

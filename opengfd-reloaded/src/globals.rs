@@ -307,6 +307,63 @@ unsafe extern "C" {
 
 #[link(name = "opengfd_globals", kind = "raw-dylib")]
 unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of NGR_TEXTURE_RESOURCE_VTABLE.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_ngr_texture_resource_vtable(ptr: *mut u8);
+   /// Get a possible reference to NGR_TEXTURE_RESOURCE_VTABLE. This checks to see if `set_ngr_texture_resource_vtable`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_ngr_texture_resource_vtable() -> Option<& 'static u8>;
+   /// Like `get_ngr_texture_resource_vtable_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_ngr_texture_resource_vtable_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_ngr_texture_resource_vtable`. This assumes that NGR_TEXTURE_RESOURCE_VTABLE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_ngr_texture_resource_vtable_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_ngr_texture_resource_vtable_mut`. This assumes that NGR_TEXTURE_RESOURCE_VTABLE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_ngr_texture_resource_vtable_unchecked_mut() -> & 'static mut u8;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of NGR_STRING_VTABLE.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_ngr_string_vtable(ptr: *mut u8);
+   /// Get a possible reference to NGR_STRING_VTABLE. This checks to see if `set_ngr_string_vtable`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_ngr_string_vtable() -> Option<& 'static u8>;
+   /// Like `get_ngr_string_vtable_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_ngr_string_vtable_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_ngr_string_vtable`. This assumes that NGR_STRING_VTABLE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_ngr_string_vtable_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_ngr_string_vtable_mut`. This assumes that NGR_STRING_VTABLE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_ngr_string_vtable_unchecked_mut() -> & 'static mut u8;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
+   /// Set the pointer to the memory location containing the beginning of NGR_STRING_HASH_VTABLE.
+    /// This method must only be called once, otherwise it will panic.
+    pub(crate) unsafe fn set_ngr_string_hash_vtable(ptr: *mut u8);
+   /// Get a possible reference to NGR_STRING_HASH_VTABLE. This checks to see if `set_ngr_string_hash_vtable`
+    /// was called previously and if either you or the hooked process have allocated the instance of it.
+    pub(crate) unsafe fn get_ngr_string_hash_vtable() -> Option<& 'static u8>;
+   /// Like `get_ngr_string_hash_vtable_mut`, but a mutable reference is created instead.
+    pub(crate) unsafe fn get_ngr_string_hash_vtable_mut() -> Option<& 'static mut u8>;
+   /// An unchecked version of `get_ngr_string_hash_vtable`. This assumes that NGR_STRING_HASH_VTABLE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_ngr_string_hash_vtable_unchecked() -> & 'static u8;
+   /// An unchecked version of `get_ngr_string_hash_vtable_mut`. This assumes that NGR_STRING_HASH_VTABLE
+    /// is set and it's initialized.
+    pub(crate) unsafe fn get_ngr_string_hash_vtable_unchecked_mut() -> & 'static mut u8;
+
+}
+
+#[link(name = "opengfd_globals", kind = "raw-dylib")]
+unsafe extern "C" {
    /// Set the pointer to the memory location containing a pointer to FILE_MANAGER_INSTANCE.
     /// This method must only be called once, otherwise it will panic.
     pub(crate) unsafe fn set_file_manager_instance(ptr: *mut * mut FileManager);

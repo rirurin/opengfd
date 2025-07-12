@@ -16,6 +16,7 @@ cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 cri-adx = { git = "https://github.com/rirurin/cri-adx-rs" }
 crc32fast = "1.4.2"
 glam = "0.30.3"
+image = { version = "0.25.6", optional = true }
 half = "2.4.1"
 libc = "0.2.169"
 opengfd-proc = { path = "../opengfd-proc" }
@@ -40,11 +41,11 @@ features = [
 ]
 
 [features]
-default = ["v2-core", "reloaded"]
+default = [ "v2-core", "reloaded", "image_loader" ]
 # Builds OpenGFD to interoperate with Persona 5 Royal
-v1-core = ["adapter-hedge"]
+v1-core = [ "adapter-hedge" ]
 # Builds OpenGFD to interoperate with Metaphor: Refantazio
-v2-core = ["adapter-ngr", "cfb_gap", "tpl"]
+v2-core = [ "adapter-ngr", "cfb_gap", "tpl" ]
 # Use Hedgehog Engine's DX11 wrapper and I/O classes
 adapter-hedge = []
 # Use Metaphor's DX11 wrapper and I/O classes 
@@ -60,3 +61,5 @@ cfb_gap = []
 is_metaphor_demo = []
 # Interface with Reloaded-II API (use if this is getting integrated into a mod)
 reloaded = [ "riri-mod-tools-rt/reloaded" ]
+# Use image crate for loading textures from common image formats
+image_loader = [ "dep:image" ]

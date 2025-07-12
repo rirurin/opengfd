@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36212.18 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "opengfd.BuildMetaphor", "opengfd.BuildMetaphor.csproj", "{03DAE11D-0749-480D-B8DF-09F0BB3767CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "opengfd.BuildCommon", "..\opengfd.BuildCommon\opengfd.BuildCommon.csproj", "{1D957CBE-F88E-735A-1797-31DD60B8C240}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{03DAE11D-0749-480D-B8DF-09F0BB3767CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03DAE11D-0749-480D-B8DF-09F0BB3767CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03DAE11D-0749-480D-B8DF-09F0BB3767CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03DAE11D-0749-480D-B8DF-09F0BB3767CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D957CBE-F88E-735A-1797-31DD60B8C240}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D957CBE-F88E-735A-1797-31DD60B8C240}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D957CBE-F88E-735A-1797-31DD60B8C240}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D957CBE-F88E-735A-1797-31DD60B8C240}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5DA63C30-94DB-46E6-8E32-98105FA64DA4}
+	EndGlobalSection
+EndGlobal

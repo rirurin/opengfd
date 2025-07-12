@@ -162,6 +162,7 @@ pub mod kernel {
     pub mod allocator;
     pub mod asset;
     pub mod chip;
+    pub mod file;
     #[cfg(feature = "v1-core")]
     #[path = "global_xrd744.rs"]
     pub mod global;

@@ -46,6 +46,10 @@ where A: Allocator + Clone
 impl<A> Name<A>
 where A: Allocator + Clone
 {
+    pub fn empty_in(alloc: A) -> Self {
+        let flags = NameFlags::empty();
+        Self { flags, length: 0, string: None, hash: 0, _allocator: alloc }
+    }
     /// (Original function: gfdNameSet)
     pub fn new_in(text: &str, alloc: A) -> Self {
         let flags = NameFlags::CalculatedLength | NameFlags::CalculatedCrc;

@@ -1,6 +1,7 @@
 Id = "metaphorrefantazio.mod.multiplayer.riri"
 Reloaded2Id = "metaphor.opengfd"
 LoggerPrefix = "OpenGFD"
+LoggerColor = "MediumTurquoise"
 Name = "OpenGFD for Metaphor: Refantazio"
 Author = "Rirurin"
 PackageType = "Mod"

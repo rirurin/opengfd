@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build OpenGFD for Metaphor: Refantazio [DEBUG]",
+            "type": "shell",
+            "command": "./BuildMetaphor.ps1 -Debug $True",
+            "group": "build",
+        },
+        {
+            "label": "Build OpenGFD for Metaphor: Refantazio [RELEASE]",
+            "type": "shell",
+            "command": "./BuildMetaphor.ps1 -Debug $False",
+            "group": "build"
+        },
+        {
+            "label": "Build OpenGFD for Persona 5 Royal [DEBUG]",
+            "type": "shell",
+            "command": "./BuildP5R.ps1 -Debug $True",
+            "group": "build",
+        },
+        {
+            "label": "Build OpenGFD for Persona 5 Royal [RELEASE]",
+            "type": "shell",
+            "command": "./BuildP5R.ps1 -Debug $False",
+            "group": "build"
+        },
+    ]
+}

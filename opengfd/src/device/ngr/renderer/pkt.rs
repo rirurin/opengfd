@@ -8,6 +8,7 @@ use crate::{
             BlendTypeOperation,
             BufferFlags,
             ComparisonFunc,
+            DeferredContext,
             FilterMode,
             IATopology,
             StencilOperation,
@@ -22,8 +23,7 @@ use crate::{
     },
     kernel::graphics::GraphicsGlobal
 };
-
-use super::state::DeferredContext;
+use std::ptr::NonNull;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -454,7 +454,7 @@ impl PktData<StencilTestEnablePkt> {
 pub struct TexturePkt {
     cb: unsafe fn(&mut PktData<Self>) -> (),
     stage: u32,
-    tex: *const Texture,
+    tex: Option<NonNull<Texture>>,
     min: u8,
     mag: u8,
     wraps: u8,
@@ -470,47 +470,52 @@ impl TexturePkt {
         let new: &mut Self = PktData::allocate_for_pkt();
         new.cb = PktData::<TexturePkt>::set_texture_pkt;
         new.stage = stage;
-        new.tex = &raw const *texture;
+        new.tex = Some(unsafe { NonNull::new_unchecked(&raw const *texture as *mut Texture) });
         new.min = texture.min;
         new.mag = texture.mag;
         new.wraps = texture.wraps;
         new.wrapt = texture.wrapt;
         new
     }
-    unsafe fn get_texture(&self) -> &Texture { &*self.tex }
+    unsafe fn get_texture(&self) -> Option<&Texture> { self.tex.map(|v| unsafe { v.as_ref() }) }
     // 0x141101150
     pub fn set_texture(&self, buffer_index: usize) {
         let sampler_chk = 1 << (self.stage & 0x1f);
         let draw_state = unsafe { globals::get_ngr_draw_state_unchecked_mut() };
         let frame_id = draw_state.get_ot_frame_id() as usize;
         let buffer = unsafe { draw_state.basicBuffers.get_unchecked_mut(buffer_index) };
-        if self.tex.is_null() {
-            if (buffer.sampler_mask & sampler_chk) != 0 {
-                buffer.sampler_flag |= sampler_chk;
-                buffer.sampler_mask &= sampler_chk;
-            }
-        } else {
-            if (buffer.sampler_mask & sampler_chk) == 0 {
-                buffer.sampler_flag |= sampler_chk;
-                buffer.sampler_mask |= sampler_chk;
-            }
-            let filter = if self.min == 1 {
-                if self.mag == 1 {
-                    FilterMode::Anisotropic
-                } else if self.mag != 0 {
-                    FilterMode::MinPointMagMipLinear
-                } else {
-                    FilterMode::MinLinearMagMipPoint
+        match self.tex {
+            Some(_) => {
+                if (buffer.sampler_mask & sampler_chk) == 0 {
+                    buffer.sampler_flag |= sampler_chk;
+                    buffer.sampler_mask |= sampler_chk;
                 }
-            } else if self.min == 0 && self.mag == 0 {
-                FilterMode::MinMagMipPoint
-            } else {
-                FilterMode::MinPointMagMipLinear
-            };
-            buffer.set_sampler_filter(self.stage as usize, filter);
-            buffer.set_sampler_address2d(self.stage as usize, self.wraps.try_into().unwrap(), self.wrapt.try_into().unwrap());
+                let filter = if self.min == 1 {
+                    if self.mag == 1 {
+                        FilterMode::Anisotropic
+                    } else if self.mag != 0 {
+                        FilterMode::MinPointMagMipLinear
+                    } else {
+                        FilterMode::MinLinearMagMipPoint
+                    }
+                } else if self.min == 0 && self.mag == 0 {
+                    FilterMode::MinMagMipPoint
+                } else {
+                    FilterMode::MinPointMagMipLinear
+                };
+                buffer.set_sampler_filter(self.stage as usize, filter);
+                buffer.set_sampler_address2d(self.stage as usize, self.wraps.try_into().unwrap(), self.wrapt.try_into().unwrap());
+            },
+            None => {
+                if (buffer.sampler_mask & sampler_chk) != 0 {
+                    buffer.sampler_flag |= sampler_chk;
+                    buffer.sampler_mask &= sampler_chk;
+                }
+            }
         }
-        let resource = if self.tex.is_null() { None } else { Some(unsafe { self.get_texture().get_handle()} ) };
+        let resource = match self.tex {
+            Some(tex) => unsafe { tex.as_ref().get_handle() }, None => None
+        };
         let ctx = buffer.get_deferred_context_mut(frame_id);
         unsafe { ctx.set_shader_resource_view(BufferType::Pixel, self.stage as usize, resource); }
     }

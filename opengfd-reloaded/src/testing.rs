@@ -1,12 +1,20 @@
-/* 
-use opengfd::kernel::{
-    allocator::GfdAllocator,
-    task::{ Task as GfdTask, UpdateTask }
+#![allow(unused_imports)]
+
+use opengfd::{
+    device::ngr::renderer::platform::d3d::TextureResource,
+    graphics::texture::{
+        Texture,
+        TextureFlags
+    },
+    kernel::{
+        allocator::GfdAllocator,
+        task::{ Task as GfdTask, UpdateTask }
+    },
+    utility::reference::GfdRc,
 };
-*/
 // use opengfd_inspector::state::Inspector as GfdInspector;
 use riri_mod_tools_proc::riri_hook_fn;
-// use riri_mod_tools_rt::logln;
+use riri_mod_tools_rt::logln;
 // use windows::Win32::UI::Input::KeyboardAndMouse::{ GetAsyncKeyState, VK_F5 };
 
 /*
@@ -396,7 +404,7 @@ fn object_tests() {
 
 /* 
 #[riri_hook_fn(dynamic_offset(
-    signature = "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 83 0D ?? ?? ?? ?? 01",
+    signature = "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 83 0D ?? ?? ?? ?? 01"    let flags = TextureFlags::from_bits_retain(p_flags);,
     calling_convention = "microsoft"
 ))]
 #[allow(non_snake_case)]
@@ -409,3 +417,21 @@ pub unsafe extern "C" fn gfdExecuteActiveTasks(delta: f32) {
     original_function!(delta)
 }
 */
+
+/*
+#[riri_hook_fn(static_offset(0x11558e40))]
+pub unsafe extern "C" fn gfdTextureCreate(bytes: *mut u8, length: u32, p_flags: u32) -> *mut u8 {
+    let slice = std::slice::from_raw_parts(bytes, length as usize);
+    let flags = TextureFlags::from_bits_retain(p_flags);
+    logln!(Verbose, "gfdTextureCreate: Load slice 0x{:x} (length: 0x{:x}, flags {:?})", slice.as_ptr() as usize, slice.len(), flags);
+    let res = GfdRc::into_raw(Texture::from_dds_stream(slice, flags, GfdAllocator).unwrap());
+    // let res = original_function!(bytes, length, p_flags);
+    if std::ptr::addr_eq(bytes, 0x142823b70 as *mut u8) {
+        let tex = &mut *(res as *mut Texture<GfdAllocator>);
+        let a = &raw const *tex.get_handle().unwrap() as *mut u8;
+        let a = std::slice::from_raw_parts(a, size_of::<TextureResource>());
+        riri_mod_tools_rt::logln!(Verbose, "returned: {:?}", a);
+    }
+    res as *mut u8
+}
+ */

@@ -234,61 +234,54 @@ pub unsafe extern "C" fn set_ngr_1422ecad8_vtable_hook(ofs: usize) -> Option<Non
 ))]
 riri_static!(NGR_1422ECAD8_VTABLE, usize);
 
-/*
-
-#[riri_hook_fn(static_offset(0x1105890))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdFreeListCreate(
-    entry_size: u32, entries_per_block: u32,
-    alignment: u32, prealloc_blocks: u32,
-    _place_space_for_handle: *mut u8, hint: u32
-    ) -> *mut u8 {
-    let out = opengfd::utility::free_list::FreeList::<u8, GfdAllocator>::new_inner_untyped(
-        entry_size, alignment, entries_per_block, prealloc_blocks, hint, GfdAllocator);
-    out.link();
-    logln!(Debug, "handle: 0x{:x}, entry size: {}, entries_per_block: {}, alignment: {}, prealloc: {}, hint: 0x{:x}",
-        &raw const *out as usize, entry_size, entries_per_block, alignment, prealloc_blocks, hint
-    );
-    &raw mut *out as *mut u8
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_texture_resource_hook(ofs: usize) -> Option<NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v, None => return None
+    };
+    globals::set_ngr_texture_resource_vtable(addr.as_ptr() as *mut u8);
+    logln!(Information, "got ngrTextureResource vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
 }
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 03 4C 89 6B ?? 4C 89 6B ??",
+    resolve_type = set_ngr_texture_resource_hook,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_TEXTURE_RESOURCE_HOOK, usize);
 
-#[riri_hook_fn(static_offset(0x1105b70))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdFreeListAllocCore(handle: *mut u8) -> *mut u8 {
-    let free_list = &mut *(handle as *mut opengfd::utility::free_list::FreeList<u8, GfdAllocator>);
-    free_list.add()
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_string_vtable_hook(ofs: usize) -> Option<NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v, None => return None
+    };
+    globals::set_ngr_string_vtable(addr.as_ptr() as *mut u8);
+    logln!(Information, "got ngrString vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
 }
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 05 ?? ?? ?? ?? 48 89 01 48 8D 2D ?? ?? ?? ?? 48 89 69 ?? 41 8B 40 ?? 89 41 ?? 48 85 D2 74 ?? 48 8B CA",
+    resolve_type = set_ngr_string_vtable_hook,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_STRING_VTABLE_HOOK, usize);
 
-#[riri_hook_fn(static_offset(0x1105cf0))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdFreeListFree(list: *mut u8, entry: *mut u8) {
-    // let free_list = &mut *(handle as *mut opengfd::utility::free_list::FreeList<u8, GfdAllocator>);
-    // free_list.remove(entry)
-    original_function!(list, entry)
+#[no_mangle]
+pub unsafe extern "C" fn set_ngr_string_hash_vtable_hook(ofs: usize) -> Option<NonNull<u8>> { 
+    let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
+        Some(v) => v, None => return None
+    };
+    globals::set_ngr_string_hash_vtable(addr.as_ptr() as *mut u8);
+    logln!(Information, "got ngrStringHash vtable: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
 }
-
-#[riri_hook_fn(static_offset(0x74c0f40))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn fldMainCreateTask(parent: *mut u8, seq_set: *mut u8) -> *mut u8 {
-    // GfdTask::<GfdAllocator, u8>::print_running_tasks();
-    // logln!(Debug, "fldMain!");
-    original_function!(parent, seq_set)
-}
-
-#[riri_hook_fn(static_offset(0x1b524470))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdTaskAttachUpdateList(p_task: *mut u8) {
-    let task = &mut *(p_task as *mut GfdTask<GfdAllocator>);
-    logln!(Debug, "Attach Update for {}", task);
-    task.attach_to_update_list();
-    // let _ = original_function!(p_task);
-}
-
-#[riri_hook_fn(static_offset(0x1b521310))]
-#[allow(non_snake_case)]
-pub unsafe extern "C" fn gfdTaskAttachRenderList(p_task: *mut u8) {
-    let task = &mut *(p_task as *mut GfdTask<GfdAllocator>);
-    task.attach_to_render_list();
-    // let _ = original_function!(p_task);
-}
-*/
+// 0x1411b0ce0, inside ngrInitFreeList
+#[riri_hook_static(dynamic_offset(
+    signature = "48 8D 3D ?? ?? ?? ?? EB ?? 31 DB",
+    // 48 8D 3D ?? ?? ?? ?? EB ?? 33 DB
+    resolve_type = set_ngr_string_hash_vtable_hook,
+    calling_convention = "microsoft",
+))]
+riri_static!(NGR_STRING_HASH_VTABLE_HOOK, usize);

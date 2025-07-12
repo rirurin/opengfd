@@ -300,9 +300,9 @@ pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, b
         MaxDepth: 0f32
     };
     ctx.set_viewports(&viewport);
-    ctx.set_shader_resource_view(BufferType::Pixel, 0, Some((&*draw_state.cloud_main).get_handle()));
-    ctx.set_shader_resource_view(BufferType::Pixel, 1, Some((&*draw_state.cloud_sub).get_handle()));
-    ctx.set_shader_resource_view(BufferType::Pixel, 2, Some((&*draw_state.cloud_2d).get_handle()));
+    ctx.set_shader_resource_view(BufferType::Pixel, 0, (&*draw_state.cloud_main).get_handle());
+    ctx.set_shader_resource_view(BufferType::Pixel, 1, (&*draw_state.cloud_sub).get_handle());
+    ctx.set_shader_resource_view(BufferType::Pixel, 2, (&*draw_state.cloud_2d).get_handle());
     // ...
     ctx.set_shader_resource_view(BufferType::Pixel, 3, None);
     ctx.set_shader_sample(BufferType::Pixel, 2, if draw_state.sampler_620.is_null() { None } else { Some(&*draw_state.sampler_620)});

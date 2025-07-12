@@ -103,6 +103,9 @@ impl ConstantBuffer {
         let field = unsafe { &*self.fields[index] };
         std::ptr::write(data.add(field.offset as usize) as *mut T, value);
     }
+
+    pub fn get_fields(&self) -> Option<&[*mut ConstantBufferField]> { self.fields.as_slice() }
+    pub fn get_fields_mut(&mut self) -> Option<&mut [*mut ConstantBufferField]> { self.fields.as_slice_mut() }
 }
 /*
 #[repr(C)]
@@ -123,6 +126,12 @@ pub struct ConstantBufferField {
     name: StringHashed,
     ty: BufferFieldType,
     offset: i32
+}
+
+impl ConstantBufferField {
+    pub fn get_name(&self) -> Option<&str> { self.name.value() }
+    pub fn get_type(&self) -> BufferFieldType { self.ty }
+    pub fn get_offset(&self) -> i32 { self.offset }
 }
 
 // impl ConstantBufferField {

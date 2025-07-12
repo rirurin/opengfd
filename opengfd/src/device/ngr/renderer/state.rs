@@ -58,209 +58,132 @@ use windows::{
     }
 };
 
-#[ensure_layout(size = 6112usize)]
+#[repr(C)]
 pub struct DrawState {
-    #[field_offset(0usize)]
-    pub vtable: *mut ::std::os::raw::c_void,
-    #[field_offset(8usize)]
+    _cpp_vtable: *const u8,
     pub field1_0x8: *mut ::std::os::raw::c_void,
-    #[field_offset(16usize)]
-    pub otFrameId: i32,
-    #[field_offset(24usize)]
+    pub frame_id: i32,
     pub field4_0x18: u64,
-    #[field_offset(32usize)]
-    pub ClearColor: RGBAFloat,
-    #[field_offset(48usize)]
+    pub clear_color: RGBAFloat,
     pub field6_0x30: [f32; 2usize],
-    #[field_offset(56usize)]
-    pub fogCbuffer0: *mut ConstantBuffer,
-    #[field_offset(64usize)]
-    pub shadowCbuffer: *mut ConstantBuffer,
-    #[field_offset(72usize)]
-    pub fogCbuffer1: *mut ConstantBuffer,
-    #[field_offset(80usize)]
+    pub fog_cbuffer_0: *mut ConstantBuffer,
+    pub shadow_cbuffer: *mut ConstantBuffer,
+    pub fog_cbuffer_1: *mut ConstantBuffer,
     pub field10_0x50: *mut ConstantBuffer,
-    #[field_offset(88usize)]
     pub DefaultEnv: *mut Texture,
-    #[field_offset(96usize)]
     pub DefaultEnvToon: *mut Texture,
-    #[field_offset(104usize)]
     pub field13_0x68: *mut ConstantBuffer,
-    #[field_offset(112usize)]
     pub DefaultIBL: *mut Texture,
-    #[field_offset(120usize)]
     pub field15_0x78: *mut ConstantBuffer,
-    #[field_offset(128usize)]
     pub DefaultLUT: *mut Texture,
-    #[field_offset(136usize)]
     pub sampler88: *mut ::std::os::raw::c_void,
-    #[field_offset(144usize)]
     pub field18_0x90: *mut ConstantBuffer,
-    #[field_offset(152usize)]
     pub field19_0x98: *mut ConstantBuffer,
-    #[field_offset(160usize)]
     pub samplerA0: *mut ::std::os::raw::c_void,
-    #[field_offset(168usize)]
     pub BayerMatrix4x4: *mut Texture,
-    #[field_offset(176usize)]
     pub samplerB0: *mut ::std::os::raw::c_void,
-    #[field_offset(184usize)]
     pub skyboxNode: *mut Node,
-    #[field_offset(192usize)]
     pub skyboxMesh: *mut Mesh,
-    #[field_offset(200usize)]
     pub infOceanNode: *mut Node,
-    #[field_offset(208usize)]
     pub infOceanMesh: *mut Mesh,
-    #[field_offset(224usize)]
+    fieldd8: *mut u8, 
     pub field35_0xe0: *mut ::std::os::raw::c_void,
-    #[field_offset(240usize)]
+    fielde8: *mut u8, 
     pub field44_0xf0: *mut ::std::os::raw::c_void,
-    #[field_offset(0xf8)] index_buffer: *mut IndexBuffer,
-    #[field_offset(256usize)]
+    index_buffer: *mut IndexBuffer,
     pub depthStencilViews: [*mut ::std::os::raw::c_void; 3usize],
-    #[field_offset(280usize)]
     pub field54_0x118: *mut ::std::os::raw::c_void,
-    #[field_offset(288usize)]
     pub field55_0x120: *mut ::std::os::raw::c_void,
-    #[field_offset(296usize)]
     pub field56_0x128: *mut ::std::os::raw::c_void,
-    #[field_offset(304usize)]
     pub field57_0x130: *mut ::std::os::raw::c_void,
-    #[field_offset(312usize)]
     pub field58_0x138: [*mut ::std::os::raw::c_void; 2usize],
-    #[field_offset(328usize)]
     pub field59_0x148: [*mut ::std::os::raw::c_void; 2usize],
-    #[field_offset(344usize)]
     pub field60_0x158: [*mut ::std::os::raw::c_void; 4usize],
-    #[field_offset(648usize)]
+    field168: [u8; 0x110],
     pub GFD_PSCONST_HDR: *mut ConstantBuffer,
-    #[field_offset(656usize)]
     pub field334_0x290: *mut ConstantBuffer,
-    #[field_offset(664usize)]
     pub field335_0x298: *mut ConstantBuffer,
-    #[field_offset(672usize)]
     pub field336_0x2a0: *mut ConstantBuffer,
-    #[field_offset(680usize)]
     pub field337_0x2a8: *mut ConstantBuffer,
-    #[field_offset(688usize)]
     pub field338_0x2b0: *mut ConstantBuffer,
-    #[field_offset(696usize)]
     pub field339_0x2b8: *mut ConstantBuffer,
-    #[field_offset(704usize)]
     pub CBUF_2C0: *mut ConstantBuffer,
-    #[field_offset(712usize)]
     pub CBUF_2C8: *mut ConstantBuffer,
-    #[field_offset(720usize)]
     pub field342_0x2d0: *mut ConstantBuffer,
-    #[field_offset(728usize)]
     pub field343_0x2d8: *mut ConstantBuffer,
-    #[field_offset(736usize)]
     pub REG_12_BUF_2E0: *mut ConstantBuffer,
-    #[field_offset(748usize)]
+    field2e8: [u8; 0x4],
     pub field349_0x2ec: [GraphicsStarFilter; 4usize],
-    #[field_offset(812usize)]
     pub field350_0x32c: [[f32; 4usize]; 3usize],
-    #[field_offset(1196usize)]
+    field35c: [u8; 0x150],
     pub field687_0x4ac: u32,
-    #[field_offset(1200usize)]
     pub field688_0x4b0: f32,
-    #[field_offset(1204usize)]
     pub field689_0x4b4: f32,
-    #[field_offset(1208usize)]
     pub field690_0x4b8: f32,
-    #[field_offset(1216usize)]
     pub REG_11_BUF_4C0: *mut ConstantBuffer,
-    #[field_offset(1320usize)]
     pub GFD_PSCONST_EFFECT_FocalBlur: *mut ConstantBuffer,
-    #[field_offset(1328usize)]
+    field4d0: [u8; 0x60],
     pub field793_0x530: *mut ConstantBuffer,
-    #[field_offset(1336usize)]
     pub field794_0x538: *mut ConstantBuffer,
-    #[field_offset(1344usize)]
     pub field795_0x540: *mut ConstantBuffer,
-    #[field_offset(1352usize)]
     pub field796_0x548: *mut ConstantBuffer,
-    #[field_offset(1408usize)]
+    field550: [usize; 2],
+    field560: [*mut ngr_142234cb0; 4],
     pub grad_texture: *mut Texture,
-    #[field_offset(1416usize)]
     pub tex588: *mut Texture,
-    #[field_offset(1424usize)]
     pub smaaBuffer: *mut ConstantBuffer,
-    #[field_offset(1432usize)]
     pub colorCorrectBuffer: *mut ConstantBuffer,
-    #[field_offset(1440usize)]
     pub field849_0x5a0: *mut ::std::os::raw::c_void,
-    #[field_offset(1448usize)]
     pub field850_0x5a8: *mut ::std::os::raw::c_void,
-    #[field_offset(1456usize)]
     pub field851_0x5b0: *mut ::std::os::raw::c_void,
-    #[field_offset(1464usize)]
     pub ssaoBuffer0: *mut ConstantBuffer,
-    #[field_offset(1472usize)]
     pub ssaoBuffer1: *mut ConstantBuffer,
-    #[field_offset(1480usize)]
     pub field854_0x5c8: *mut _142234cb0,
-    #[field_offset(1488usize)]
     pub field855_0x5d0: *mut _142234cb0,
-    #[field_offset(1496usize)]
     pub temperareWobbingTex: *mut Texture,
-    #[field_offset(1504usize)]
     pub temperareBuffer: *mut ConstantBuffer,
-    #[field_offset(1512usize)]
     pub field858_0x5e8: *mut ::std::os::raw::c_void,
-    #[field_offset(1520usize)]
     pub field859_0x5f0: *mut ::std::os::raw::c_void,
-    #[field_offset(1528usize)]
     pub field860_0x5f8: *mut ::std::os::raw::c_void,
-    #[field_offset(0x600)] pub cloud_main: *mut Texture,
-    #[field_offset(0x608)] pub cloud_sub: *mut Texture, 
-    #[field_offset(0x610)] pub cloud_2d: *mut Texture, 
-    #[field_offset(0x618)] pub cloud_buffer: *mut ConstantBuffer,
-    #[field_offset(0x620)] pub sampler_620: *mut SamplerState,
-    #[field_offset(0x628)] pub field_628: *mut ngr_142234cb0,
-    #[field_offset(1592usize)]
+    pub cloud_main: *mut Texture,
+    pub cloud_sub: *mut Texture,
+    pub cloud_2d: *mut Texture,
+    pub cloud_buffer: *mut ConstantBuffer,
+    pub sampler_620: *mut SamplerState,
+    pub field_628: *mut ngr_142234cb0,
+    field630: usize,
     pub REG_11_BUF_638: *mut ConstantBuffer,
-    #[field_offset(1600usize)]
     pub REG_11_BUF_640: *mut ConstantBuffer,
-    #[field_offset(1608usize)]
     pub REG_11_BUF_648: *mut ConstantBuffer,
-    #[field_offset(1616usize)]
     pub REG_11_BUF_650: *mut ConstantBuffer,
-    #[field_offset(1624usize)]
     pub REG_11_BUF_658: *mut ConstantBuffer,
-    #[field_offset(1632usize)]
     pub GFD_PSCONST_EFFECT_Blur: *mut ConstantBuffer,
-    #[field_offset(1640usize)]
     pub REG_11_BUF_668: *mut ConstantBuffer,
-    #[field_offset(1648usize)]
     pub GFD_PSCONST_METABALL: *mut ConstantBuffer,
-    #[field_offset(1664usize)]
+    field678: usize,
     pub REG_11_BUF_680: *mut ConstantBuffer,
-    #[field_offset(1672usize)]
     pub GFD_PSCONST_EFFECT_Outline: *mut ConstantBuffer,
-    #[field_offset(1680usize)]    
     pub GFD_PSCONST_EFFECT_BrushStroke: *mut ConstantBuffer,
-    #[field_offset(1688usize)]
     pub fullHDCanvas: *mut ::std::os::raw::c_void,
-    #[field_offset(1696usize)]
     pub fullHDBrushstroke01: *mut ::std::os::raw::c_void,
-    #[field_offset(1704usize)]
     pub REG_11_BUF_6A8: *mut ConstantBuffer,
-    #[field_offset(1712usize)]
     pub field911_0x6b0: _142236508,
-    #[field_offset(1936usize)]
     pub field912_0x790: _142236510,
-    #[field_offset(0x820)] pub effect_scale_adjust: bool,
-    #[field_offset(2088usize)]
+    field810: [u8; 0x10],
+    pub effect_scale_adjust: bool,
     pub Field828: [*mut ::std::os::raw::c_void; 2usize],
-    #[field_offset(0x870)] pub mip_lod_bias: f32,
-    #[field_offset(0x888)] pub effect_scale_index: u32,
-    #[field_offset(2224usize)]
+    field838: [u8; 0x38],
+    pub mip_lod_bias: f32,
+    field874: [u8; 0x14],
+    pub effect_scale_index: u32,
+    field890: *mut ngr_142234cb0,
+    field898: *mut ngr_142234cb0,
+    field8a0: usize,
+    field8a8: usize,
     pub sampler8B0: *mut ::std::os::raw::c_void,
-    #[field_offset(2248usize)]
+    field8b8: *mut ngr_142234cb0,
+    field8c0: usize,
     pub toonShadowHatching: [*mut Texture; 3usize],
-    #[field_offset(2272usize)]
     pub basicBuffers: [BasicBuffers; 4usize],
 }
 
@@ -304,62 +227,44 @@ bitflags! {
     }
 }
 
-#[ensure_layout(size = 960usize)]
+#[repr(C)]
 pub struct BasicBuffers {
-    #[field_offset(0usize)]
-    pub vtable: *mut ::std::os::raw::c_void,
-    #[field_offset(16usize)]
-    pub opaqueTexture: *mut ::std::os::raw::c_void,
-    #[field_offset(24usize)]
+    _cpp_vtable: *const u8,
+    field8: *const u8,
+    pub(crate) render_target: Option<NonNull<ResourceView>>,
     pub field10_0x18: u32,
-    #[field_offset(32usize)]
-    pub field12_0x20: *mut ::std::os::raw::c_void,
-    #[field_offset(0x3c)] pub depth_stencil_state_ref: u8,
-    // #[field_offset(0x40)] pub depth_stencil: *mut DepthStencilState,
-    #[field_offset(0x40)] pub depth_stencil: Option<GfdRc<DepthStencilState, AllocatorHook>>,
-    #[field_offset(0x48)] pub vatBoundingBoxMin: f32,
-    #[field_offset(0x4c)] pub alpha_test_func: u16,
-    #[field_offset(0x50)] pub alpha_test_ref: u32,
-    #[field_offset(0x54)] pub vatBoundingBoxMax: f32,
-    #[field_offset(0x58)] pub rasterizer_key: RasterizerKey,
-    #[field_offset(0x74)] pub blend_key: BlendKey,
-    #[field_offset(0x98)] pub depth_stencil_key: DepthStencilKey,
-    #[field_offset(0xc8)] pub sampler_flag: u32,
-    #[field_offset(0xcc)] pub sampler_mask: u32,
-    #[field_offset(0xd0)] pub sampler_keys: [ SamplerKey; 13 ],
-    #[field_offset(728usize)]
+    pub(crate) depth_stencil_resource: Option<NonNull<ResourceView2>>,
+    field28: [u8; 0x14],
+    pub depth_stencil_state_ref: u8,
+    pub depth_stencil_state: Option<GfdRc<DepthStencilState, AllocatorHook>>,
+    pub vatBoundingBoxMin: f32,
+    pub alpha_test_func: u16,
+    pub alpha_test_ref: u32,
+    pub vatBoundingBoxMax: f32,
+    pub rasterizer_key: RasterizerKey,
+    pub blend_key: BlendKey,
+    pub depth_stencil_key: DepthStencilKey,
+    pub sampler_flag: u32,
+    pub sampler_mask: u32,
+    pub sampler_keys: [ SamplerKey; 13 ],
     pub deferredContexts: [*mut DeferredContextDX11; 3usize],
-    #[field_offset(752usize)]
     pub GFD_VSCONST_SYSTEM: *mut ConstantBuffer,
-    #[field_offset(760usize)]
     pub GFD_VSCONST_TRANSFORM: *mut ConstantBuffer,
-    #[field_offset(768usize)]
     pub GFD_VSCONST_VIEWPROJ: *mut ConstantBuffer,
-    #[field_offset(776usize)]
     pub GFD_VSCONST_COLORS: *mut ConstantBuffer,
-    #[field_offset(784usize)]
     pub GFD_VSCONST_UVX_TRANSFORM: [*mut ConstantBuffer; 3usize],
-    #[field_offset(808usize)]
     pub GFD_VSCONST_LIGHT_VEC: *mut ConstantBuffer,
-    #[field_offset(816usize)]
     pub Toon_GFD_PSCONST_LIGHT_PS: *mut ConstantBuffer,
-    #[field_offset(824usize)]
     pub PBR_GFD_PSCONST_LIGHT_PS: *mut ConstantBuffer,
-    #[field_offset(832usize)]
     pub Skylight_GFD_PSCONST_SKY_LIGHT_PS: *mut ConstantBuffer,
-    #[field_offset(840usize)]
     pub GFD_PSCONST_SYSTEM: *mut ConstantBuffer,
-    #[field_offset(848usize)]
     pub GFD_PSCONST_ENV_COLORS: *mut ConstantBuffer,
-    #[field_offset(856usize)]
     pub GFD_VSCONST_VAT: *mut ConstantBuffer,
-    #[field_offset(864usize)]
     pub GFD_PSCONST_ALPHATEST: *mut ConstantBuffer,
-    #[field_offset(0x368)] pub field_368: u32,
-    #[field_offset(880usize)]
+    pub field_368: u32,
     pub field711_0x370: Mat4,
-    #[field_offset(0x3b0)] pub flags: BufferFlags,
-    #[field_offset(0x3b4)] pub flags2: BufferFlags2,
+    pub flags: BufferFlags,
+    pub flags2: BufferFlags2,
 }
 
 #[ensure_layout(size = 56usize)]
@@ -778,24 +683,27 @@ impl DeferredContextDX11 {
 // gfdDrawPrimRect2D
 // DrawDebugFont
 
-#[ensure_layout(size = 16usize)]
+#[repr(C)]
 pub struct GraphicsStarFilter {
-    #[field_offset(0usize)]
     pub field0_0x0: i32,
-    #[field_offset(4usize)]
     pub field1_0x4: f32,
-    #[field_offset(8usize)]
     pub field2_0x8: f32,
-    #[field_offset(12usize)]
     pub field3_0xc: f32,
 }
 
-#[ensure_layout(size = 224usize)]
-pub struct _142236508 {}
-#[ensure_layout(size = 128usize)]
-pub struct _142236510 {}
-#[ensure_layout(size = 96usize)]
-pub struct _142234cb0 {}
+#[repr(C)]
+pub struct _142236508 {
+    data: [u8; 224]
+}
+
+#[repr(C)]
+pub struct _142236510 {
+    data: [u8; 128]
+}
+#[repr(C)]
+pub struct _142234cb0 {
+    data: [u8; 96]
+}
 
 #[allow(dead_code)]
 pub struct PlatformTexture {
@@ -1539,7 +1447,7 @@ impl DrawState {
     // 0x141121340
     pub unsafe fn update_vertex_buffers(&mut self, buffer_index: usize) {
         let renderer = globals::get_ngr_dx11_renderer_unchecked_mut();
-        let frame_id = self.otFrameId as usize;
+        let frame_id = self.frame_id as usize;
         let buffer = self.basicBuffers.get_unchecked_mut(buffer_index);
         if !buffer.flags.is_empty() {
             if buffer.flags.contains(BufferFlags::USING_RASTERIZER) {
@@ -1569,11 +1477,11 @@ impl DrawState {
             }
             if buffer.flags.contains(BufferFlags::USING_DEPTH_STENCIL) {
                 let depth_stencil = renderer.get_or_create_depth_stencil_state(&buffer.depth_stencil_key);
-                buffer.depth_stencil = Some(depth_stencil.clone());
+                buffer.depth_stencil_state = Some(depth_stencil.clone());
                 // buffer.get_deferred_context_mut(frame_id).om_depth_stencil_state(&*depth_stencil, stencil_ref);
             }
             if buffer.flags.intersects(BufferFlags::USING_DEPTH_STENCIL | BufferFlags::SET_DEPTH_STENCIL_WITHOUT_REPLACING) {
-                let depth_stencil_to_set = &*buffer.depth_stencil.as_ref().unwrap().as_ptr();
+                let depth_stencil_to_set = &*buffer.depth_stencil_state.as_ref().unwrap().as_ptr();
                 let stencil_ref = buffer.depth_stencil_state_ref;
                 buffer.get_deferred_context_mut(frame_id).om_depth_stencil_state(depth_stencil_to_set, stencil_ref);
             }
@@ -1621,7 +1529,7 @@ impl DrawState {
         buffer.sampler_flag = sampler_flag;
     }
 
-    pub fn get_ot_frame_id(&self) -> usize { self.otFrameId as usize }
+    pub fn get_ot_frame_id(&self) -> usize { self.frame_id as usize }
 
     pub fn get_index_buffer(&self) -> Option<&IndexBuffer> { unsafe { self.index_buffer.as_ref() }}
 

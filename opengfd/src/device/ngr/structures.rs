@@ -16,8 +16,8 @@ use crate::{
 };
 use std::{
     alloc::Layout,
+    ffi::CStr,
     fmt::Debug,
-    mem::{ align_of, size_of },
     ops::{ Deref, DerefMut, Index, IndexMut },
     ptr::NonNull,
     sync::atomic::AtomicI32
@@ -308,6 +308,13 @@ where A: Allocator + Clone
 
     pub fn is_empty(&self) -> bool { self.len == 0 }
     pub fn get_length(&self) -> usize { self.len }
+
+    pub fn as_slice(&self) -> Option<&[T]> {
+        self.alloc.map(|v| unsafe { std::slice::from_raw_parts(v.as_ptr(), self.len) })
+    }
+    pub fn as_slice_mut(&mut self) -> Option<&mut [T]> {
+        self.alloc.map(|v| unsafe { std::slice::from_raw_parts_mut(v.as_ptr(), self.len) })
+    }
 }
 
 impl<T, A> Array<T, A>
@@ -426,7 +433,7 @@ where A: Allocator + Clone
 {
     pub fn new_in(alloc: A) -> Self {
         Self {
-            _cpp_vtable: std::ptr::null(),
+            _cpp_vtable: unsafe { globals::get_ngr_string_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
             text: std::ptr::null(),
             hint: MemHint::new_value(0x1000000),
             _allocator: alloc
@@ -434,10 +441,17 @@ where A: Allocator + Clone
     }
     pub fn from_c_string(_text: *const std::ffi::c_char, alloc: A) -> Self {
         Self {
-            _cpp_vtable: std::ptr::null(),
+            _cpp_vtable: unsafe { globals::get_ngr_string_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
             text: std::ptr::null(),
             hint: MemHint::new_value(0x1000000),
             _allocator: alloc
+        }
+    }
+    pub fn value(&self) -> Option<&str> {
+        if !self.text.is_null() {
+            Some(unsafe { CStr::from_ptr(self.text as *const i8).to_str().unwrap() })
+        } else {
+            None
         }
     }
 }
@@ -457,10 +471,14 @@ where A: Allocator + Clone
 {
     pub fn new_in(alloc: A) -> Self {
         Self {
-            _cpp_vtable: std::ptr::null(),
+            _cpp_vtable: unsafe { globals::get_ngr_string_hash_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
             name: String::new_in(alloc),
             hash: CrcHash::new_empty()
         }
+    }
+
+    pub fn value(&self) -> Option<&str> {
+        self.name.value()
     }
 }
 
@@ -487,10 +505,7 @@ pub struct CrcHash {
 impl CrcHash {
     pub fn new_empty() -> Self {
         Self {
-            _cpp_vtable: match unsafe { globals::get_ngr_crchash_vtable() } {
-                Some(v) => &raw const *v,
-                None => std::ptr::null()
-            },
+            _cpp_vtable: unsafe { globals::get_ngr_crchash_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
             hash: u32::MAX
         }
     }
@@ -498,10 +513,7 @@ impl CrcHash {
         let mut hasher = crc32fast::Hasher::new();
         val.hash(&mut hasher); 
         Self {
-            _cpp_vtable: match unsafe { globals::get_ngr_crchash_vtable() } {
-                Some(v) => &raw const *v,
-                None => std::ptr::null()
-            },
+            _cpp_vtable: unsafe { globals::get_ngr_crchash_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
             hash: hasher.finalize()
         }
     }
@@ -520,10 +532,11 @@ impl<T> ListNodeFreeList<T> {
     }
 }
 
+// 0x1422ecad8
 #[repr(C)]
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct ngr_1422ecad8 {
+pub struct PreciseTimer {
     _cpp_vtable: *const u8,
     field08: usize,
     field10: usize,
@@ -532,14 +545,11 @@ pub struct ngr_1422ecad8 {
     field28: usize
 }
 
-impl ngr_1422ecad8 {
+impl PreciseTimer {
     // 0x1411e7b90
     pub fn new() -> Self {
         let mut out = Self {
-            _cpp_vtable: match unsafe { globals::get_ngr_1422ecad8_vtable() } {
-                Some(v) => &raw const *v,
-                None => std::ptr::null()
-            },
+            _cpp_vtable: unsafe { globals::get_ngr_1422ecad8_vtable().map_or(std::ptr::null(), |v| &raw const *v) },
             field08: 0,
             field10: 0,
             counter: 0,
@@ -569,7 +579,7 @@ where A: Allocator + Clone
     field50: i32,
     block_end: Option<NonNull<FreeListBlockLink<T>>>,
     block_start: Option<NonNull<FreeListBlockLink<T>>>,
-    field68: ngr_1422ecad8,
+    timer: PreciseTimer,
     _allocator: A,
     // _inner_data: std::marker::PhantomData<T>
 }
@@ -650,7 +660,7 @@ where T: Debug,
             field50,
             block_end: None,
             block_start: None,
-            field68: ngr_1422ecad8::new(),
+            timer: PreciseTimer::new(),
             _allocator: alloc.clone(),
             // _inner_data: std::marker::PhantomData
         }, alloc.clone());
