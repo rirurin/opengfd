@@ -9,15 +9,19 @@ use crate::{
                 BufferType, ConstantBuffer
             },
             platform::d3d::{
-                ResourceView,
-                ResourceView2,
+                RenderTargetView,
+                DepthStencilView,
                 ResourceView3,
                 TextureResource
             },
             pkt::BufferBlendMode,
-            shader::{ VertexShaderPlatform, PixelShaderPlatform, ShaderPlatform }
+            shader::{
+                VertexShaderPlatform,
+                PixelShaderPlatform,
+                ShaderPlatform 
+            },
         },
-        structures::CrcHash
+        structures::CrcHash,
     },
     globals, 
     graphics::texture::Texture, 
@@ -29,6 +33,7 @@ use crate::{
 };
 use glam::Mat4;
 use std::{
+    ffi::c_void,
     hash::Hash,
     ptr::NonNull
 };
@@ -58,48 +63,11 @@ use windows::{
     }
 };
 
+// 0x142269480 - Steam 1.013
 #[repr(C)]
-pub struct DrawState {
+pub struct DrawState198 {
     _cpp_vtable: *const u8,
-    pub field1_0x8: *mut ::std::os::raw::c_void,
-    pub frame_id: i32,
-    pub field4_0x18: u64,
-    pub clear_color: RGBAFloat,
-    pub field6_0x30: [f32; 2usize],
-    pub fog_cbuffer_0: *mut ConstantBuffer,
-    pub shadow_cbuffer: *mut ConstantBuffer,
-    pub fog_cbuffer_1: *mut ConstantBuffer,
-    pub field10_0x50: *mut ConstantBuffer,
-    pub DefaultEnv: *mut Texture,
-    pub DefaultEnvToon: *mut Texture,
-    pub field13_0x68: *mut ConstantBuffer,
-    pub DefaultIBL: *mut Texture,
-    pub field15_0x78: *mut ConstantBuffer,
-    pub DefaultLUT: *mut Texture,
-    pub sampler88: *mut ::std::os::raw::c_void,
-    pub field18_0x90: *mut ConstantBuffer,
-    pub field19_0x98: *mut ConstantBuffer,
-    pub samplerA0: *mut ::std::os::raw::c_void,
-    pub BayerMatrix4x4: *mut Texture,
-    pub samplerB0: *mut ::std::os::raw::c_void,
-    pub skyboxNode: *mut Node,
-    pub skyboxMesh: *mut Mesh,
-    pub infOceanNode: *mut Node,
-    pub infOceanMesh: *mut Mesh,
-    fieldd8: *mut u8, 
-    pub field35_0xe0: *mut ::std::os::raw::c_void,
-    fielde8: *mut u8, 
-    pub field44_0xf0: *mut ::std::os::raw::c_void,
-    index_buffer: *mut IndexBuffer,
-    pub depthStencilViews: [*mut ::std::os::raw::c_void; 3usize],
-    pub field54_0x118: *mut ::std::os::raw::c_void,
-    pub field55_0x120: *mut ::std::os::raw::c_void,
-    pub field56_0x128: *mut ::std::os::raw::c_void,
-    pub field57_0x130: *mut ::std::os::raw::c_void,
-    pub field58_0x138: [*mut ::std::os::raw::c_void; 2usize],
-    pub field59_0x148: [*mut ::std::os::raw::c_void; 2usize],
-    pub field60_0x158: [*mut ::std::os::raw::c_void; 4usize],
-    field168: [u8; 0x110],
+    pub surfaces: [*mut Surface; 0x1d],
     pub GFD_PSCONST_HDR: *mut ConstantBuffer,
     pub field334_0x290: *mut ConstantBuffer,
     pub field335_0x298: *mut ConstantBuffer,
@@ -122,36 +90,40 @@ pub struct DrawState {
     pub field690_0x4b8: f32,
     pub REG_11_BUF_4C0: *mut ConstantBuffer,
     pub GFD_PSCONST_EFFECT_FocalBlur: *mut ConstantBuffer,
-    field4d0: [u8; 0x60],
+    field4d0: [*mut Surface; 4],
+    field4f0: [*mut BlendState; 5],
+    pub field518: *mut ConstantBuffer,
+    pub field520: *mut ConstantBuffer,
+    pub field528: *mut ConstantBuffer,
     pub field793_0x530: *mut ConstantBuffer,
     pub field794_0x538: *mut ConstantBuffer,
     pub field795_0x540: *mut ConstantBuffer,
     pub field796_0x548: *mut ConstantBuffer,
-    field550: [usize; 2],
-    field560: [*mut ngr_142234cb0; 4],
-    pub grad_texture: *mut Texture,
-    pub tex588: *mut Texture,
+    pub field550: [*mut ConstantBuffer; 2],
+    pub field560: [*mut Surface; 4],
+    pub grad_texture: Option<NonNull<Texture>>,
+    pub tex588: Option<NonNull<Texture>>,
     pub smaaBuffer: *mut ConstantBuffer,
     pub colorCorrectBuffer: *mut ConstantBuffer,
-    pub field849_0x5a0: *mut ::std::os::raw::c_void,
-    pub field850_0x5a8: *mut ::std::os::raw::c_void,
-    pub field851_0x5b0: *mut ::std::os::raw::c_void,
+    pub field849_0x5a0: *mut Surface,
+    pub field850_0x5a8: *mut Surface,
+    pub field851_0x5b0: Option<NonNull<TextureResource>>,
     pub ssaoBuffer0: *mut ConstantBuffer,
     pub ssaoBuffer1: *mut ConstantBuffer,
-    pub field854_0x5c8: *mut _142234cb0,
-    pub field855_0x5d0: *mut _142234cb0,
-    pub temperareWobbingTex: *mut Texture,
+    pub field854_0x5c8: *mut Surface,
+    pub field855_0x5d0: *mut Surface,
+    pub temperareWobbingTex: Option<NonNull<Texture>>,
     pub temperareBuffer: *mut ConstantBuffer,
-    pub field858_0x5e8: *mut ::std::os::raw::c_void,
-    pub field859_0x5f0: *mut ::std::os::raw::c_void,
-    pub field860_0x5f8: *mut ::std::os::raw::c_void,
-    pub cloud_main: *mut Texture,
-    pub cloud_sub: *mut Texture,
-    pub cloud_2d: *mut Texture,
+    pub field858_0x5e8: *mut Surface,
+    pub field859_0x5f0: *mut Surface,
+    pub field860_0x5f8: Option<NonNull<TextureResource>>,
+    pub cloud_main: Option<NonNull<Texture>>,
+    pub cloud_sub: Option<NonNull<Texture>>,
+    pub cloud_2d: Option<NonNull<Texture>>,
     pub cloud_buffer: *mut ConstantBuffer,
     pub sampler_620: *mut SamplerState,
-    pub field_628: *mut ngr_142234cb0,
-    field630: usize,
+    pub field_628: *mut Surface,
+    field630: f32,
     pub REG_11_BUF_638: *mut ConstantBuffer,
     pub REG_11_BUF_640: *mut ConstantBuffer,
     pub REG_11_BUF_648: *mut ConstantBuffer,
@@ -164,24 +136,92 @@ pub struct DrawState {
     pub REG_11_BUF_680: *mut ConstantBuffer,
     pub GFD_PSCONST_EFFECT_Outline: *mut ConstantBuffer,
     pub GFD_PSCONST_EFFECT_BrushStroke: *mut ConstantBuffer,
-    pub fullHDCanvas: *mut ::std::os::raw::c_void,
-    pub fullHDBrushstroke01: *mut ::std::os::raw::c_void,
+    pub fullHDCanvas: Option<NonNull<Texture>>,
+    pub fullHDBrushstroke01: Option<NonNull<Texture>>,
     pub REG_11_BUF_6A8: *mut ConstantBuffer,
+}
+
+impl DrawState198 {
+    pub fn get_cloud_main_handle(&self) -> Option<&TextureResource> {
+        match self.cloud_main {
+            Some(p) => unsafe { p.as_ref().get_handle() },
+            None => None
+        }
+    }
+    pub fn get_cloud_sub_handle(&self) -> Option<&TextureResource> {
+        match self.cloud_sub {
+            Some(p) => unsafe { p.as_ref().get_handle() },
+            None => None
+        }
+    }
+    pub fn get_cloud_2d_handle(&self) -> Option<&TextureResource> {
+        match self.cloud_2d {
+            Some(p) => unsafe { p.as_ref().get_handle() },
+            None => None
+        }
+    }
+}
+
+#[repr(C)]
+pub struct DrawState {
+    _cpp_vtable: *const u8,
+    pub field1_0x8: *mut ::std::os::raw::c_void,
+    pub frame_id: i32,
+    pub field4_0x18: u64,
+    pub clear_color: RGBAFloat,
+    pub field6_0x30: [f32; 2usize],
+    pub fog_cbuffer_0: *mut ConstantBuffer,
+    pub shadow_cbuffer: *mut ConstantBuffer,
+    pub fog_cbuffer_1: *mut ConstantBuffer,
+    pub field10_0x50: *mut ConstantBuffer,
+    pub EnvTexture: Option<NonNull<Texture>>,
+    pub EnvTextureToon: Option<NonNull<Texture>>,
+    pub field13_0x68: *mut SamplerState,
+    pub DefaultIBL: Option<NonNull<Texture>>,
+    pub field15_0x78: *mut SamplerState,
+    pub DefaultLUT: Option<NonNull<Texture>>,
+    pub sampler88: *mut SamplerState,
+    pub field18_0x90: *mut SamplerState,
+    pub field19_0x98: *mut SamplerState,
+    pub samplerA0: *mut SamplerState,
+    pub BayerMatrix4x4: Option<NonNull<Texture>>,
+    pub samplerB0: *mut SamplerState,
+    pub skyboxNode: *mut Node,
+    pub skyboxMesh: *mut Mesh,
+    pub infOceanNode: *mut Node,
+    pub infOceanMesh: *mut Mesh,
+    fieldd8: *mut VertexBuffer, 
+    pub field35_0xe0: *mut VertexBuffer,
+    fielde8: *mut u8, 
+    pub field44_0xf0: *mut VertexBuffer,
+    index_buffer: *mut IndexBuffer,
+    pub depthStencilViews: [*mut DepthStencilView; crate::kernel::global_common::RENDER_LISTS],
+    pub field54_0x118: *mut SamplerState,
+    pub field55_0x120: [Option<NonNull<Texture>>; crate::kernel::global_common::RENDER_LISTS],
+    pub field58_0x138: [*mut RenderTargetView; 2usize],
+    pub field59_0x148: [*mut c_void; 2usize],
+    pub field60_0x158: [*mut RenderTargetView; crate::kernel::global_common::RENDER_LISTS],
+    field170: *mut Surface,
+    field178: *mut c_void,
+    field180: *mut c_void,
+    field188: *mut Surface,
+    field190: Option<NonNull<Texture>>,
+    pub field198: DrawState198,
     pub field911_0x6b0: _142236508,
     pub field912_0x790: _142236510,
     field810: [u8; 0x10],
     pub effect_scale_adjust: bool,
-    pub Field828: [*mut ::std::os::raw::c_void; 2usize],
+    pub Field828: [*mut c_void; 2usize],
     field838: [u8; 0x38],
     pub mip_lod_bias: f32,
     field874: [u8; 0x14],
     pub effect_scale_index: u32,
-    field890: *mut ngr_142234cb0,
-    field898: *mut ngr_142234cb0,
+    field890: *mut Surface,
+    field898: *mut Surface,
     field8a0: usize,
     field8a8: usize,
-    pub sampler8B0: *mut ::std::os::raw::c_void,
-    field8b8: *mut ngr_142234cb0,
+    pub sampler8B0: *mut c_void,
+    field8b8: *mut Surface,
     field8c0: usize,
     pub toonShadowHatching: [*mut Texture; 3usize],
     pub basicBuffers: [BasicBuffers; 4usize],
@@ -231,9 +271,9 @@ bitflags! {
 pub struct BasicBuffers {
     _cpp_vtable: *const u8,
     field8: *const u8,
-    pub(crate) render_target: Option<NonNull<ResourceView>>,
+    pub(crate) render_target: Option<NonNull<RenderTargetView>>,
     pub field10_0x18: u32,
-    pub(crate) depth_stencil_resource: Option<NonNull<ResourceView2>>,
+    pub(crate) depth_stencil_resource: Option<NonNull<DepthStencilView>>,
     field28: [u8; 0x14],
     pub depth_stencil_state_ref: u8,
     pub depth_stencil_state: Option<GfdRc<DepthStencilState, AllocatorHook>>,
@@ -439,7 +479,7 @@ impl DeferredContextBase {
         std::mem::transmute::<&Option<ID3D11DepthStencilView>, *mut *mut std::ffi::c_void>(&self.depth_stencil_view)
     }
 
-    pub unsafe fn om_set_render_targets(&mut self, rtv: Option<&ResourceView>, dsv: Option<&ResourceView2>) {
+    pub unsafe fn om_set_render_targets(&mut self, rtv: Option<&RenderTargetView>, dsv: Option<&DepthStencilView>) {
         let e_rtv = self.get_render_target_view_ptr();
         let e_dsv = self.get_depth_stencil_view_ptr();
         let a_rtv = match rtv { Some(v) => v.get_render_target_view_as_raw(), None => std::ptr::null_mut() };
@@ -692,22 +732,40 @@ pub struct GraphicsStarFilter {
 }
 
 #[repr(C)]
+pub struct _142236508_68 {
+    rasterizer: *mut RasterizerState,
+    depth_stencil: *mut DepthStencilState,
+}
+
+#[repr(C)]
 pub struct _142236508 {
-    data: [u8; 224]
+    _cpp_vtable: *const u8,
+    surfaces: [*mut Surface; 10],
+    field58: *mut ConstantBuffer,
+    field60: *mut VertexBuffer,
+    field68: [_142236508_68; 3],
+    field98: *mut BlendState,
+    fielda0: *mut SamplerState,
+    fielda8: *mut VertexBuffer,
+    fieldb0: *mut DepthStencilState,
+    fieldb8: *mut BlendState,
+    fieldc0: *mut RasterizerState,
+    fieldc8: *mut DepthStencilState,
+    fieldd0: *mut BlendState,
+    fieldd8: *mut SamplerState,
 }
 
 #[repr(C)]
 pub struct _142236510 {
-    data: [u8; 128]
-}
-#[repr(C)]
-pub struct _142234cb0 {
-    data: [u8; 96]
-}
-
-#[allow(dead_code)]
-pub struct PlatformTexture {
-    data: [u8; 0xb0]
+    _cpp_vtable: *const u8,
+    textures: [*mut Texture; 2],
+    surfaces: [*mut Surface; 2],
+    cbuffers: [*mut ConstantBuffer; 2],
+    rasterizer: *mut RasterizerState,
+    blend: *mut BlendState,
+    depth_stencil: [*mut DepthStencilState; 2],
+    samplers: [*mut SamplerState; 4],
+    field78: usize
 }
 
 #[allow(dead_code)]
@@ -1644,7 +1702,7 @@ impl BasicBuffers {
 #[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
-pub struct ngr_142234cb0 {
+pub struct Surface {
     _cpp_vtable: *const u8,
     field08: usize,
     field10: usize,

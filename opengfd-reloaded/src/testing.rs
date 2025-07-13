@@ -187,8 +187,8 @@ pub unsafe extern "C" fn ngrSetShaderResources(p_this: *mut u8, p_ty: u32, p_id:
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn ngrOMSetRenderTargets(p_this: *mut u8, p_rv: *const u8, p_rv2: *const u8) {
     let this = &mut *(p_this as *mut DeferredContextBase);
-    let rv = if !p_rv.is_null() { Some(&*(p_rv as *const ResourceView)) } else { None };
-    let rv2 = if !p_rv.is_null() { Some(&*(p_rv2 as *const ResourceView2)) } else { None };
+    let rv = if !p_rv.is_null() { Some(&*(p_rv as *const RenderTargetView)) } else { None };
+    let rv2 = if !p_rv.is_null() { Some(&*(p_rv2 as *const DepthStencilView)) } else { None };
     // original_function!(p_this, p_rv, p_rv2)
     this.om_set_render_targets(rv, rv2);
 }

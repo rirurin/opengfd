@@ -286,8 +286,8 @@ pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, b
     buffer = draw_state.basicBuffers.get_unchecked_mut(buffer_id);
     // ...
     let ctx = buffer.get_deferred_context_mut(frame_id);
-    ctx.set_constant_buffers(BufferType::Vertex, &mut *draw_state.cloud_buffer, upd);
-    ctx.set_constant_buffers(BufferType::Pixel, &mut *draw_state.cloud_buffer, upd);
+    ctx.set_constant_buffers(BufferType::Vertex, &mut *draw_state.field198.cloud_buffer, upd);
+    ctx.set_constant_buffers(BufferType::Pixel, &mut *draw_state.field198.cloud_buffer, upd);
     // IASetVertexBuffers
     // OMSetRenderTargets
     // ...
@@ -300,12 +300,13 @@ pub(super) unsafe extern "C" fn render_clouds_pre_callback(_ot: *mut RenderOt, b
         MaxDepth: 0f32
     };
     ctx.set_viewports(&viewport);
-    ctx.set_shader_resource_view(BufferType::Pixel, 0, (&*draw_state.cloud_main).get_handle());
-    ctx.set_shader_resource_view(BufferType::Pixel, 1, (&*draw_state.cloud_sub).get_handle());
-    ctx.set_shader_resource_view(BufferType::Pixel, 2, (&*draw_state.cloud_2d).get_handle());
+    
+    ctx.set_shader_resource_view(BufferType::Pixel, 0, draw_state.field198.get_cloud_main_handle());
+    ctx.set_shader_resource_view(BufferType::Pixel, 1, draw_state.field198.get_cloud_sub_handle());
+    ctx.set_shader_resource_view(BufferType::Pixel, 2, draw_state.field198.get_cloud_2d_handle());
     // ...
     ctx.set_shader_resource_view(BufferType::Pixel, 3, None);
-    ctx.set_shader_sample(BufferType::Pixel, 2, if draw_state.sampler_620.is_null() { None } else { Some(&*draw_state.sampler_620)});
+    ctx.set_shader_sample(BufferType::Pixel, 2, if draw_state.field198.sampler_620.is_null() { None } else { Some(&*draw_state.field198.sampler_620)});
     // let v0 = ;
     ctx.set_vertex_shader(gfd_global.get_vertex_shader_platform(46));
     ctx.set_pixel_shader(gfd_global.get_pixel_shader_platform(130));

@@ -7,7 +7,10 @@ use crate::{
     },
     utility::reference::Reference
 };
-use std::alloc::Layout;
+use std::{
+    alloc::Layout,
+    ffi::c_void
+};
 use windows::Win32::Graphics::Direct3D11::ID3D11Buffer;
 
 #[repr(u32)]
@@ -33,17 +36,16 @@ impl TryFrom<u32> for BufferType {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ConstantBuffer {
-    _cpp_vtable: *mut std::ffi::c_void,
+    _cpp_vtable: *const u8, 
     ref_: Reference,
     field10: usize,
-    // fields: CbufferFields,
     fields: Array<*mut ConstantBufferField, AllocatorHook>,
     byte_width: u32,
     field54: u32,
     resource_count: u32,
     pub(super) slot: i32,
     buffer: Option<ID3D11Buffer>,
-    resources: [*const std::ffi::c_void; crate::kernel::global_common::RENDER_LISTS],
+    resources: [*const c_void; crate::kernel::global_common::RENDER_LISTS],
     // pub(super) active_buffers: u32,
     pub active_buffers: u32,
 }
@@ -77,7 +79,7 @@ impl ConstantBuffer {
     // vtable + 0xa0
     fn get_or_create_resource_inner(&mut self, index: usize) -> *mut u8 {
         if self.resources[index] == std::ptr::null() {
-            self.resources[index] = AllocatorHook.allocate(self.get_resource_layout()).unwrap().as_ptr() as *const std::ffi::c_void;
+            self.resources[index] = AllocatorHook.allocate(self.get_resource_layout()).unwrap().as_ptr() as *const c_void;
             self.active_buffers |= 1 << index;
         }
         self.resources[index] as *mut u8
@@ -87,9 +89,9 @@ impl ConstantBuffer {
         else { self.get_or_create_resource_inner(index) }
     }
     // vtable + 0xb8
-    pub unsafe fn get_resource(&self, index: u32) -> *const std::ffi::c_void {
+    pub unsafe fn get_resource(&self, index: u32) -> *const c_void {
         let real_index = if self.has_resources() { index } else { 0 } as usize;
-        unsafe { *self.resources.get_unchecked(real_index) }
+        unsafe { *self.resources.get_unchecked(real_index) as *const c_void }
     }
     pub fn set_field<T>(&mut self, frame: usize, index: usize, value: T) -> bool 
     where T: BufferFieldRustType
@@ -122,7 +124,7 @@ pub struct CbufferFields {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ConstantBufferField {
-    _cpp_vtable: usize,
+    _cpp_vtable: *const u8,
     name: StringHashed,
     ty: BufferFieldType,
     offset: i32

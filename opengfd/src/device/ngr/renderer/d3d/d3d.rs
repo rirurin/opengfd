@@ -203,13 +203,13 @@ pub struct ResourceView3 {
     _cpp_vtable: *const u8,
     ref_: Reference,
     field10: usize,
-    view: *mut ResourceView,
-    view2: *mut ResourceView2
+    rtv: *mut RenderTargetView,
+    dsv: *mut DepthStencilView
 }
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct ResourceView {
+pub struct RenderTargetView {
     _cpp_vtable: *const u8,
     ref_: Reference,
     field10: usize,
@@ -218,7 +218,7 @@ pub struct ResourceView {
     field28: u32
 }
 
-impl ResourceView {
+impl RenderTargetView {
     pub unsafe fn get_render_target_view_as_slice(&self) -> &[Option<ID3D11RenderTargetView>] {
         std::slice::from_raw_parts(&self.render_target_view, 1)
     }
@@ -229,7 +229,7 @@ impl ResourceView {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct ResourceView2 {
+pub struct DepthStencilView {
     _cpp_vtable: *const u8,
     ref_: Reference,
     field10: usize,
@@ -238,7 +238,7 @@ pub struct ResourceView2 {
     field30: u32
 }
 
-impl ResourceView2 {
+impl DepthStencilView {
     pub fn get_depth_stencil_view(&self) -> Option<&ID3D11DepthStencilView> {
         self.depth_stencil_view.as_ref()
     }

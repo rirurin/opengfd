@@ -1,4 +1,4 @@
-use glam::{ Vec2, Vec3, Vec3A, Vec4, Mat3, Mat4 };
+use glam::{ Vec2, Vec3, Vec3A, Vec4, Mat4 };
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
@@ -42,10 +42,10 @@ impl BufferFieldRustType for Vec3A {
 impl BufferFieldRustType for Vec4 {
     fn get_type() -> BufferFieldType { BufferFieldType::Float4 }
 }
-impl BufferFieldRustType for Mat3 {
+impl BufferFieldRustType for [Vec4; 3] { // matrix3x4
     fn get_type() -> BufferFieldType { BufferFieldType::Matrix3 }
 }
-impl BufferFieldRustType for Mat4 {
+impl BufferFieldRustType for Mat4 { // matrix4x4
     fn get_type() -> BufferFieldType { BufferFieldType::Matrix4 }
 }
 
