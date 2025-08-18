@@ -131,6 +131,13 @@ where A: Allocator + Clone
 
     pub fn get_stream_type(&self) -> StreamType { self.stream_type }
 
+    pub fn get_data(&self) -> Option<&S> {
+        unsafe { (self.get_raw_stream() as *const S).as_ref() }
+    }
+    pub fn get_data_mut(&self) -> Option<&mut S> {
+        unsafe { (self.get_raw_stream() as *mut S).as_mut() }
+    }
+
     // 0x1414725b0
     /// Original function: tplResourceIsReady
     pub fn is_ready(&self) -> bool {
