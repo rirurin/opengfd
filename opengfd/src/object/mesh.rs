@@ -173,6 +173,24 @@ where A: Allocator + Clone
     pub fn get_bounding_sphere_mut(&mut self) -> &mut BoundingSphere {
         &mut self.bounding_sphere
     }
+    pub fn get_anim_interpolator(&self) -> Option<&AnimInterpolator> {
+        self.anim_interpolator.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_anim_interpolator_mut(&mut self) -> Option<&mut AnimInterpolator> {
+        self.anim_interpolator.map(|mut v| unsafe { v.as_mut() })
+    }
+    pub fn get_anim_controller(&self) -> Option<&AnimController> {
+        self.anim_controller.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_anim_controller_mut(&mut self) -> Option<&mut AnimController> {
+        self.anim_controller.map(|mut v| unsafe { v.as_mut() })
+    }
+    pub fn get_anim_effector(&self) -> Option<&AnimEffector> {
+        self.anim_effector.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_anim_effector_mut(&mut self) -> Option<&mut AnimEffector> {
+        self.anim_effector.map(|mut v| unsafe { v.as_mut() })
+    }
 }
 
 #[ensure_layout(size = 48usize)]

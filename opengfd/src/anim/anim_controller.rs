@@ -15,6 +15,8 @@ use crate::{
     }
 };
 use std::ptr::NonNull;
+use allocator_api2::alloc::Allocator;
+use crate::kernel::allocator::GfdAllocator;
 
 bitflags! {
     pub struct AnimationPackFlags: u32 {
@@ -57,31 +59,34 @@ const ANIM_TRACK_COUNT: usize = 8;
 
 
 #[repr(C)]
-pub struct AnimController {
+pub struct AnimController<A = GfdAllocator>
+where A: Allocator + Clone
+{
     flags: AnimationPackFlags,
     interpolator: NonNull<AnimInterpolator>,
     effector: NonNull<AnimEffector>,
     tracks: [AnimControllerTrack; ANIM_TRACK_COUNT],
-    base: *mut ItemArray<Animation>,
-    add: *mut ItemArray<Animation>,
-    add2: *mut ItemArray<Animation>,
-    neck: *mut AnimationNeck,
+    base: Option<NonNull<ItemArray<Animation<A>>>>,
+    add: Option<NonNull<ItemArray<Animation<A>>>>,
+    add2: Option<NonNull<ItemArray<Animation<A>>>>,
+    neck: Option<NonNull<AnimationNeck>>,
     biped_ik: *mut BipedIK,
     bounding_box: BoundingBox,
-    field_2d8: usize
+    field_2d8: usize,
+    _allocator: A
 }
 
-impl AnimController {
+impl<A> AnimController<A>
+where A: Allocator + Clone
+{
     /// Original function: gfdAnimControllerCheckPause
     pub fn check_pause(&self) -> bool { self.flags.contains(AnimationPackFlags::Pause) }
     /// Original function: gfdAnimControllerGetAdditionalAnimationCount
     pub fn get_add_anim_count(&self) -> usize {
-        let arr: &ItemArray<Animation> = unsafe { &*self.add };
-        arr.len() as usize
+        self.add.map_or(0, |v| unsafe { v.as_ref().len() as usize })
     }
     pub fn get_add2_anim_count(&self) -> usize {
-        let arr: &ItemArray<Animation> = unsafe { &*self.add2 };
-        arr.len() as usize
+        self.add2.map_or(0, |v| unsafe { v.as_ref().len() as usize })
     }
     fn get_anim_track(&self, index: usize) -> Option<&AnimControllerTrack> {
         match index < ANIM_TRACK_COUNT {
@@ -105,8 +110,7 @@ impl AnimController {
     }
     /// Original function: gfdAnimControllerGetBaseAnimationCount
     pub fn get_base_anim_count(&self) -> usize {
-        let arr: &ItemArray<Animation> = unsafe { &*self.base };
-        arr.len() as usize
+        self.base.map_or(0, |v| unsafe { v.as_ref().len() as usize })
     }
 
     fn get_sequence_index(&self, index: usize) -> usize {
@@ -171,6 +175,25 @@ impl AnimController {
             }
         }
         self.flags |= AnimationPackFlags::Pause;
+    }
+
+    pub fn get_base_animation_list(&self) -> &[Animation<A>] {
+        match self.base {
+            Some(p) => unsafe { p.as_ref().as_slice() },
+            None => &[]
+        }
+    }
+    pub fn get_add_animation_list(&self) -> &[Animation<A>] {
+        match self.add {
+            Some(p) => unsafe { p.as_ref().as_slice() },
+            None => &[]
+        }
+    }
+    pub fn get_add2_animation_list(&self) -> &[Animation<A>] {
+        match self.add2 {
+            Some(p) => unsafe { p.as_ref().as_slice() },
+            None => &[]
+        }
     }
 }
 

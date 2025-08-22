@@ -4,6 +4,7 @@ use std::{
     ptr::NonNull
 };
 
+#[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GfdAllocator;
 
