@@ -173,7 +173,7 @@ impl GlobalImpl for Global {
         else { Some(unsafe { &mut *self.free_list_head } )}
     }
     fn get_free_list_head_ptr(&self) -> *mut GfdFreeList {
-        &raw mut *self.free_list_head
+        unsafe { &raw mut *self.free_list_head }
     }
     fn set_free_list_head_mut(&mut self, new: *mut GfdFreeList) {
         self.free_list_head = new;
@@ -191,6 +191,12 @@ impl GlobalImpl for Global {
         unsafe { self.task_free_list.as_mut() }
     }
 }
+
+/*
+impl Global {
+    pub fn new()
+}
+*/
 
 #[repr(C)]
 #[derive(Debug)]

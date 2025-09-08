@@ -16,7 +16,7 @@ use crate::{
         item_array::ItemArray, 
         misc::{ BoundingBox, BoundingSphere },
         property::Property,
-        reference::Reference
+        reference::{ GfdRcType, Reference },
     }
 };
 use glam::Vec3A;
@@ -29,8 +29,39 @@ use super::{
     node::Node, 
     object::Object
 };
-use std::ptr::NonNull;
-use riri_mod_tools_proc::ensure_layout;
+#[cfg(feature = "serialize")]
+use std::{
+    fmt::Debug,
+    io::{ Read, Seek, Write },
+};
+use std::{
+    error::Error,
+    ptr::NonNull
+};
+use std::fmt::Formatter;
+use std::io::SeekFrom;
+use std::time::Instant;
+use opengfd_proc::GfdRcAuto;
+use crate::device::ngr::allocator::AllocatorHook;
+use crate::graphics::texture::{Texture, TextureFormat, TextureSerializationContext};
+use crate::kernel::version::GfdVersion;
+use crate::object::object::{CastFromObject, ObjectId};
+use crate::utility::misc::RGB;
+use crate::utility::name::{Name, NameSerializationContext, NameSerializationNoHash};
+
+#[cfg(feature = "serialize")]
+use crate::utility::stream::{
+    ChunkHeader,
+    ChunkType,
+    DeserializationHeap,
+    DeserializationStrategy,
+    GfdSerialize,
+    GfdSerializationUserData,
+    SerializationSingleAllocator,
+    Stream,
+    StreamError,
+    StreamIODevice
+};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -75,7 +106,8 @@ const LOCAL_OBB_COUNT: usize = 8;
 const CULL_OBJECT_COUNT: usize = 3;
 
 #[repr(C)]
-#[derive(Debug)]
+// #[derive(Debug)]
+#[derive(GfdRcAuto)]
 pub struct Mesh<A = GfdAllocator> 
 where A: Allocator + Clone
 {
@@ -102,23 +134,42 @@ where A: Allocator + Clone
     skin_bone_matrix_array: *mut ItemArray<usize>, // TODO
     skin_bone_object: *mut SkinBoneObject,
     light_container: *mut LightContainer,
-    sync: *mut MeshSync,
+    sync: Option<NonNull<MeshSync<A>>>,
     property: Option<NonNull<Property>>,
     // job data START
     #[cfg(feature = "v1-core")]
     field_140: *mut P5RMeshField140,
     #[cfg(feature = "v2-core")]
-    gradation: Option<NonNull<Gradation>>,
+    gradation: Option<NonNull<Gradation<A>>>,
     // job data END
     reference: Reference,
     dirty: u32,
     _allocator: A
 }
 
+impl<A> Debug for Mesh<A>
+where A: Allocator + Clone {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MESH TODO")
+    }
+}
+
+impl<A> CastFromObject for Mesh<A>
+where A: Allocator + Clone
+{
+    const OBJECT_ID: ObjectId = ObjectId::Mesh;
+}
+
 impl<A> Mesh<A>
 where A: Allocator + Clone
 {
     pub fn get_flags(&self) -> MeshFlags { self.flags }
+    pub fn get_root_node(&self) -> Option<&Node<A>> {
+        self.hierarchy.map(|v| unsafe { v.as_ref() })
+    }
+    pub fn get_root_node_mut(&mut self) -> Option<&mut Node<A>> {
+        self.hierarchy.map(|mut v| unsafe { v.as_mut() })
+    }
     pub fn get_node_list(&self) -> &[*mut Node<A>] {
         match unsafe { self.node_array.as_ref() } {
             Some(a) => a.as_slice(),
@@ -193,76 +244,152 @@ where A: Allocator + Clone
     }
 }
 
-#[ensure_layout(size = 48usize)]
-pub struct MeshSync {
-    #[field_offset(0usize)]
-    pub attachment: *mut MeshSyncAttachmentObject,
-    #[field_offset(8usize)]
-    pub entry: *mut MeshSyncEntryObject,
-    #[field_offset(16usize)]
-    pub field2_0x10: *mut ::std::os::raw::c_void,
-    #[field_offset(24usize)]
-    pub field3_0x18: *mut ::std::os::raw::c_void,
-    #[field_offset(32usize)]
-    pub field4_0x20: *mut ::std::os::raw::c_void,
-    #[field_offset(40usize)]
-    pub field5_0x28: *mut ::std::os::raw::c_void,
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T, AObject, DeserializationHeap<Self, AObject>, SerializationSingleAllocator<AObject>> for Mesh<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<DeserializationHeap<Self, AObject>, Box<dyn Error>> {
+        let mut this = DeserializationHeap::<Self, AObject>::uninit(param);
+        this.reference = Reference::new();
+        this.stream_read_inner(stream, param)?;
+        Ok(this)
+    }
 }
 
-#[ensure_layout(size = 40usize)]
-pub struct MeshSyncEntryObject {
-    #[field_offset(0usize)]
-    pub entry: *mut Object,
-    #[field_offset(8usize)]
+#[cfg(feature = "serialize")]
+impl<AObject> Mesh<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug {
+        let allocator = param.get_heap_allocator().unwrap();
+        let start = Instant::now();
+        loop {
+            let chunk = ChunkHeader::stream_read(stream, &mut ())?.into_raw();
+            println!("{:?}", chunk);
+            match chunk.get_chunk_id() {
+                /*
+                ChunkType::Model => {
+
+                },
+                ChunkType::ExtraProperties => {
+
+                },
+                ChunkType::PhysicsDictionary => {
+
+                },
+                */
+                ChunkType::MaterialDictionary => {
+                    let mat_count = stream.read_u32()? as usize;
+                    let _ = Material::<AObject>::stream_read(stream, param)?.into_raw();
+                },
+                ChunkType::TextureDictionary => {
+                    // TEMPORARY
+                    let tex_count = stream.read_u32()? as usize;
+                    for i in 0..tex_count {
+                        let _ = Texture::<AObject>::stream_read(stream, &mut TextureSerializationContext::new(allocator.clone(), allocator.clone()))?.into_raw();
+                    }
+                    // let textures = ItemArray::<u32, GfdAllocator>::with_capacity(stream.read_u32()? as usize, self._allocator.clone())?;
+                    // println!("texture count: {}", textures.capacity());
+                },
+                /*
+                ChunkType::AnimationPack => {
+
+                },
+                ChunkType::ChunkType000100FE => {
+
+                },
+                */
+                _ => break
+            };
+        }
+        println!("Time: {} ms", start.elapsed().as_micros() as f64 / 1000.);
+        Ok(())
+    }
+}
+
+#[repr(C)]
+pub struct MeshSync<A>
+where A: Allocator + Clone {
+    pub attachment: Option<NonNull<MeshSyncAttachmentObject<A>>>,
+    pub entry: Option<NonNull<MeshSyncEntryObject<A>>>,
+    pub field2_0x10: *mut std::ffi::c_void, // registry?
+    pub field3_0x18: *mut std::ffi::c_void, // neck?
+    pub field4_0x20: *mut std::ffi::c_void,
+    pub field5_0x28: *mut std::ffi::c_void,
+}
+
+#[repr(C)]
+pub struct MeshSyncEntryObject<A>
+where A: Allocator + Clone {
+    pub entry: Option<NonNull<Object<A>>>,
     pub mask: u32,
-    #[field_offset(16usize)]
-    pub callback: *mut ::std::os::raw::c_void,
-    #[field_offset(24usize)]
-    pub prev: *mut MeshSyncEntryObject,
-    #[field_offset(32usize)]
-    pub next: *mut MeshSyncEntryObject,
+    pub callback: *mut std::ffi::c_void,
+    pub prev: Option<NonNull<Self>>,
+    pub next: Option<NonNull<Self>>,
+    _allocator: A
 }
 
-#[ensure_layout(size = 56usize)]
-pub struct MeshSyncAttachmentObject {
-    #[field_offset(0usize)]
-    pub object: *mut Object,
-    #[field_offset(8usize)]
+#[repr(C)]
+pub struct MeshSyncAttachmentObject<A>
+where A: Allocator + Clone {
+    pub object: Option<NonNull<Object<A>>>,
     pub id: u32,
-    #[field_offset(16usize)]
-    pub field3_0x10: *mut ::std::os::raw::c_void,
-    #[field_offset(24usize)]
-    pub update: *mut ::std::os::raw::c_void,
-    #[field_offset(32usize)]
-    pub render: *mut ::std::os::raw::c_void,
-    #[field_offset(40usize)]
-    pub prev: *mut MeshSyncAttachmentObject,
-    #[field_offset(48usize)]
-    pub next: *mut MeshSyncAttachmentObject,
+    pub field3_0x10: *mut std::ffi::c_void,
+    pub update: Option<fn(*mut u8, &mut Object<A>, f32)>, // gfdMeshAttachmentObjectUpdateFunc
+    pub render: Option<fn(u32, *mut u8)>, // gfdMeshAttachmentObjectRenderFunc
+    pub prev: Option<NonNull<Self>>,
+    pub next: Option<NonNull<Self>>,
+    _allocator: A
 }
 
-#[ensure_layout(size = 128usize)]
-pub struct Gradation {
-    #[field_offset(8usize)]
-    pub root_node: *mut Node,
-    #[field_offset(16usize)]
-    pub field9_0x10: *mut ::std::os::raw::c_void,
-    #[field_offset(24usize)]
-    pub hip_node: *mut Node,
-    #[field_offset(32usize)]
-    pub right_heel_node: *mut Node,
-    #[field_offset(40usize)]
-    pub left_heel_node: *mut Node,
-    #[field_offset(48usize)]
-    pub color: [u8; 3usize],
-    #[field_offset(52usize)]
+#[repr(C)]
+pub struct MeshSyncNeckCallbackObject {
+    func: Option<fn(*mut u8, *mut u8)>,
+    userdata: *mut std::ffi::c_void
+}
+
+#[repr(C)]
+pub struct MeshSyncRegistryCallbackObject {
+    func: Option<fn(*mut u8, *mut u8)>,
+    userdata: *mut std::ffi::c_void,
+    mask: u32,
+    prev: Option<NonNull<Self>>,
+    next: Option<NonNull<Self>>,
+}
+
+#[repr(C)]
+pub struct MeshSyncCallback<A>
+where A: Allocator + Clone {
+    owner: Option<NonNull<Object<A>>>,
+    sync: [Option<NonNull<Object<A>>>; 2],
+    func: Option<fn(*mut u8, *mut u8)>,
+    dirty: u32,
+    mask: u32,
+    userdata: [*mut std::ffi::c_void; 2],
+    prev: Option<NonNull<Self>>,
+    next: Option<NonNull<Self>>,
+    _allocator: A
+}
+
+#[repr(C)]
+pub struct Gradation<A>
+where A: Allocator + Clone {
+    field0: usize,
+    pub root_node: Option<NonNull<Node<A>>>,
+    pub field9_0x10: *mut std::ffi::c_void,
+    pub hip_node: Option<NonNull<Node<A>>>,
+    pub right_heel_node: Option<NonNull<Node<A>>>,
+    pub left_heel_node: Option<NonNull<Node<A>>>,
+    pub color: RGB,
     pub scale: f32,
-    #[field_offset(56usize)]
     pub fade: f32,
-    #[field_offset(60usize)]
     pub alpha: f32,
-    #[field_offset(64usize)]
     pub field18_0x40: i32,
+    field44: [u8; 60],
+    _allocator: A
 }
 
 #[repr(C)]

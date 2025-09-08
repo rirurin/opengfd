@@ -52,10 +52,10 @@ bitflags! {
         const HasSpeed     = 1 << 25;
         const Flag26          = 1 << 26;
         const Flag27          = 1 << 27;
-        const Flag28          = 1 << 28;
-        const Flag29          = 1 << 29;
+        const HasEffect          = 1 << 28;
+        const HasNeck          = 1 << 29;
         const HasBoundingBox = 1 << 30;
-        const Flag31          = 1 << 31;
+        const HasTranslation          = 1 << 31;
     }
 }
 
@@ -67,11 +67,11 @@ where A: Allocator + Clone
     duration: f32,
     num_joints: u32,
     joints: Option<NonNull<AnimationJoint>>,
-    effect: Option<NonNull<ItemArray<EPL, A>>>,
+    effect: Option<NonNull<ItemArray<NonNull<EPL<A>>, A>>>,
     neck: Option<NonNull<AnimationNeck>>,
-    bounding_box: *mut BoundingBox,
-    translation: *mut AnimationTranslation,
-    properties: *mut Property,
+    bounding_box: Option<NonNull<BoundingBox>>,
+    translation: Option<NonNull<AnimationTranslation>>,
+    properties: Option<NonNull<Property<A>>>,
     frequency: f32,
     cfb_data: AnimationCFB,
     ref_: Reference,
@@ -90,6 +90,9 @@ impl Animation {
     }
     pub fn get_frequency(&self) -> f32 {
         self.frequency
+    }
+    pub fn get_translation_distance(&self, start: f32, end: f32) {
+
     }
 }
 

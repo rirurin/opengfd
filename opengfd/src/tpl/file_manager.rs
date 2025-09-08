@@ -102,11 +102,11 @@ where A: Allocator + Clone
     pub fn get_running(&self) -> bool { *self.running.get() }
     pub fn set_running(&mut self, new: bool) { *self.running.get_mut() = new; }
 
-    pub fn lock_file_mutex(&mut self) -> MutexGuard<Self> {
+    pub fn lock_file_mutex(&mut self) -> MutexGuard<'_, Self> {
         let self_ptr = &raw mut *self;
         self.mutex.lock(unsafe { &mut *self_ptr })
     }
-    pub fn lock_cond_var(&mut self) -> MutexGuard<Self> {
+    pub fn lock_cond_var(&mut self) -> MutexGuard<'_, Self> {
         let self_ptr = &raw mut *self;
         self.cond_mtx_ptr.get_mut().lock(unsafe { &mut *self_ptr })
     }

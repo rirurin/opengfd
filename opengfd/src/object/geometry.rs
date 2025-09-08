@@ -23,6 +23,7 @@ use crate::{
 use glam::Vec3A;
 use opengfd_proc::GfdRcAuto;
 use std::ptr::NonNull;
+use crate::object::object::{CastFromObject, ObjectId};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -139,10 +140,10 @@ where A: Allocator + Clone
     index_buffer: Option<NonNull<GeometryIndexBuffer>>, // TriCount > 0
     skin: Option<NonNull<SkinRef>>, // Flags & Skin
     material: Option<NonNull<Material>>, // Flags & Material
-    morph_targets: *mut ::std::os::raw::c_void,
+    morph_targets: *mut std::os::raw::c_void,
     light_container: Option<NonNull<LightContainer>>,
-    vertices: [*mut ::std::os::raw::c_void; 2usize],
-    indices: *mut ::std::os::raw::c_void,
+    vertices: [*mut std::os::raw::c_void; 2usize],
+    indices: *mut std::os::raw::c_void,
     bounding_box: BoundingBox,
     bounding_sphere: BoundingSphere,
     local_obb: *mut [Vec3A; 8usize],
@@ -258,6 +259,14 @@ where A: Allocator + Clone
             None
         }
     }
+
+    pub fn get_material_mut(&mut self) -> Option<&mut Material> {
+        match self.flags.contains(GeometryFlags::Material) {
+            true => self.material.map(|mut v| unsafe { v.as_mut() }),
+            false => None
+        }
+    }
+
     pub fn get_reflection_material(&self) -> Option<&Material> {
         if self.flags.contains(GeometryFlags::ReflectionCaster) {
             unsafe { self.reflection_mat.as_ref() }
@@ -328,6 +337,12 @@ where A: Allocator + Clone
         self.stencil_enable = enable;
     }
     // pub fn set_stencil_op(&mut self, fail: )
+}
+
+impl<A> CastFromObject for Geometry<A>
+where A: Allocator + Clone
+{
+    const OBJECT_ID: ObjectId = ObjectId::Geometry;
 }
 
 #[repr(C)]

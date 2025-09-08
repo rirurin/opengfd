@@ -8,7 +8,10 @@ members = [
     "opengfd-proc", 
     "opengfd-proc-impl",
     "opengfd-reloaded",
-    "opengfd-tests"
+    "opengfd-tests",
+    "tools/build-field-character-anims",
+    "tools/serializer-test",
+    "tools/shader-compiler"
 ]
 
 [workspace.package]

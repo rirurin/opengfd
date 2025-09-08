@@ -21,3 +21,6 @@
 
 # Jetbrains IDE
 /.idea
+
+# Tool data
+/tools/bin/*

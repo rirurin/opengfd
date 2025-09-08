@@ -1,14 +1,30 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
 use allocator_api2::alloc::Allocator;
 use crate::{
     kernel::allocator::GfdAllocator,
     object::{
         node::Node,
-        object::Object
+        object::{CastFromObject, Object, ObjectId}
     },
-    utility::reference::Reference
+    utility::reference::Reference,
 };
 use glam::{ Mat4, Vec3, Vec3A, Vec4, Quat };
 use std::ptr::NonNull;
+use crate::kernel::version::GfdVersion;
+
+#[cfg(feature = "serialize")]
+use crate::utility::stream::{
+    DeserializationHeap,
+    DeserializationStrategy,
+    GfdSerialize,
+    SerializationSingleAllocator,
+    Stream,
+    StreamIODevice
+};
+
+type DynRes<T> = Result<T, Box<dyn Error>>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -26,7 +42,7 @@ where A: Allocator + Clone
     fovy: f32,
     aspect: f32,
     roll: f32,
-    field11_0x198: f32,
+    field11_0x198: u8,
     field12_0x19c: f32,
     field13_0x1a0: f32,
     dirty: i32,
@@ -113,10 +129,49 @@ where A: Allocator + Clone
     pub fn get_fovy_mut(&mut self) -> &mut f32 { &mut self.fovy }
     pub fn get_aspect_ratio_mut(&mut self) -> &mut f32 { &mut self.aspect }
     pub fn get_roll_mut(&mut self) -> &mut f32 { &mut self.roll }
-    pub fn get_field198_mut(&mut self) -> &mut f32 { &mut self.field11_0x198 }
+    pub fn get_field198_mut(&mut self) -> &mut u8 { &mut self.field11_0x198 }
     pub fn get_field19c_mut(&mut self) -> &mut f32 { &mut self.field12_0x19c }
     pub fn get_field1a0_mut(&mut self) -> &mut f32 { &mut self.field13_0x1a0 }
 
     pub fn get_super(&self) -> &Object<A> { &self._super }
     pub fn get_super_mut(&mut self) -> &mut Object<A> { &mut self._super }
+}
+
+impl<A> CastFromObject for Camera<A>
+where A: Allocator + Clone
+{
+    const OBJECT_ID: ObjectId = ObjectId::Camera;
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T, AObject, DeserializationHeap<Self, AObject>, SerializationSingleAllocator<AObject>> for Camera<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> DynRes<DeserializationHeap<Self, AObject>> {
+        let mut this = DeserializationHeap::<Self, AObject>::uninit(param);
+        this.ref_ = Reference::new();
+        this.stream_read_inner(stream)?;
+        Ok(this)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AObject> Camera<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> DynRes<()>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug {
+        self.view = Mat4::stream_read(stream, &mut ())?.into_raw();
+        self.near_clip = stream.read_f32()?;
+        self.far_clip = stream.read_f32()?;
+        self.fovy = stream.read_f32()?;
+        self.aspect = stream.read_f32()?;
+        self.roll = stream.has_feature(GfdVersion::CameraAddRoll).map_or(Ok(0.), |_| stream.read_f32())?;
+        self.field11_0x198 = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0), |_| stream.read_u8())?;
+        self.field12_0x19c = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0.), |_| stream.read_f32())?;
+        self.field13_0x1a0 = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0.), |_| stream.read_f32())?;
+        Ok(())
+    }
 }

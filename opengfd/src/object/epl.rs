@@ -17,6 +17,7 @@ use super::{
     object::Object
 };
 use std::ptr::NonNull;
+use crate::object::object::{CastFromObject, ObjectId};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -65,9 +66,9 @@ where A: Allocator + Clone
     flag: EplFlags,
     dirty: i32,
     time: f32,
-    root: *mut Node<A>,
-    timeline: *mut Timeline,
-    leaves: *mut ItemArray<EPLLeaf, A>,
+    root: Option<NonNull<Node<A>>>,
+    timeline: Option<NonNull<Timeline>>,
+    leaves: Option<NonNull<ItemArray<NonNull<EPLLeaf<A>>, A>>>,
     rgba: RGBA,
     frequency: f32,
     field60: [u8; 0x18],
@@ -75,6 +76,12 @@ where A: Allocator + Clone
     field80: u32,
     ref_: Reference,
     _allocator: A
+}
+
+impl<A> CastFromObject for EPL<A>
+where A: Allocator + Clone
+{
+    const OBJECT_ID: ObjectId = ObjectId::EPL;
 }
 
 bitflags! {
@@ -117,8 +124,9 @@ bitflags! {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct EPLLeaf {
-    _super: Object,
+pub struct EPLLeaf<A = GfdAllocator>
+where A: Allocator + Clone {
+    _super: Object<A>,
     scale: Vec3A,
     color: RGBA,
     fade: Fade,
@@ -128,7 +136,13 @@ pub struct EPLLeaf {
     field_4c: u8,
     flags: EplLeafFlags,
     name: Name,
-    parts: Option<NonNull<Part>> 
+    parts: Option<NonNull<Part>>,
+    _allocator: A
+}
+
+impl CastFromObject for EPLLeaf
+{
+    const OBJECT_ID: ObjectId = ObjectId::EPLLeaf;
 }
 
 #[repr(C)]

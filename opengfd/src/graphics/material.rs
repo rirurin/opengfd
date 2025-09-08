@@ -1,3 +1,8 @@
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
+use std::io::{Read, Seek, Write};
+use std::mem::{ManuallyDrop, MaybeUninit};
+use std::ptr::NonNull;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -27,12 +32,25 @@ use crate::{
 };
 use glam::Mat4;
 use opengfd_proc::GfdRcAuto;
+#[cfg(feature = "v2-core")]
+use crate::device::ngr::renderer::shader::{PixelShaderPlatform, VertexShaderPlatform};
+use crate::kernel::version::GfdVersion;
+use crate::object::mesh::Mesh;
+use crate::utility::name::{NameSerializationContext, NameSerializationHash};
+use crate::utility::stream::{DeserializationHeap, DeserializationStack, DeserializationStrategy, GfdSerializationUserData, GfdSerialize, SerializationSingleAllocator, Stream, StreamIODevice};
 
-// use std::{
-//     error::Error,
-//     fmt::Display
-// };
-// use riri_mod_tools_proc::ensure_layout;
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+pub enum MaterialError {
+    UnknownMaterialType(u16),
+    UnknownBlendType(u8),
+    UnknownMultiplyType(u8),
+}
+impl Error for MaterialError {}
+impl Display for MaterialError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MaterialError: {:?}", self)
+    }
+}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -44,6 +62,36 @@ pub struct Blending {
     dst_alpha: u8,
     multiple: MultiplyType,
     control: u8,
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, T> GfdSerialize<AStream, T> for Blending
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: Blending = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl Blending {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where
+        T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug
+    {
+        self.ty = stream.read_u8()?.try_into()?;
+        self.src_color = stream.read_u8()?;
+        self.dst_color = stream.read_u8()?;
+        self.src_alpha = stream.read_u8()?;
+        self.dst_alpha = stream.read_u8()?;
+        self.multiple = stream.read_u8()?.try_into()?;
+        self.control = stream.read_u8()?;
+        Ok(())
+    }
 }
 
 #[repr(u8)]
@@ -58,6 +106,22 @@ pub enum BlendType {
     Advanced = 6
 }
 
+impl TryFrom<u8> for BlendType {
+    type Error = MaterialError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Opaque),
+            1 => Ok(Self::Semitrans),
+            2 => Ok(Self::AddTrans),
+            3 => Ok(Self::SubTrans),
+            4 => Ok(Self::ModulateTrans),
+            5 => Ok(Self::Modulate2Trans),
+            6 => Ok(Self::Advanced),
+            v => Err(MaterialError::UnknownBlendType(v))
+        }
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MultiplyType {
@@ -67,6 +131,21 @@ pub enum MultiplyType {
     Mod = 3,
     None4 = 4,
     Sub = 5
+}
+
+impl TryFrom<u8> for MultiplyType {
+    type Error = MaterialError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::None),
+            1 => Ok(Self::Semi),
+            2 => Ok(Self::Add),
+            3 => Ok(Self::Mod),
+            4 => Ok(Self::None4),
+            5 => Ok(Self::Sub),
+            v => Err(MaterialError::UnknownMultiplyType(v))
+        }
+    }
 }
 
 bitflags! {
@@ -160,6 +239,7 @@ pub mod params {
         fmt::Display,
         mem::ManuallyDrop
     };
+    use crate::graphics::material::MaterialError;
 
     #[repr(u16)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -183,26 +263,52 @@ pub mod params {
         Shadow = 16
     }
 
+    impl TryFrom<u16> for MaterialId {
+        type Error = MaterialError;
+        fn try_from(value: u16) -> Result<Self, Self::Error> {
+            match value {
+                0 => Ok(Self::Field),
+                1 => Ok(Self::Lambert),
+                2 => Ok(Self::CharacterToon),
+                3 => Ok(Self::Type3),
+                4 => Ok(Self::CharacterDistort),
+                5 => Ok(Self::Water),
+                6 => Ok(Self::DualLayer),
+                7 => Ok(Self::Type7),
+                8 => Ok(Self::Type8),
+                9 => Ok(Self::Type9),
+                10 => Ok(Self::Sky),
+                11 => Ok(Self::Type11),
+                12 => Ok(Self::CharacterMetal),
+                13 => Ok(Self::Type13),
+                14 => Ok(Self::Type14),
+                15 => Ok(Self::Type15),
+                16 => Ok(Self::Shadow),
+                v => Err(MaterialError::UnknownMaterialType(v))
+            }
+        }
+    }
+
     #[allow(dead_code)]
-    #[repr(C, packed(1))]
+    #[repr(C, packed(4))]
     pub union MaterialDataStorage {
-        field: ManuallyDrop<Field>,
-        lambert: ManuallyDrop<Lambert>,
-        chara_toon: ManuallyDrop<CharacterToon>,
-        type3: ManuallyDrop<Type3>,
-        chara_distort: ManuallyDrop<CharacterDistortion>,
-        water: ManuallyDrop<Water>,
-        dual_layer: ManuallyDrop<TwoLayer>,
-        type7: ManuallyDrop<FourLayer>,
-        type8: ManuallyDrop<Type8>,
-        type9: ManuallyDrop<Type9>,
-        sky: ManuallyDrop<Sky>,
-        type11: ManuallyDrop<Type11>,
-        metal: ManuallyDrop<Metal>,
-        type13: ManuallyDrop<Type13>,
-        type14: ManuallyDrop<Type14>,
-        type15: ManuallyDrop<Type15>,
-        shadow: ManuallyDrop<Shadow>
+        pub(super) field: ManuallyDrop<Field>,
+        pub(super) lambert: ManuallyDrop<Lambert>,
+        pub(super) chara_toon: ManuallyDrop<CharacterToon>,
+        pub(super) type3: ManuallyDrop<Type3>,
+        pub(super) chara_distort: ManuallyDrop<CharacterDistortion>,
+        pub(super) water: ManuallyDrop<Water>,
+        pub(super) dual_layer: ManuallyDrop<TwoLayer>,
+        pub(super) type7: ManuallyDrop<FourLayer>,
+        pub(super) type8: ManuallyDrop<Type8>,
+        pub(super) type9: ManuallyDrop<Type9>,
+        pub(super) sky: ManuallyDrop<Sky>,
+        pub(super) type11: ManuallyDrop<Type11>,
+        pub(super) metal: ManuallyDrop<Metal>,
+        pub(super) type13: ManuallyDrop<Type13>,
+        pub(super) type14: ManuallyDrop<Type14>,
+        pub(super) type15: ManuallyDrop<Type15>,
+        pub(super) shadow: ManuallyDrop<Shadow>
     }
 
     #[derive(Debug)]
@@ -222,7 +328,7 @@ pub mod params {
             Err(MaterialIdMismatch(MaterialId::Field, MaterialId::Field))
         }
         pub fn get_data(&self) -> Box<&dyn MaterialType> {
-            Box::new(match self.map_type {
+            Box::new(match self.mat_type {
                 MaterialId::Field => unsafe { &*(&raw const self.data as *const Field<A>) },
                 MaterialId::Lambert => unsafe { &*(&raw const self.data as *const Lambert<A>) },
                 MaterialId::CharacterToon => unsafe { &*(&raw const self.data as *const CharacterToon<A>) },
@@ -254,13 +360,17 @@ where A: Allocator + Clone
     culling: Culling,
     dirty: u16,
     flags: MaterialFlags,
-    texture: *mut MaterialTexture,
+    texture: NonNull<MaterialTexture<A>>,
     shader: ShaderID,
+    #[cfg(feature = "v2-core")]
+    vertex_shader: Option<NonNull<VertexShaderPlatform>>,
+    #[cfg(not(feature = "v2-core"))]
     vertex_shader: usize,
-    // pub vertexShader: *mut ngrVertexShaderWrapper,
+    #[cfg(feature = "v2-core")]
+    pixel_shader: Option<NonNull<PixelShaderPlatform>>,
+    #[cfg(not(feature = "v2-core"))]
     pixel_shader: usize,
-    // pub pixelShader: *mut ngrPixelShaderWrapper,
-    name: Name,
+    name: Name<A>,
     alpha_test_ref: i16,
     alpha_test_func: AlphaTestFunc,
     flags2: MaterialFlags2,
@@ -273,11 +383,11 @@ where A: Allocator + Clone
     field20_0x88: *mut ::std::os::raw::c_void,
     // data: MaterialData,
     data: params::MaterialDataStorage,
-    map_type: params::MaterialId,
+    mat_type: params::MaterialId,
     field23_0x2de: u16,
     ref_: Reference,
     field25_0x2e4: [u16; 3usize],
-    textures: [MaterialTexture; 10usize],
+    textures: [MaterialTexture<A>; 10usize],
     _allocator: A,
 }
 
@@ -302,14 +412,16 @@ pub enum Culling {
 }
 
 #[repr(C)]
-pub struct MaterialTexture {
+pub struct MaterialTexture<A>
+where A: Allocator + Clone {
     tm: Mat4,
-    texture: *mut Texture,
+    texture: Option<NonNull<Texture<A>>>,
     flags: MaterialTextureFlags,
     min: u8,
     mag: u8,
     wraps: u8,
     wrapt: u8,
+    _allocator: A
 }
 
 bitflags! { 
@@ -447,7 +559,6 @@ const TEX_BIT_MAX: usize = (1 << TEX_BIT_SIZE) - 1;
 impl<A> Material<A>
 where A: Allocator + Clone
 {
-
     pub fn set_texture_map_flags(&self, tex_id: usize, flags: &mut ShaderFlags) {
         // const Texture1 = 1 << 20;
         let texflag = MaterialFlags::from_bits_retain(1 << (0x14 + tex_id));
@@ -467,7 +578,7 @@ where A: Allocator + Clone
         }
     }
 
-    // 0x141071d70
+    // Original function: 0x141071d70 (Metaphor Prologue Demo)
     pub fn get_shader_flags(&self, map_id: u16, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         let param = self.get_data();
         let glb = GraphicsGlobal::get_gfd_graphics_global();
@@ -531,18 +642,10 @@ where A: Allocator + Clone
         }
         if self.flags.contains(MaterialFlags::Texture5) {
             match self.blend.multiple {
-                MultiplyType::Semi => {
-                    *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SEMI;
-                },
-                MultiplyType::Add => {
-                    *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_ADD;
-                },
-                MultiplyType::Mod => {
-                    *flags |= ShaderFlag1::FLAG1_MATERIAL_MULTIPLE_MOD;
-                },
-                MultiplyType::Sub => {
-                    *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SUB;
-                },
+                MultiplyType::Semi => *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SEMI,
+                MultiplyType::Add => *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_ADD,
+                MultiplyType::Mod => *flags |= ShaderFlag1::FLAG1_MATERIAL_MULTIPLE_MOD,
+                MultiplyType::Sub => *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SUB,
                 _ => {}
             }
         }
@@ -565,5 +668,67 @@ where A: Allocator + Clone
         if self.flags2.contains(MaterialFlags2::Grayscale) {
             *flags |= ShaderFlag0::FLAG0_CONSTANTCOLOR | ShaderFlag0::FLAG0_GRAYSCALE;
         }
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T, AObject, DeserializationHeap<Self, AObject>, SerializationSingleAllocator<AObject>> for Material<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<DeserializationHeap<Self, AObject>, Box<dyn Error>> {
+        let mut this = DeserializationHeap::<Self, AObject>::uninit(param);
+        // Original function: gfdMaterialInitialize (0x14106bf90, Steam Prologue Demo 1.01)
+        this.flags = MaterialFlags::Ambient | MaterialFlags::Diffuse;
+        this.alpha_test_func = AlphaTestFunc::GreaterOrEqual0;
+        this.blend.src_color = 1;
+        this.texture = unsafe { NonNull::new_unchecked((&mut this.textures).as_mut_ptr()) };
+        this.blend.src_alpha = 1;
+        this.blend.multiple = MultiplyType::Semi;
+        this.constant = -1;
+        this.field16_0x6c = 1.;
+        this.ref_ = Reference::new();
+        this.stream_read_inner(stream, param.get_heap_allocator().unwrap())?;
+        Ok(this)
+    }
+}
+
+#[cfg(all(feature = "v2-core", feature = "serialize"))]
+impl<AObject> Material<AObject>
+where AObject: Allocator + Clone {
+    // Original function: gfdMaterialStreamRead (0x14106e620 Steam Prologue Demo 1.01)
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>, alloc: AObject) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug {
+        self.mat_type = stream
+            .has_feature(GfdVersion::MaterialUseParameterSet)
+            .map_or::<Result<params::MaterialId, Box<dyn Error>>, _>(
+                Ok(params::MaterialId::Lambert),
+                |_| Ok(stream.read_u16()?.try_into()?)
+            )?;
+        self.name = Name::<AObject>::stream_read(stream, &mut NameSerializationContext::new(alloc.clone(), NameSerializationHash))?.into_raw();
+        self.flags = MaterialFlags::from_bits_truncate(stream.read_u32()?);
+        println!("{}: {:?}, {:?}", self.name, self.mat_type, self.flags);
+        if stream.has_feature(GfdVersion::MaterialDiffusivitySSAONotRequired).is_none() {
+            self.flags |= (MaterialFlags::Diffusivity | MaterialFlags::SSAO);
+        }
+        if stream.has_feature(GfdVersion::MaterialAllowUVTransform).is_none() {
+            self.flags.remove(MaterialFlags::UVTransform);
+        }
+        self.data.chara_toon = ManuallyDrop::new(crate::graphics::shader::attribute::toon_v2::CharacterToon::stream_read(stream, &mut ())?.into_raw());
+        self.blend = Blending::stream_read(stream, &mut ())?.into_raw();
+        println!("{:?}", unsafe { &self.data.chara_toon });
+        println!("{:?}", self.blend);
+        Ok(())
+    }
+}
+
+#[cfg(all(feature = "v1-core", feature = "serialize"))]
+impl Material<GfdAllocator> {
+    // Original function: gfdMaterialStreamRead (0x14106e620 Steam Prologue Demo 1.01)
+    fn stream_read_inner<T>(&mut self, stream: &mut Stream<GfdAllocator, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice {
+        Ok(())
     }
 }

@@ -66,9 +66,9 @@ where A: Allocator + Clone
     interpolator: NonNull<AnimInterpolator>,
     effector: NonNull<AnimEffector>,
     tracks: [AnimControllerTrack; ANIM_TRACK_COUNT],
-    base: Option<NonNull<ItemArray<Animation<A>>>>,
-    add: Option<NonNull<ItemArray<Animation<A>>>>,
-    add2: Option<NonNull<ItemArray<Animation<A>>>>,
+    base: Option<NonNull<ItemArray<NonNull<Animation<A>>>>>,
+    add: Option<NonNull<ItemArray<NonNull<Animation<A>>>>>,
+    add2: Option<NonNull<ItemArray<NonNull<Animation<A>>>>>,
     neck: Option<NonNull<AnimationNeck>>,
     biped_ik: *mut BipedIK,
     bounding_box: BoundingBox,
@@ -127,6 +127,13 @@ where A: Allocator + Clone
             v => self.get_interpolator().get_current_time(v),
         }
     }
+    /// Original function: gfdAnimControllerSetCurrentTime
+    pub fn set_current_time(&mut self, index: usize, value: f32) {
+        match self.get_sequence_index(index) {
+            usize::MAX => (),
+            v => self.get_interpolator_mut().set_current_time(v, value),
+        }
+    }
     /// Original function: gfdAnimControllerGetDuration
     pub fn get_duration(&self, index: usize) -> f32 {
         match self.get_sequence_index(index) {
@@ -134,6 +141,15 @@ where A: Allocator + Clone
             v => self.get_interpolator().get_duration(v),
         }
     }
+    /*
+    /// Original function: gfdAnimControllerSetDuration
+    pub fn set_duration(&mut self, index: usize, value: f32) {
+        match self.get_sequence_index(index) {
+            usize::MAX => (),
+            v => self.get_interpolator_mut().set_duration(v, value),
+        }
+    }
+    */
     /// Original function: gfdAnimControllerGetSpeed
     pub fn get_speed(&self, index: usize) -> f32 {
         match self.get_sequence_index(index) {
@@ -141,11 +157,25 @@ where A: Allocator + Clone
             v => self.get_interpolator().get_frequency(v),
         }
     }
+    /// Original function: gfdAnimControllerSetSpeed
+    pub fn set_speed(&mut self, index: usize, value: f32) {
+        match self.get_sequence_index(index) {
+            usize::MAX => (),
+            v => self.get_interpolator_mut().set_frequency(index, value)
+        }
+    }
     /// Original function: gfdAnimControllerGetWeight
     pub fn get_weight(&self, index: usize) -> f32 {
         match self.get_sequence_index(index) {
             usize::MAX => 0.,
             v => self.get_interpolator().get_weight(v),
+        }
+    }
+    /// Original function: gfdAnimControllerSetWeight
+    pub fn set_weight(&mut self, index: usize, value: f32) {
+        match self.get_sequence_index(index) {
+            usize::MAX => (),
+            v => self.get_interpolator_mut().set_weight(v, value),
         }
     }
     /// Original function: gfdAnimControllerGetInterpolator
@@ -177,19 +207,19 @@ where A: Allocator + Clone
         self.flags |= AnimationPackFlags::Pause;
     }
 
-    pub fn get_base_animation_list(&self) -> &[Animation<A>] {
+    pub fn get_base_animation_list(&self) -> &[NonNull<Animation<A>>] {
         match self.base {
             Some(p) => unsafe { p.as_ref().as_slice() },
             None => &[]
         }
     }
-    pub fn get_add_animation_list(&self) -> &[Animation<A>] {
+    pub fn get_add_animation_list(&self) -> &[NonNull<Animation<A>>] {
         match self.add {
             Some(p) => unsafe { p.as_ref().as_slice() },
             None => &[]
         }
     }
-    pub fn get_add2_animation_list(&self) -> &[Animation<A>] {
+    pub fn get_add2_animation_list(&self) -> &[NonNull<Animation<A>>] {
         match self.add2 {
             Some(p) => unsafe { p.as_ref().as_slice() },
             None => &[]

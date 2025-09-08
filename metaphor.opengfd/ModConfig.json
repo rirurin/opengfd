@@ -2,25 +2,25 @@
   "ModId": "metaphor.opengfd","ModName": "OpenGFD for Metaphor: Refantazio","ModAuthor": "Rirurin","ModVersion": "0.2.0","ModDescription": "Reimplementation of portions of GFD Engine, designed to interoperate with Metaphor: Refantazio","ModDll": "metaphor.opengfd.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/metaphor.opengfd.dll","ModR2RManagedDll64": "x64/metaphor.opengfd.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
     "GithubDependencies": {
       "IdToConfigMap": {
-        "SharedScans.Reloaded": {
-          "Config": {
-            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
-        },
-        "mrfpc.modloader": {
-          "Config": {
-            "UserName": "DeathChaos","RepositoryName": "mrfpc.modloader","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "mrfpc.modloader.ReleaseMetadata.json"
-        },
         "reloaded.sharedlib.hooks": {
           "Config": {
             "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
           },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
         },
+        "SharedScans.Reloaded": {
+          "Config": {
+            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
+        },
         "Reloaded.Memory.SigScan.ReloadedII": {
           "Config": {
             "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+        },
+        "mrfpc.modloader": {
+          "Config": {
+            "UserName": "DeathChaos","RepositoryName": "mrfpc.modloader","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "mrfpc.modloader.ReleaseMetadata.json"
         }
       }
     },"GameBananaDependencies": {

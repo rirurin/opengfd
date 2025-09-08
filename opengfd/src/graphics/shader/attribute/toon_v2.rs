@@ -1,3 +1,8 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -18,8 +23,11 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
-use glam::{ Vec3A, Vec4 };
-
+use glam::{Vec3, Vec3A, Vec4};
+use crate::kernel::version::GfdVersion;
+use crate::utility::misc::{RGBAFloat, RGBFloat};
+#[cfg(feature = "serialize")]
+use crate::utility::stream::{DeserializationStrategy, DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 // From https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
 bitflags! {
@@ -56,18 +64,30 @@ bitflags! {
 #[repr(C)]
 #[derive(Debug)]
 pub struct Toon {
-    base_color: Vec4,
-    shadow_color: Vec4,
-    edge_color: Vec4,
-    emissive_color: Vec4,
-    specular_color: Vec3A,
+    base_color: RGBAFloat,
+    shadow_color: RGBAFloat,
+    edge_color: RGBAFloat,
+    emissive_color: RGBAFloat,
+    specular_color: RGBFloat,
+    specular_threshold: f32,
     specular_power: f32,
     metallic: f32,
+    roughness: f32,
+    bloom_strength: f32,
     edge_threshold: f32,
     edge_factor: f32,
+    edge_remove_y_axis_factor: f32,
     shadow_threshold: f32,
     shadow_factor: f32,
-    field100: [u8; 0x38],
+    field74: f32,
+    field78: f32,
+    field7c: Vec3,
+    field88: f32,
+    field8c: f32,
+    field90: f32,
+    field94: f32,
+    fitting_tile: f32,
+    multi_fitting_tile: f32,
     pub(super) flags: ToonBaseFlags
 }
 
@@ -106,7 +126,7 @@ bitflags! {
 /// Source File: 11.HLSL
 #[repr(C)]
 #[derive(Debug)]
-pub struct CharacterToon<A = GfdAllocator> 
+pub struct CharacterToon<A = GfdAllocator>
 where A: Allocator + Clone
 {
     _impl: Toon,
@@ -177,7 +197,7 @@ where A: Allocator + Clone
             *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION;
         }
         if self._impl.shadow_threshold > 0.
-        && self._impl.edge_color.w > 0. {
+        && self._impl.edge_color.get_alpha_f32() > 0. {
             *flags |= ShaderFlag2::FLAG2_EDGE_BACKLIGHT;
         }
         if self.has_flag(CharaToonFlags::ToonRefNormalMap) {
@@ -253,5 +273,64 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, T> GfdSerialize<AStream, T> for Toon
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: Toon = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl Toon {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        self.base_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.shadow_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.edge_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.emissive_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.specular_color = RGBFloat::stream_read(stream, &mut ())?.into_raw();
+        self.specular_power = stream.read_f32()?;
+        self.metallic = stream.read_f32()?;
+        self.edge_threshold = stream.read_f32()?;
+        self.edge_factor = stream.read_f32()?;
+        self.shadow_threshold = stream.read_f32()?;
+        self.shadow_factor = stream.read_f32()?;
+        self.flags = ToonBaseFlags::from_bits_truncate(stream.read_u32()?);
+        self.field74 = stream.has_feature(GfdVersion::MaterialParameterToonSetP12).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.), |_| Ok(stream.read_f32()?))?;
+        self.field7c = stream.has_feature(GfdVersion::MaterialParameterToonSetP12).map_or::<Result<Vec3, Box<dyn Error>>, _>(Ok(Vec3::ZERO), |_| Ok(Vec3::stream_read(stream, &mut ())?.into_raw()))?;
+        self.bloom_strength = stream.has_feature(GfdVersion::MaterialParameterAddBloomIntensity).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.5), |_| Ok(stream.read_f32()?))?;
+        self.specular_threshold = stream.has_feature(GfdVersion::MaterialParameterToonAddSpecularThreshold).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(1.), |_| Ok(stream.read_f32()?))?;
+        self.edge_remove_y_axis_factor = stream.has_feature(GfdVersion::MaterialParameterToonAddEdgeRemoveYAxisFactor).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(3.), |_| Ok(stream.read_f32()?))?;
+        self.field88 = stream.has_feature(GfdVersion::MaterialParameterToonAddP17).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(1.), |_| Ok(stream.read_f32()?))?;
+        self.field8c = stream.has_feature(GfdVersion::MaterialParameterToonAddP17).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(-1.), |_| Ok(stream.read_f32()?))?;
+        self.field90 = stream.has_feature(GfdVersion::MaterialParameterToonAddP17).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.), |_| Ok(stream.read_f32()?))?;
+        self.field78 = stream.has_feature(GfdVersion::MaterialParameterToonAddP20).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.1), |_| Ok(stream.read_f32()?))?;
+        self.roughness = stream.has_feature(GfdVersion::MaterialParameterToonAddMatRoughness).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.), |_| Ok(stream.read_f32()?))?;
+        self.field94 = 1.;
+        self.fitting_tile = stream.has_feature(GfdVersion::MaterialParameterToonAddFittingTile).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.), |_| Ok(stream.read_f32()?))?;
+        self.multi_fitting_tile = stream.has_feature(GfdVersion::MaterialParameterToonAddMultiFittingTile).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.), |_| Ok(stream.read_f32()?))?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T> for CharacterToon<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let _impl = Toon::stream_read(stream, &mut ())?.into_raw();
+        Ok(CharacterToon { _impl, _alloc: PhantomData::<AObject> }.into())
     }
 }

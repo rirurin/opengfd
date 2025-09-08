@@ -125,6 +125,28 @@ where A: Allocator + Clone
         }
         self.parent = parent.map(|v| unsafe { NonNull::new_unchecked(&raw mut *v) });
     }
+
+    pub fn as_object<T>(&self) -> Option<&T>
+    where T: CastFromObject {
+        if self.id == T::OBJECT_ID {
+            Some(unsafe { std::mem::transmute(self) })
+        } else {
+            None
+        }
+    }
+
+    pub fn as_object_mut<T>(&mut self) -> Option<&mut T>
+    where T: CastFromObject {
+        if self.id == T::OBJECT_ID {
+            Some(unsafe { std::mem::transmute(self) })
+        } else {
+            None
+        }
+    }
+}
+
+pub trait CastFromObject {
+    const OBJECT_ID: ObjectId;
 }
 
 impl<A> PartialEq for Object<A> 
@@ -191,3 +213,9 @@ pub trait ObjectTable {
     /// Original function: gfdObjectCheckDirtied
     fn check_dirty(&self) -> bool;
 }
+
+/*
+pub trait ObjectSerializer {
+    fn stream_read(&self, buf: &[u8])
+}
+*/

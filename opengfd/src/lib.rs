@@ -174,6 +174,7 @@ pub mod kernel {
     pub mod init;
     pub mod job;
     pub mod task;
+    pub mod version;
 }
 pub mod object {
     #[path = "object_base.rs"]
@@ -238,5 +239,6 @@ pub mod utility {
     pub mod name;
     pub mod property;
     pub mod reference;
+    #[cfg(feature = "serialize")]
     pub mod stream;
 }

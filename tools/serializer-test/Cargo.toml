@@ -1,0 +1,16 @@
+[package]
+name = "serializer-test"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license-file.workspace = true
+edition.workspace = true
+
+[dependencies]
+allocator-api2 = "0.2.21"
+bitflags = "2.6"
+byteorder = { version = "1" }
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools", default-features = false }
+opengfd = { path = "../../opengfd" }

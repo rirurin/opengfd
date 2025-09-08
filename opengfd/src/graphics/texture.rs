@@ -16,16 +16,13 @@ use crate::{
     }
 };
 use opengfd_proc::GfdRcAuto;
-use std::{
-    error::Error,
-    fmt::{ Debug, Display },
-    ffi::c_void,
-    io::Cursor,
-    ptr::NonNull
-};
-
+use std::{error::Error, fmt::{Debug, Display}, ffi::c_void, io::Cursor, ptr::NonNull, io};
+use std::fmt::Formatter;
+use std::io::{Read, Seek, Write};
 #[cfg(feature = "image_loader")]
 use image::ImageReader;
+use crate::utility::name::{NameSerializationContext, NameSerializationNoHash};
+use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSerializationUserData, GfdSerialize, Stream, StreamIODevice};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -62,6 +59,58 @@ bitflags! {
         const FLAG29 = 1 << 29;
         const NO_CREATING_RESOURCE = 1 << 30;
         const NO_TEXTURE_LIST = 1 << 31;
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+pub struct UnsupportedTextureFormat(u32);
+
+impl Error for UnsupportedTextureFormat {}
+impl Display for UnsupportedTextureFormat {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unsupported Texture Format {}", self.0)
+    }
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+pub enum TextureFormat {
+    DDS = 1,
+    TGA = 2,
+    TMX = 3,
+    GTF = 4,
+    DEV = 5,
+    GXT = 6,
+    PVR = 7,
+    BMP = 8,
+    GNF = 9,
+    EPT = 12
+}
+
+impl TryFrom<u32> for TextureFormat {
+    type Error = UnsupportedTextureFormat;
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            1  => Ok(Self::DDS),
+            2  => Ok(Self::TGA),
+            3  => Ok(Self::TMX),
+            4  => Ok(Self::GTF),
+            5  => Ok(Self::DEV),
+            6  => Ok(Self::GXT),
+            7  => Ok(Self::PVR),
+            8  => Ok(Self::BMP),
+            9  => Ok(Self::GNF),
+            12 => Ok(Self::EPT),
+            _ => Err(UnsupportedTextureFormat(value))
+        }
+    }
+}
+
+impl TryFrom<u16> for TextureFormat {
+    type Error = UnsupportedTextureFormat;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        TryFrom::<u32>::try_from(value as u32)
     }
 }
 
@@ -195,5 +244,77 @@ where A: Allocator + Clone + Debug
         let mut new = Self::new_with_handle(handle, flags, allocator);
         if !new.flags.contains(TextureFlags::NO_TEXTURE_LIST) { new.insert_to_texture_list(); }
         Ok(new)
+    }
+}
+
+#[cfg(feature = "serialize")]
+pub(crate) struct TextureSerializationContext<AOuter, AInner>
+where AOuter: Allocator + Clone,
+      AInner: Allocator + Clone
+{
+    outer: AOuter,
+    inner: AInner
+}
+
+#[cfg(feature = "serialize")]
+impl<AOuter, AInner> GfdSerializationUserData<AOuter> for TextureSerializationContext<AOuter, AInner>
+where AOuter: Allocator + Clone,
+      AInner: Allocator + Clone
+{
+    fn get_heap_allocator(&self) -> Option<AOuter> {
+        Some(self.outer.clone())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AOuter, AInner> TextureSerializationContext<AOuter, AInner>
+where AOuter: Allocator + Clone,
+      AInner: Allocator + Clone
+{
+    pub(crate) fn get_inner_allocator(&self) -> AInner {
+        self.inner.clone()
+    }
+    pub(crate) fn new(outer: AOuter, inner: AInner) -> Self {
+        Self { outer, inner }
+    }
+}
+
+
+#[cfg(feature = "serialize")]
+impl<AStream, AOuter, AInner, T> GfdSerialize<AStream, T, AOuter, DeserializationHeap<Self, AOuter>, TextureSerializationContext<AOuter, AInner>> for Texture<AOuter>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AOuter: Allocator + Clone,
+      AInner: Allocator + Clone
+{
+    // Original function: gfdTextureStreamRead (0x14105e380, Steam Prologue Demo 1.01)
+    fn stream_read(stream: &mut Stream<AStream, T>, param: &mut TextureSerializationContext<AOuter, AInner>) -> Result<DeserializationHeap<Self, AOuter>, Box<dyn Error>> {
+        let mut this = DeserializationHeap::<Self, AOuter>::uninit(param);
+        this.ref_ = Reference::new();
+        this.stream_read_inner(stream, param)?;
+        Ok(this)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AOuter> Texture<AOuter>
+where AOuter: Allocator + Clone {
+    fn stream_read_inner<AStream, AInner, T>(&mut self, stream: &mut Stream<AStream, T>, param: &mut TextureSerializationContext<AOuter, AInner>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug,
+          AInner: Allocator + Clone
+    {
+        let name = Name::<AOuter>::stream_read(stream, &mut NameSerializationContext::new(param.get_heap_allocator().unwrap(), NameSerializationNoHash))?.into_raw();
+        let tex_format: TextureFormat = stream.read_u16()?.try_into()?;
+        let tex_len = stream.read_u32()? as usize;
+        let tex_data = stream.read_u8_owned(tex_len)?;
+        let min = stream.read_u8()?;
+        let mag = stream.read_u8()?;
+        let wraps = stream.read_u8()?;
+        let wrapt = stream.read_u8()?;
+        println!("{}, {:?} (size: 0x{:x}), {}, {}, {}, {}", name, tex_format, tex_data.len(), min, mag, wraps, wrapt);
+        // Is this texture already loaded in the cache?
+        // let global = unsafe { crate::globals::get_gfd_global_mut() };
+        Ok(())
     }
 }

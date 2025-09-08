@@ -11,7 +11,7 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use glam::Vec4;
-
+use crate::utility::misc::RGBAFloat;
 // From https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
 /// Shader file: 3.HLSL
@@ -20,10 +20,10 @@ use glam::Vec4;
 pub struct Lambert<A = GfdAllocator> 
 where A: Allocator + Clone 
 {
-    ambient_color: Vec4,
-    diffuse_color: Vec4,
-    specular_color: Vec4,
-    emissive_color: Vec4,
+    ambient_color: RGBAFloat,
+    diffuse_color: RGBAFloat,
+    specular_color: RGBAFloat,
+    emissive_color: RGBAFloat,
     reflectivity: f32,
     lerp_blend_rate: f32,
     _allocator: std::marker::PhantomData<A>

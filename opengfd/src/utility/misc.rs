@@ -1,5 +1,13 @@
 #![allow(dead_code)]
-use glam::{ swizzles::Vec4Swizzles, Vec3, Vec4 };
+
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use allocator_api2::alloc::Allocator;
+use glam::{swizzles::Vec4Swizzles, Mat4, Quat, Vec3, Vec3A, Vec4};
+use crate::kernel::version::GfdVersion;
+use crate::object::light::{Light, LightFlags};
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -222,8 +230,34 @@ impl RGBFloat {
     pub const fn get_red_f32(&self) -> f32 { self.0.x }
     pub const fn get_green_f32(&self) -> f32 { self.0.y }
     pub const fn get_blue_f32(&self) -> f32 { self.0.z }
+
+    pub fn get_raw(&self) -> &[f32; 3] {
+        self.0.as_ref()
+    }
+    pub fn get_raw_mut(&mut self) -> &mut [f32; 3] {
+        self.0.as_mut()
+    }
 }
 
+impl Default for RGBFloat {
+    fn default() -> Self {
+        Self(Vec3::default())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for RGBFloat
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = RGBFloat::default();
+        stream.read_f32_slice(new.get_raw_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
+}
+
+// Using [f32; 4] instead of glam::Vec4 due to alignment requirements
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RGBAFloat([f32; 4]);
 impl RGBAFloat {
@@ -263,6 +297,17 @@ impl RGBAFloat {
     pub const fn get_green(&self) -> u8 { (self.0[1] * 255f32) as u8 }
     pub const fn get_blue(&self) -> u8 { (self.0[2] * 255f32) as u8 }
     pub const fn get_alpha(&self) -> u8 { (self.0[3] * 255f32) as u8 }
+    pub const fn get_red_f32(&self) -> f32 { self.0[0] }
+    pub const fn get_green_f32(&self) -> f32 { self.0[1] }
+    pub const fn get_blue_f32(&self) -> f32 { self.0[2] }
+    pub const fn get_alpha_f32(&self) -> f32 { self.0[3] }
+
+    pub fn get_raw(&self) -> &[f32; 4] {
+        &self.0
+    }
+    pub fn get_raw_mut(&mut self) -> &mut [f32; 4] {
+        &mut self.0
+    }
 }
 impl From<RGBAFloat> for RGBA {
     fn from(value: RGBAFloat) -> Self {
@@ -282,6 +327,29 @@ impl From<RGBAFloat> for [f32; 4] {
 impl From<RGBAFloat> for RGBFloat {
     fn from(value: RGBAFloat) -> Self {
         Self::from_rgb_array_f32([value.0[0], value.0[1], value.0[2]])
+    }
+}
+impl From<RGBFloat> for RGBAFloat {
+    fn from(value: RGBFloat) -> Self {
+        Self::from_rgba_array_f32([value.0[0], value.0[1], value.0[2], 1.])
+    }
+}
+
+impl Default for RGBAFloat {
+    fn default() -> Self {
+        Self([0.; 4])
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for RGBAFloat
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = RGBAFloat::default();
+        stream.read_f32_slice(new.get_raw_mut().as_mut_slice())?;
+        Ok(new.into())
     }
 }
 
@@ -470,4 +538,64 @@ impl Rect {
     pub fn get_top_right(&self) -> f32 { self.0.y }
     pub fn get_width(&self) -> f32 { self.0.z }
     pub fn get_height(&self) -> f32 { self.0.w }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Vec3
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = Vec3::ZERO;
+        stream.read_f32_slice(new.as_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Vec3A
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = Vec3A::ZERO;
+        stream.read_f32_slice(new.as_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Vec4
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = Vec4::ZERO;
+        stream.read_f32_slice(new.as_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Quat
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = [0f32; 4];
+        stream.read_f32_slice(new.as_mut_slice())?;
+        Ok(Quat::from_array(new).into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Mat4
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = Mat4::ZERO;
+        stream.read_f32_slice(new.as_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
 }

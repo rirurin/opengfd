@@ -189,18 +189,31 @@ impl GfdStatic {
 
     fn create_set_name_tokens_link(&self) -> String {
         let type_param = self.data.get_full_type_as_tokens();
-        format!("   {}\n    pub(crate) unsafe fn {}(ptr: *mut {});\n", self.get_set_name_comment(), self.get_set_pointer_name(), type_param)
+        format!("   {}\n    pub(crate) fn {}(ptr: *mut {});\n", self.get_set_name_comment(), self.get_set_pointer_name(), type_param)
     }
 
     fn generate_get_pointer_link(&self, is_mutable: bool, is_checked: bool, name: String, comment: String) -> String {
         let out_type = self.data.get_return_type_as_tokens();
         let ref_type = if is_mutable { quote! { &'static mut } } else { quote! { &'static } };
         if is_checked {
-            format!("   {}\n    pub(crate) unsafe fn {}() -> Option<{} {}>;\n", comment, name, ref_type, out_type)
+            format!("   {}\n    pub(crate) fn {}() -> Option<{} {}>;\n", comment, name, ref_type, out_type)
         } else {
-            format!("   {}\n    pub(crate) unsafe fn {}() -> {} {};\n", comment, name, ref_type, out_type)
+            format!("   {}\n    pub(crate) fn {}() -> {} {};\n", comment, name, ref_type, out_type)
         }
-        
+    }
+
+    fn get_change_pointer_name(&self) -> String {
+        format!("change_{}", self.name_lower)
+    }
+
+    fn generate_change_pointer_link(&self, comment: String) -> String {
+        let type_param = self.data.get_full_type_as_tokens();
+        format!("   {}\n    pub(crate) fn {}(new: {});", comment, self.get_change_pointer_name(), type_param)
+    }
+
+    fn create_change_pointer_comment(&self) -> String {
+        format!("/// Change the value of `{}`. Ensure that you've freed the existing data if
+    /// it was allocated!", &self.name )
     }
 
     pub fn link_codegen(&self) -> syn::Result<String> {
@@ -215,6 +228,7 @@ impl GfdStatic {
             self.get_unchecked_pointer_function_name(false), self.create_get_unchecked_comment()));
         link_data.push_str(&self.generate_get_pointer_link(true, false,
             self.get_unchecked_pointer_function_name(true), self.create_get_unchecked_mut_comment()));
+        link_data.push_str(&self.generate_change_pointer_link(self.create_change_pointer_comment()));
         link_data.push_str("\n}\n\n");
         Ok(link_data)
     }
@@ -287,47 +301,3 @@ pub fn create_gfd_static_links(input: TokenStream) -> String {
     };
     info.link_codegen().unwrap()
 }
-
-/*
-
-static NGR_ALLOCATOR: ::std::sync::OnceLock<::crate::globals::UnsafePtr<*mut Allocator>> = ::std::sync::OnceLock::new();
-
-/// Set the pointer to the memory location containing a pointer to NGR_ALLOCATOR. This method must
-/// only be called once, otherwise it will panic.
-pub fn set_ngr_allocator(ptr: *mut *mut Allocator) {
-    NGR_ALLOCATOR.set(UnsafePtr(ptr)).unwrap();
-}
-
-/// Get a potential reference to NGR_ALLOCATOR. This checks to see if `set_ngr_allocator` was
-/// called previously and if either you or the hooked process have allocated the instance of it.
-pub fn get_ngr_allocator() -> Option<&'static Allocator> {
-    match NGR_ALLOCATOR.get() {
-        Some(v) => {
-            if !v.0.is_null() { None } else { Some(unsafe { &**v.0 })}
-        },
-        None => None
-    }
-}
-
-/// Like `get_ngr_allocator`, but a mutable reference is created instead.
-pub fn get_ngr_allocator_mut() -> Option<&'static mut Allocator> {
-    match NGR_ALLOCATOR.get() {
-        Some(v) => {
-            if !v.0.is_null() { None } else { Some(unsafe { &mut **v.0 })}
-        },
-        None => None
-    }
-}
-
-/// An unchecked version of `get_ngr_allocator`. This assumes that NGR_ALLOCATOR is set and it's
-/// initialized.
-pub unsafe fn get_ngr_allocator_unchecked() -> &'static Allocator {
-    &**NGR_ALLOCATOR.get().unwrap().0
-}
-
-/// An unchecked version of `get_ngr_allocator_mut`. This assumes that NGR_ALLOCATOR is set and 
-/// it's initialized.
-pub unsafe fn get_ngr_allocator_unchecked_mut() -> &'static mut Allocator {
-    &mut **NGR_ALLOCATOR.get().unwrap().0
-}
-*/

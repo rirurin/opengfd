@@ -11,6 +11,13 @@ use std::{
     mem::align_of,
     ptr::NonNull
 };
+use std::error::Error;
+use std::fmt::Formatter;
+use std::io::{Read, Seek, Write};
+use glam::Mat4;
+use crate::kernel::version::GfdVersion;
+#[cfg(feature = "serialize")]
+use crate::utility::stream::{DeserializationStack, GfdSerializationUserData, GfdSerialize, SerializationSingleAllocator, Stream, StreamIODevice};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,7 +145,9 @@ where A: Allocator + Clone
     /// (Original function: gfdNameClear)
     fn drop(&mut self) {
         // SAFETY: This is the last time that self.string is referred to
-        unsafe { self._allocator.deallocate(self.string.unwrap(), self.get_layout()); }
+        if let Some(s) = self.string {
+            unsafe { self._allocator.deallocate(s, self.get_layout()); }
+        }
     }
 }
 
@@ -197,6 +206,138 @@ where A: Allocator + Clone
 {
     fn partial_cmp(&self, other: &str) -> Option<std::cmp::Ordering> {
         self.get_string().map(|v| v.cmp(other))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+pub enum NameError {
+    HashMismatch
+}
+
+impl Error for NameError {}
+impl Display for NameError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[cfg(feature = "serialize")]
+pub trait NameSerializationTechnique<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&self, stream: &mut Stream<AStream, T>, alloc: AObject) -> Result<Name<AObject>, Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug;
+}
+
+#[cfg(feature = "serialize")]
+pub struct NameSerializationContext<A, D>
+where A: Allocator + Clone,
+      D: NameSerializationTechnique<A>
+{
+    allocator: A,
+    technique: D
+}
+
+#[cfg(feature = "serialize")]
+impl<A, D> NameSerializationContext<A, D>
+where A: Allocator + Clone,
+      D: NameSerializationTechnique<A>
+{
+    pub(crate) fn new(allocator: A, technique: D) -> Self {
+        Self { allocator, technique }
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, D> GfdSerializationUserData<A> for NameSerializationContext<A, D>
+where A: Allocator + Clone,
+      D: NameSerializationTechnique<A> {
+    fn get_heap_allocator(&self) -> Option<A> {
+        Some(self.allocator.clone())
+    }
+}
+
+#[cfg(feature = "serialize")]
+pub struct NameSerializationNoHash;
+impl<AObject> NameSerializationTechnique<AObject> for NameSerializationNoHash
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&self, stream: &mut Stream<AStream, T>, alloc: AObject) -> Result<Name<AObject>, Box<dyn Error>>
+    where
+        T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug,
+    {
+        Name::stream_read_string(stream, alloc)
+    }
+}
+
+#[cfg(feature = "serialize")]
+pub struct NameSerializationHash;
+impl<AObject> NameSerializationTechnique<AObject> for NameSerializationHash
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&self, stream: &mut Stream<AStream, T>, alloc: AObject) -> Result<Name<AObject>, Box<dyn Error>>
+    where
+        T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug,
+    {
+        let name = Name::stream_read_string(stream, alloc)?;
+        if stream.has_feature(GfdVersion::NameContainsHash).is_some() {
+            let serial_hash = stream.read_u32()?;
+            if name.get_hash() != serial_hash {
+                return Err(Box::new(NameError::HashMismatch));
+            }
+        }
+        Ok(name)
+    }
+}
+
+#[cfg(feature = "serialize")]
+pub struct NameSerializationHashGAP;
+impl<AObject> NameSerializationTechnique<AObject> for NameSerializationHashGAP
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&self, stream: &mut Stream<AStream, T>, alloc: AObject) -> Result<Name<AObject>, Box<dyn Error>>
+    where
+        T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug,
+    {
+        let name = Name::stream_read_string(stream, alloc)?;
+        if stream.has_feature(GfdVersion::NameContainsHash).is_some() {
+            if cfg!(feature = "cfb_gap") {
+                let _ = stream.read_u8()?;
+            }
+            let serial_hash = stream.read_u32()?;
+            if name.get_hash() != serial_hash {
+                // Used by Catherine: Full Body and Metaphor Refantazio
+                return Err(Box::new(NameError::HashMismatch));
+            }
+        }
+        Ok(name)
+    }
+}
+
+// Called from stream_read
+#[cfg(feature = "serialize")]
+impl<AObject> Name<AObject>
+where AObject: Allocator + Clone
+{
+    fn stream_read_string<T, AStream>(stream: &mut Stream<AStream, T>, alloc: AObject) -> Result<Self, Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug {
+        let mut name = Vec::with_capacity( stream.read_u16()? as usize);
+        let slice = unsafe { std::slice::from_raw_parts_mut(name.as_mut_ptr(), name.capacity()) };
+        stream.read_u8_slice(slice)?;
+        Ok(Self::new_in(unsafe { std::str::from_utf8_unchecked(slice) }, alloc))
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, D, T> GfdSerialize<AStream, T, AObject, DeserializationStack<Self>, NameSerializationContext<AObject, D>> for Name<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone,
+      D: NameSerializationTechnique<AObject>
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, param: &mut NameSerializationContext<AObject, D>) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        Ok(param.technique.stream_read_inner(stream, param.get_heap_allocator().unwrap())?.into())
     }
 }
 

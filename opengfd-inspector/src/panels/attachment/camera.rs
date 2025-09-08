@@ -58,7 +58,10 @@ impl BasicPanel for CameraProperties {
 
         ui.separator();
         ui.text("Unknown properties:");
-        ui.input_float("Field198", self.get_field198_mut()).build();
+        let mut field198 = *self.get_field198_mut() as i32;
+        if ui.input_int("Field198", &mut field198).build() {
+            *self.get_field198_mut() = field198 as u8;
+        }
         ui.input_float("Field19c", self.get_field19c_mut()).build();
         ui.input_float("Field1a0", self.get_field1a0_mut()).build();
     }

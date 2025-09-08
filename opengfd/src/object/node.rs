@@ -14,6 +14,7 @@ use std::{
     ops::{ Deref, DerefMut },
     ptr::NonNull
 };
+use crate::object::object::CastFromObject;
 // use riri_mod_tools_rt::logln;
 
 #[repr(C)]
@@ -39,6 +40,12 @@ where A: Allocator + Clone
 {
     //pub fn iter_object()
     // pub fn iter_children()
+}
+
+impl<A> CastFromObject for Node<A>
+where A: Allocator + Clone
+{
+    const OBJECT_ID: ObjectId = ObjectId::Node;
 }
 
 // ==========================
@@ -115,48 +122,55 @@ where A: Allocator + Clone,
     }
 }
 
-pub struct NodeIteratorMut<'a, A>
-where A: Allocator + Clone
+pub struct NodeIteratorMut<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
 {
     parents: Vec<&'a mut Node<A>>,
     curr: Option<&'a mut Node<A>>,
-    _alloc_marker: std::marker::PhantomData<A>
+    _alloc_marker: std::marker::PhantomData<A>,
+    _settings_marker: std::marker::PhantomData<S>
 }
 
-impl<'a, A> Iterator for NodeIteratorMut<'a, A>
-where A: Allocator + Clone
+impl<'a, A, S> Iterator for NodeIteratorMut<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
 {
     type Item = &'a mut Node<A>;
     fn next(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|v| {
             // depth first search, so check child first
-            self.curr = if let Some(mut c) = v.link.child {
+            if S::allow_child_iteration() && v.link.child.is_some() {
                 if let Some(mut cn) = v.link.next {
                     self.parents.push(unsafe { cn.as_mut() });
                 }
-                Some(unsafe { c.as_mut() })
-            // then check siblings
-            } else if let Some(mut s) = v.link.next {
-                Some(unsafe { s.as_mut() })
-            // if at the end of the chain, go back to the parent
-            } else if !self.parents.is_empty() {
-                Some(self.parents.pop().unwrap())
+                self.curr = Some(unsafe { v.link.child.unwrap().as_mut() });
             } else {
-                None
-            };
+                // then check siblings
+                self.curr = if let Some(mut s) = v.link.next {
+                    Some(unsafe { s.as_mut() })
+                // if at the end of the chain, go back to the parent
+                } else if !self.parents.is_empty() {
+                    Some(self.parents.pop().unwrap())
+                } else {
+                    None
+                };
+            }
             v
         })
     }
 }
 
-impl<'a, A> NodeIteratorMut<'a, A>
-where A: Allocator + Clone
+impl<'a, A, S> NodeIteratorMut<'a, A, S>
+where A: Allocator + Clone,
+      S: ObjectIterationSettings
 {
     pub fn from_node(node: &'a mut Node<A>) -> Self {
         Self {
             parents: vec![],
             curr: Some(node),
-            _alloc_marker: std::marker::PhantomData::<A>
+            _alloc_marker: std::marker::PhantomData::<A>,
+            _settings_marker: std::marker::PhantomData::<S>,
         }
     }
 }
@@ -615,6 +629,16 @@ where A: Allocator + Clone
         }
     }
 
+    pub fn get_children_mut(&mut self) -> Vec<&mut Self> {
+        match self.link.child {
+            Some(mut v) => {
+                let first = unsafe { v.as_mut() };
+                NodeIteratorMut::<A, StandardNodeIterator>::from_node(first).collect()
+            },
+            None => vec![]
+        }
+    }
+
     pub fn get_child_count(&self) -> usize {
         match self.link.child {
             Some(v) => {
@@ -625,7 +649,7 @@ where A: Allocator + Clone
         }
     }
 
-    pub fn get_children_limited_depth(&self, limit: usize) -> Vec<NodeDepthResult<A>> {
+    pub fn get_children_limited_depth(&self, limit: usize) -> Vec<NodeDepthResult<'_, A>> {
         match self.link.child {
             Some(v) => {
                 let first = unsafe { v.as_ref() };
@@ -669,6 +693,19 @@ where A: Allocator + Clone
         NodeIterator::<A, StandardNodeIterator>::from_node(self).find(|n| cb(*n))
     }
 
+    pub fn find_by_helper_id_mut(&mut self, id: i32) -> Option<&mut Self> {
+        NodeIteratorMut::<A, StandardNodeIterator>::from_node(self).find(|n| n.has_helper_id(id))
+    }
+
+    pub fn find_by_name_mut(&mut self, name: &str) -> Option<&mut Self> {
+        NodeIteratorMut::<A, StandardNodeIterator>::from_node(self).find(|n| n.has_name(name))
+    }
+
+    pub fn find_by_predicate_mut<F>(&mut self, cb: F) -> Option<&mut Self>
+    where F: Fn(&Self) -> bool {
+        NodeIteratorMut::<A, StandardNodeIterator>::from_node(self).find(|n| cb(*n))
+    }
+
 
     pub fn for_each_by_helper_id<F>(&self, id: i32, cb: F) 
     where F: Fn(&Self) {
@@ -684,6 +721,22 @@ where A: Allocator + Clone
     where C: Fn(&Self) -> bool,
           F: Fn(&Self) {
         NodeIterator::<A, StandardNodeIterator>::from_node(self).filter(|v| cond(v)).for_each(|n| cb(n))
+    }
+
+    pub fn for_each_by_helper_id_mut<F>(&mut self, id: i32, cb: F)
+    where F: Fn(&mut Self) {
+        NodeIteratorMut::<A, StandardNodeIterator>::from_node(self).filter(|v| v.has_helper_id(id)).for_each(|n| cb(n))
+    }
+
+    pub fn for_each_by_name_mut<F>(&mut self, name: &str, cb: F)
+    where F: Fn(&mut Self) {
+        NodeIteratorMut::<A, StandardNodeIterator>::from_node(self).filter(|v| v.has_name(name)).for_each(|n| cb(n))
+    }
+
+    pub fn for_each_by_predicate_mut<C, F>(&mut self, cond: C, cb: F)
+    where C: Fn(&Self) -> bool,
+          F: Fn(&mut Self) {
+        NodeIteratorMut::<A, StandardNodeIterator>::from_node(self).filter(|v| cond(v)).for_each(|n| cb(n))
     }
 
     pub fn get_average_scale(&self) -> f32 {
@@ -835,6 +888,14 @@ where A: Allocator + Clone
     /// Original function: gfdNodeSetRotate
     pub fn set_scale(&mut self, value: Vec3A) {
         self.transform.scale = value;
+    }
+
+    pub fn get_visiblity(&self) -> f32 {
+        self.visibility
+    }
+
+    pub fn set_visiblity(&mut self, value: f32) {
+        self.visibility = value;
     }
 }
 
