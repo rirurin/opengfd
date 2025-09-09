@@ -1,3 +1,7 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::mem::MaybeUninit;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -15,7 +19,7 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use glam::Vec3;
-
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 // from https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
 #[repr(C)]
@@ -28,6 +32,35 @@ pub struct Layer {
     roughness: f32,
     metallic: f32,
     color: Vec3
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, T> GfdSerialize<AStream, T> for Layer
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: Layer = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl Layer {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        self.tile_size = stream.read_f32()?;
+        self.field1 = stream.read_f32()?;
+        self.tile_offset = stream.read_f32()?;
+        self.field3 = stream.read_f32()?;
+        self.roughness = stream.read_f32()?;
+        self.metallic = stream.read_f32()?;
+        self.color = Vec3::stream_read(stream, &mut ())?.into_raw();
+        Ok(())
+    }
 }
 
 bitflags! {
@@ -112,5 +145,35 @@ where A: Allocator + Clone
         }
     }
     fn update(&mut self) {
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T> for Type15<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: Type15<AObject> = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AObject> Type15<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        for i in 0..16 {
+            self.layers[i] = Layer::stream_read(stream, &mut ())?.into_raw();
+        }
+        self.layer_count = stream.read_u32()?;
+        self.triplanar_scale = stream.read_f32()?;
+        self.flags = Type15Flags::from_bits_truncate(stream.read_u32()?);
+        Ok(())
     }
 }

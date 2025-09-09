@@ -1,3 +1,7 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::mem::MaybeUninit;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -19,6 +23,9 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use glam::Vec4;
+use crate::kernel::version::GfdVersion;
+use crate::utility::misc::RGBAFloat;
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -49,12 +56,12 @@ bitflags! {
 pub struct CharacterDistortion<A = GfdAllocator> 
 where A: Allocator + Clone
 {
-    base_color: Vec4,
-    emissive_color: Vec4,
+    base_color: RGBAFloat,
+    emissive_color: RGBAFloat,
     distortion_power: f32,
     distortion_threshold: f32,
     p4_4: f32,
-    mat_bloom_intensity: f32,
+    bloom_strength: f32,
     fitting_tile: f32,
     multi_fitting_tile: f32,
     fieldc8: f32,
@@ -183,5 +190,39 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T> for CharacterDistortion<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: CharacterDistortion<AObject> = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AObject> CharacterDistortion<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        self.base_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.emissive_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.distortion_power = stream.read_f32()?;
+        self.distortion_threshold = stream.read_f32()?;
+        self.p4_4 = stream.read_f32()?;
+        self.flags = DistortionFlags::from_bits_truncate(stream.read_u32()?);
+        self.bloom_strength = stream.has_feature(GfdVersion::MaterialParameter4AddBloomIntensity).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.5), |_| Ok(stream.read_f32()?))?;
+        self.fitting_tile = stream.has_feature(GfdVersion::MaterialParameterDistortAddMultiFittingTile).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(1.), |_| Ok(stream.read_f32()?))?;
+        self.multi_fitting_tile = stream.has_feature(GfdVersion::MaterialParameterDistortAddP8).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(0.), |_| Ok(stream.read_f32()?))?;
+        self.fieldc8 = 1.;
+        Ok(())
     }
 }

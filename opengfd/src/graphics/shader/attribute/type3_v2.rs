@@ -1,3 +1,7 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::marker::PhantomData;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -14,8 +18,9 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
-pub struct Type3<A = GfdAllocator> 
+pub struct Type3<A = GfdAllocator>
 where A: Allocator + Clone
 {
     _impl: Toon,
@@ -120,5 +125,17 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T> for Type3<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let _impl = Toon::stream_read(stream, &mut ())?.into_raw();
+        Ok(Type3 { _impl, _alloc: PhantomData::<AObject> }.into())
     }
 }

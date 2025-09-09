@@ -145,7 +145,7 @@ where T: Debug + Read + Write + Seek + StreamIODevice,
       AObject: Allocator + Clone
 {
     fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> DynRes<DeserializationHeap<Self, AObject>> {
-        let mut this = DeserializationHeap::<Self, AObject>::uninit(param);
+        let mut this = DeserializationHeap::<Self, AObject>::zeroed(param);
         this.ref_ = Reference::new();
         this.stream_read_inner(stream)?;
         Ok(this)

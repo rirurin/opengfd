@@ -289,7 +289,7 @@ where T: Debug + Read + Write + Seek + StreamIODevice,
 {
     // Original function: gfdTextureStreamRead (0x14105e380, Steam Prologue Demo 1.01)
     fn stream_read(stream: &mut Stream<AStream, T>, param: &mut TextureSerializationContext<AOuter, AInner>) -> Result<DeserializationHeap<Self, AOuter>, Box<dyn Error>> {
-        let mut this = DeserializationHeap::<Self, AOuter>::uninit(param);
+        let mut this = DeserializationHeap::<Self, AOuter>::zeroed(param);
         this.ref_ = Reference::new();
         this.stream_read_inner(stream, param)?;
         Ok(this)
@@ -312,7 +312,7 @@ where AOuter: Allocator + Clone {
         let mag = stream.read_u8()?;
         let wraps = stream.read_u8()?;
         let wrapt = stream.read_u8()?;
-        println!("{}, {:?} (size: 0x{:x}), {}, {}, {}, {}", name, tex_format, tex_data.len(), min, mag, wraps, wrapt);
+        // println!("{}, {:?} (size: 0x{:x}), {}, {}, {}, {}", name, tex_format, tex_data.len(), min, mag, wraps, wrapt);
         // Is this texture already loaded in the cache?
         // let global = unsafe { crate::globals::get_gfd_global_mut() };
         Ok(())

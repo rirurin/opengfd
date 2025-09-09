@@ -4,19 +4,18 @@ use std::io::{Read, Seek, Write};
 use allocator_api2::alloc::Allocator;
 use crate::graphics::material::{ExtensionObject, ExtensionObjectContext};
 use crate::kernel::allocator::GfdAllocator;
-use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSerializationUserData, GfdSerialize, SerializationSingleAllocator, Stream, StreamIODevice};
+use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSerializationUserData, GfdSerialize, Stream, StreamIODevice};
 
 #[repr(C)]
-pub struct Outline<A = GfdAllocator>
-where A: Allocator + Clone {
+pub struct Type7<A = GfdAllocator>
+where A: Allocator + Clone
+{
     _super: ExtensionObject<A>,
-    flags: u32,
-    palette: u32,
     _allocator: A
 }
 
 #[cfg(feature = "serialize")]
-impl<AStream, AObject, T> GfdSerialize<AStream, T, AObject, DeserializationHeap<Self, AObject>, ExtensionObjectContext<AObject>> for Outline<AObject>
+impl<AStream, AObject, T> GfdSerialize<AStream, T, AObject, DeserializationHeap<Self, AObject>, ExtensionObjectContext<AObject>> for Type7<AObject>
 where T: Debug + Read + Write + Seek + StreamIODevice,
       AStream: Allocator + Clone + Debug,
       AObject: Allocator + Clone
@@ -29,15 +28,15 @@ where T: Debug + Read + Write + Seek + StreamIODevice,
 }
 
 #[cfg(feature = "serialize")]
-impl<AObject> Outline<AObject>
-where AObject: Allocator + Clone {
-    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>, param: &mut ExtensionObjectContext<AObject>) -> Result<(), Box<dyn Error>>
-    where T: Debug + Read + Write + Seek + StreamIODevice,
-          AStream: Allocator + Clone + Debug
+impl<AObject> Type7<AObject>
+where AObject: Allocator + Clone
+{
+    fn stream_read_inner<AStream, T>(&mut self, _: &mut Stream<AStream, T>, param: &mut ExtensionObjectContext<AObject>) -> Result<(), Box<dyn Error>>
+    where
+        T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug
     {
         self._super = ExtensionObject::<AObject>::new(param.get_id(), param.get_heap_allocator().unwrap());
-        self.flags = stream.read_u32()?;
-        self.palette = stream.read_u32()?;
         Ok(())
     }
 }

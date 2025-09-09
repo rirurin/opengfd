@@ -110,6 +110,7 @@ pub mod graphics {
     pub mod resources;
     pub mod render_ot;
     pub mod shader {
+        /*
         #[cfg(feature = "v1-core")]
         pub mod attribute {
             pub mod edge_v1;
@@ -118,6 +119,7 @@ pub mod graphics {
             pub mod toon_v1;
             pub mod water_v1;
         }
+        */
         #[cfg(feature = "v2-core")]
         pub mod attribute {
             pub mod distortion_v2;
@@ -138,6 +140,18 @@ pub mod graphics {
             pub mod type14_v2;
             pub mod type15_v2;
             pub mod water_v2;
+
+            pub mod toon_v1;
+            pub mod edge_v1;
+            pub mod outline_v1;
+            pub mod water_v1;
+            pub mod shadow_edge_v1;
+            pub mod type5_v1;
+            pub mod type6_v1;
+            pub mod type7_v1;
+            pub mod alpha_v1;
+            pub mod type9_v1;
+            pub mod type10_v1;
         }
         #[cfg(feature = "v1-core")]
         #[path = "flag_xrd744.rs"]

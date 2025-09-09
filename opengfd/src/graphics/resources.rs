@@ -1,19 +1,15 @@
-use riri_mod_tools_proc::ensure_layout;
+use std::ptr::NonNull;
 
-#[ensure_layout(size = 40usize)]
+#[repr(C)]
 #[derive(Debug)]
 pub struct ResBuffer {
-    #[field_offset(0usize)]
-    pub ptr: *mut ::std::os::raw::c_void,
-    #[field_offset(8usize)]
-    pub offset: *mut ::std::os::raw::c_void,
-    #[field_offset(16usize)]
+    pub ptr: NonNull<u8>,
+    pub offset: NonNull<u8>,
     pub size: usize,
-    #[field_offset(24usize)]
-    pub owner: *mut Resources,
+    pub owner: Option<NonNull<Resources>>,
 }
 
-// #[ensure_layout(size = 0x34)]
+#[repr(C)]
 #[derive(Debug)]
 pub struct Resources {
 }

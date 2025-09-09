@@ -251,7 +251,7 @@ where T: Debug + Read + Write + Seek + StreamIODevice,
       AObject: Allocator + Clone
 {
     fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<DeserializationHeap<Self, AObject>, Box<dyn Error>> {
-        let mut this = DeserializationHeap::<Self, AObject>::uninit(param);
+        let mut this = DeserializationHeap::<Self, AObject>::zeroed(param);
         this.reference = Reference::new();
         this.stream_read_inner(stream, param)?;
         Ok(this)
@@ -267,7 +267,12 @@ where AObject: Allocator + Clone {
         let allocator = param.get_heap_allocator().unwrap();
         let start = Instant::now();
         loop {
-            let chunk = ChunkHeader::stream_read(stream, &mut ())?.into_raw();
+            let chunk = ChunkHeader::stream_read(stream, &mut ());
+            if chunk.is_err() {
+                break;
+            }
+            let chunk = chunk?.into_raw();
+            // let chunk = ChunkHeader::stream_read(stream, &mut ())?.into_raw();
             println!("{:?}", chunk);
             match chunk.get_chunk_id() {
                 /*
@@ -283,11 +288,15 @@ where AObject: Allocator + Clone {
                 */
                 ChunkType::MaterialDictionary => {
                     let mat_count = stream.read_u32()? as usize;
-                    let _ = Material::<AObject>::stream_read(stream, param)?.into_raw();
+                    println!("{} materials", mat_count);
+                    for i in 0..mat_count {
+                        let _ = Material::<AObject>::stream_read(stream, param)?.into_raw();
+                    }
                 },
                 ChunkType::TextureDictionary => {
                     // TEMPORARY
                     let tex_count = stream.read_u32()? as usize;
+                    println!("{} textures", tex_count);
                     for i in 0..tex_count {
                         let _ = Texture::<AObject>::stream_read(stream, &mut TextureSerializationContext::new(allocator.clone(), allocator.clone()))?.into_raw();
                     }

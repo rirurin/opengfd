@@ -63,7 +63,7 @@ where A: Allocator + Clone
         let length: i32 = text.len().try_into().unwrap();
         let mut hasher = Hasher::new_with_initial(!text.len() as u32);
         hasher.update(text.as_bytes());
-        let hash = !hasher.finalize(); 
+        let hash = !hasher.finalize();
         let string = Some(alloc.allocate(Self::get_layout_sized(length)).unwrap().cast());
         unsafe { text.as_ptr().copy_to_nonoverlapping(string.unwrap().as_ptr(), length as usize); }
         Self {
@@ -71,6 +71,18 @@ where A: Allocator + Clone
             _allocator: alloc,
         }
     }
+
+    pub fn new_in_precalc(text: &str, hash: u32, alloc: A) -> Self {
+        let flags = NameFlags::CalculatedLength | NameFlags::CalculatedCrc;
+        let length: i32 = text.len().try_into().unwrap();
+        let string = Some(alloc.allocate(Self::get_layout_sized(length)).unwrap().cast());
+        unsafe { text.as_ptr().copy_to_nonoverlapping(string.unwrap().as_ptr(), length as usize); }
+        Self {
+            flags, length, string, hash,
+            _allocator: alloc,
+        }
+    }
+
     pub fn is_empty(&self) -> bool { self.len() == 0 }
     /// (Original function: gfdNameGetLength)
     pub fn len(&self) -> i32 { self.length }
@@ -211,7 +223,7 @@ where A: Allocator + Clone
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum NameError {
-    HashMismatch
+    HashMismatch((u32, u32)) // expected, actual
 }
 
 impl Error for NameError {}
@@ -279,14 +291,26 @@ where AObject: Allocator + Clone {
         T: Debug + Read + Write + Seek + StreamIODevice,
         AStream: Allocator + Clone + Debug,
     {
+        let mut name = Vec::with_capacity( stream.read_u16()? as usize);
+        let slice = unsafe { std::slice::from_raw_parts_mut(name.as_mut_ptr(), name.capacity()) };
+        stream.read_u8_slice(slice)?;
+        stream.has_feature(GfdVersion::NameContainsHash).map_or_else(
+            || Ok(Name::new_in(unsafe { std::str::from_utf8_unchecked(slice) }, alloc.clone())),
+            |_| {
+                let serial_hash = stream.read_u32()?;
+                Ok(Name::new_in_precalc(unsafe { std::str::from_utf8_unchecked(slice) }, serial_hash, alloc.clone()))
+            }
+        )
+        /*
         let name = Name::stream_read_string(stream, alloc)?;
         if stream.has_feature(GfdVersion::NameContainsHash).is_some() {
             let serial_hash = stream.read_u32()?;
             if name.get_hash() != serial_hash {
-                return Err(Box::new(NameError::HashMismatch));
+                return Err(Box::new(NameError::HashMismatch((name.get_hash(), serial_hash))));
             }
         }
         Ok(name)
+        */
     }
 }
 
@@ -307,7 +331,7 @@ where AObject: Allocator + Clone {
             let serial_hash = stream.read_u32()?;
             if name.get_hash() != serial_hash {
                 // Used by Catherine: Full Body and Metaphor Refantazio
-                return Err(Box::new(NameError::HashMismatch));
+                return Err(Box::new(NameError::HashMismatch((name.get_hash(), serial_hash))));
             }
         }
         Ok(name)

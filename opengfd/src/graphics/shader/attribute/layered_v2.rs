@@ -1,3 +1,7 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::mem::MaybeUninit;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -11,7 +15,9 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags
 };
-use glam::Vec4;
+use crate::kernel::version::GfdVersion;
+use crate::utility::misc::RGBAFloat;
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -33,11 +39,38 @@ bitflags! {
 #[repr(C)]
 #[derive(Debug)]
 pub struct LayerData {
-    base_color: Vec4,
+    base_color: RGBAFloat,
     emissive: f32,
     roughness: f32,
     bloom_intensity: f32,
     f4: f32
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, T> GfdSerialize<AStream, T> for LayerData
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: LayerData = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl LayerData {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        self.base_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.emissive = stream.read_f32()?;
+        self.roughness = stream.read_f32()?;
+        self.bloom_intensity = stream.read_f32()?;
+        self.f4 = stream.read_f32()?;
+        Ok(())
+    }
 }
 
 #[repr(C)]
@@ -51,7 +84,7 @@ where A: Allocator + Clone
     p6_3: f32,
     p6_4: f32,
     flags: TwoLayerFlags,
-    _allocator: A
+    _allocator: std::marker::PhantomData<A>
 }
 
 impl<A> TwoLayer<A> 
@@ -135,5 +168,43 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T> for TwoLayer<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: TwoLayer<AObject> = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AObject> TwoLayer<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        for i in 0..2 {
+            self.layers[i] = LayerData::stream_read(stream, &mut ())?.into_raw();
+        }
+        if stream.get_header_version() < GfdVersion::MaterialParameterLayerExtraFields as u32 {
+            let value = stream.read_f32()?;
+            self.p6_1 = value;
+            self.p6_2 = value;
+        } else {
+            self.p6_1 = stream.read_f32()?;
+            self.p6_2 = stream.read_f32()?;
+            self.p6_3 = stream.read_f32()?;
+        }
+        self.p6_4 = stream.read_f32()?;
+        self.flags = TwoLayerFlags::from_bits_truncate(stream.read_u32()?);
+        Ok(())
     }
 }

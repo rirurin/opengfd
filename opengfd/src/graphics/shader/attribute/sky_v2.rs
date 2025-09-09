@@ -1,3 +1,7 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::mem::MaybeUninit;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -14,7 +18,9 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
-use glam::Vec4;
+use crate::kernel::version::GfdVersion;
+use crate::utility::misc::RGBAFloat;
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -31,12 +37,9 @@ bitflags! {
 pub struct Sky<A = GfdAllocator> 
 where A: Allocator + Clone
 {
-    base_color: Vec4,
-    emissive_strength: f32,
-    roughness: f32,
-    metallic: f32,
-    multi_alpha: f32,
-    bloom_intensity: f32,
+    base_color: RGBAFloat,
+    p10_2: f32,
+    p10_3: f32,
     flags: SkyFlags,
     _allocator: std::marker::PhantomData<A>
 }
@@ -60,7 +63,7 @@ where A: Allocator + Clone
         false
     }
     fn check_invisible(&self) -> bool {
-        self.base_color.w == 0.
+        self.base_color.get_alpha_f32() == 0.
     }
     fn check_outline(&self) -> bool {
         false
@@ -81,7 +84,7 @@ where A: Allocator + Clone
         false
     }
     fn get_base_color_opacity(&self) -> f32 {
-        self.base_color.w
+        self.base_color.get_alpha_f32()
     }
     fn get_shadow_link_func(&self) -> u8 {
         0
@@ -101,5 +104,33 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T> for Sky<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: Sky<AObject> = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AObject> Sky<AObject>
+where AObject: Allocator + Clone {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug
+    {
+        self.base_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.p10_2 = stream.has_feature(GfdVersion::MaterialParameterSkyAddP2).map_or::<Result<f32, Box<dyn Error>>, _>(Ok(1.), |_| Ok(stream.read_f32()?))?;
+        self.p10_3 = stream.read_f32()?;
+        self.flags = stream.has_feature(GfdVersion::MaterialParameterSkyAddFlags).map_or::<Result<SkyFlags, Box<dyn Error>>, _>(Ok(SkyFlags::empty()), |_| Ok(SkyFlags::from_bits_retain(stream.read_u32()?)))?;
+        Ok(())
     }
 }
