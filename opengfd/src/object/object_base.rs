@@ -143,6 +143,10 @@ where A: Allocator + Clone
             None
         }
     }
+
+    pub unsafe fn set_id(&mut self, id: ObjectId) {
+        self.id = id;
+    }
 }
 
 pub trait CastFromObject {

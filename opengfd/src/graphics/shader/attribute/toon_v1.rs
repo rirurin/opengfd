@@ -12,12 +12,13 @@ use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSe
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct ToonFlags : u32 {
-        const Flag0 = 1 << 0;
-        const Flag1 = 1 << 1;
-        const Flag2 = 1 << 2;
-        const Flag3 = 1 << 3;
-        const Flag4 = 1 << 4;
-        const Flag5 = 1 << 5;
+        const LightNormalMap = 1 << 0;
+        const LightAdd = 1 << 1;
+        const ShadowNormalMap = 1 << 2;
+        const LockYAxis = 1 << 3;
+        const LightNormalMapAlphaMask = 1 << 4;
+        const LightDiffuseMapAlphaMask = 1 << 5;
+        const LightShadowMapAlphaMask = 1 << 6;
     }
 }
 
@@ -72,17 +73,17 @@ where AObject: Allocator + Clone {
             self.shadow_threshold = stream.read_f32()?;
             self.shadow_factor = stream.read_f32()?;
             if stream.read_u8()? != 0 {
-                self.flags |= ToonFlags::Flag0;
+                self.flags |= ToonFlags::LightNormalMap;
             }
             if stream.read_u8()? != 0 {
-                self.flags |= ToonFlags::Flag1;
+                self.flags |= ToonFlags::LightAdd;
             }
             if stream.read_u8()? != 0 {
-                self.flags |= ToonFlags::Flag2;
+                self.flags |= ToonFlags::ShadowNormalMap;
             }
-            if stream.get_header_version() >= GfdVersion::MaterialExtensionToonV2_Flag3 as u32
+            if stream.get_header_version() >= GfdVersion::MaterialExtensionToonV2LockYAxis as u32
             && stream.read_u8()? != 0 {
-                self.flags |= ToonFlags::Flag3;
+                self.flags |= ToonFlags::LockYAxis;
             }
         } else {
             self.light_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();

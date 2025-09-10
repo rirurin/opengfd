@@ -4,13 +4,11 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::io::{Read, Seek, Write};
 use allocator_api2::alloc::Allocator;
-use glam::{swizzles::Vec4Swizzles, Mat4, Quat, Vec3, Vec3A, Vec4};
-use crate::kernel::version::GfdVersion;
-use crate::object::light::{Light, LightFlags};
+use glam::{swizzles::Vec4Swizzles, Mat4, Quat, Vec2, Vec3, Vec3A, Vec4};
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct BoundingBox {
     max: Vec3,
     min: Vec3
@@ -27,8 +25,21 @@ impl BoundingBox {
     }
 }
 
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for BoundingBox
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this = Self::default();
+        this.max = Vec3::stream_read(stream, &mut ())?.into_raw();
+        this.min = Vec3::stream_read(stream, &mut ())?.into_raw();
+        Ok(this.into())
+    }
+}
+
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct BoundingSphere {
     center: Vec3,
     radius: f32
@@ -39,6 +50,19 @@ impl BoundingSphere {
         unsafe { std::mem::transmute::<_, &mut [f32; 3]>(&mut self.center) }
     }
     pub fn get_radius_mut_f32(&mut self) -> &mut f32 { &mut self.radius }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for BoundingSphere
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this = Self::default();
+        this.center = Vec3::stream_read(stream, &mut ())?.into_raw();
+        this.radius = stream.read_f32()?;
+        Ok(this.into())
+    }
 }
 
 
@@ -102,6 +126,24 @@ impl RGB {
         self.get_green() as f32 / 255., 
         self.get_blue() as f32 / 255.
     )}
+}
+
+impl Default for RGB {
+    fn default() -> Self {
+        Self::from_rgb_u32(0x0)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for RGB
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = RGB::default();
+        stream.read_u8_slice(new.0.as_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -189,6 +231,24 @@ impl RGBA {
 impl From<RGB> for RGBA {
     fn from(value: RGB) -> Self {
         Self(glam::U8Vec4::new(value.0.x, value.0.y, value.0.z, 0xff))
+    }
+}
+
+impl Default for RGBA {
+    fn default() -> Self {
+        Self::from_rgba_u32(0xff)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for RGBA
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = RGBA::default();
+        stream.read_u8_slice(new.0.as_mut().as_mut_slice())?;
+        Ok(new.into())
     }
 }
 
@@ -500,17 +560,59 @@ pub mod web_colors {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct Fade {
     in_: f32,
     out_: f32
 }
 
+impl Fade {
+    pub fn new(in_: f32, out_: f32) -> Self {
+        Self { in_, out_ }
+    }
+    pub fn get_in(&self) -> f32 { self.in_ }
+    pub fn get_out(&self) -> f32 { self.out_ }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Fade
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this = Fade::default();
+        this.in_ = stream.read_f32()?;
+        this.out_ = stream.read_f32()?;
+        Ok(this.into())
+    }
+}
+
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct Range {
     datums: f32,
     range: f32
+}
+
+impl Range {
+    pub fn new(datums: f32, range: f32) -> Self {
+        Self { datums, range }
+    }
+    pub fn get_datums(&self) -> f32 { self.datums }
+    pub fn get_range(&self) -> f32 { self.range }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Range
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this = Range::default();
+        this.datums = stream.read_f32()?;
+        this.range = stream.read_f32()?;
+        Ok(this.into())
+    }
 }
 
 #[repr(C)]
@@ -538,6 +640,18 @@ impl Rect {
     pub fn get_top_right(&self) -> f32 { self.0.y }
     pub fn get_width(&self) -> f32 { self.0.z }
     pub fn get_height(&self) -> f32 { self.0.w }
+}
+
+#[cfg(feature = "serialize")]
+impl<A, T> GfdSerialize<A, T> for Vec2
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      A: Allocator + Clone + Debug
+{
+    fn stream_read(stream: &mut Stream<A, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut new = Vec2::ZERO;
+        stream.read_f32_slice(new.as_mut().as_mut_slice())?;
+        Ok(new.into())
+    }
 }
 
 #[cfg(feature = "serialize")]

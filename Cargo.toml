@@ -10,7 +10,9 @@ members = [
     "opengfd-reloaded",
     "opengfd-tests",
     "tools/build-field-character-anims",
-    "tools/serializer-test",
+    "tools/serializer-test", 
+    "tools/serializer-test-cfb", 
+    "tools/serializer-test-p5r",
     "tools/shader-compiler"
 ]
 

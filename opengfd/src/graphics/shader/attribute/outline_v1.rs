@@ -5,14 +5,23 @@ use allocator_api2::alloc::Allocator;
 use crate::graphics::material::{ExtensionObject, ExtensionObjectContext};
 use crate::kernel::allocator::GfdAllocator;
 use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSerializationUserData, GfdSerialize, SerializationSingleAllocator, Stream, StreamIODevice};
+use bitflags::bitflags;
 
 #[repr(C)]
 pub struct Outline<A = GfdAllocator>
 where A: Allocator + Clone {
     _super: ExtensionObject<A>,
-    flags: u32,
+    flags: OutlineFlags,
     palette: u32,
     _allocator: A
+}
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct OutlineFlags : u32 {
+        const Normal = 1 << 0;
+        const Disable = 1 << 1;
+    }
 }
 
 #[cfg(feature = "serialize")]
@@ -36,7 +45,7 @@ where AObject: Allocator + Clone {
           AStream: Allocator + Clone + Debug
     {
         self._super = ExtensionObject::<AObject>::new(param.get_id(), param.get_heap_allocator().unwrap());
-        self.flags = stream.read_u32()?;
+        self.flags = OutlineFlags::from_bits_retain(stream.read_u32()?);
         self.palette = stream.read_u32()?;
         Ok(())
     }

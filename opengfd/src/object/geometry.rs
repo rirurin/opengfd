@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
+use std::io::{Read, Seek, SeekFrom, Write};
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -20,10 +23,28 @@ use crate::{
         reference::{ GfdRcType, Reference }
     }
 };
-use glam::Vec3A;
+use glam::{Vec2, Vec3, Vec3A, Vec4};
 use opengfd_proc::GfdRcAuto;
 use std::ptr::NonNull;
+use half::f16;
+use crate::kernel::version::GfdVersion;
+use crate::object::morph::MorphTarget;
 use crate::object::object::{CastFromObject, ObjectId};
+use crate::utility::misc::RGBA;
+use crate::utility::name::{Name, NameSerializationContext, NameSerializationHash};
+use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSerializationUserData, GfdSerialize, SerializationSingleAllocator, Stream, StreamIODevice};
+
+#[derive(Debug)]
+pub enum GeometryError {
+    InvalidTriangleIndexType(u16),
+    InvalidTriangleIndexFormat(u8),
+}
+impl Error for GeometryError {}
+impl Display for GeometryError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 bitflags! {
     #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -65,10 +86,72 @@ bitflags! {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TriangleIndexFormat {
+pub enum TriangleIndexType {
     None = 0,
     UInt16 = 1,
     UInt32 = 2
+}
+
+impl TryFrom<u16> for TriangleIndexType {
+    type Error = GeometryError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(TriangleIndexType::None),
+            1 => Ok(TriangleIndexType::UInt16),
+            2 => Ok(TriangleIndexType::UInt32),
+            v => Err(GeometryError::InvalidTriangleIndexType(v))
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TriangleIndexFormat {
+    OneIndexPerTriangle = 0,
+    TwoIndicesPerTriangle = 1,
+    OneIndexMinusOnePerTriangle = 2,
+    ThreeIndicesPerTriangle = 3,
+    OneIndexMinusTwoPerTriangle4 = 4,
+    OneIndexMinusTwoPerTriangle5 = 5,
+}
+
+impl TryFrom<u8> for TriangleIndexFormat {
+    type Error = GeometryError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::OneIndexPerTriangle),
+            1 => Ok(Self::TwoIndicesPerTriangle),
+            2 => Ok(Self::OneIndexMinusOnePerTriangle),
+            3 => Ok(Self::ThreeIndicesPerTriangle),
+            4 => Ok(Self::OneIndexMinusTwoPerTriangle4),
+            5 => Ok(Self::OneIndexMinusTwoPerTriangle5),
+            v => Err(GeometryError::InvalidTriangleIndexFormat(v))
+        }
+    }
+}
+
+impl TriangleIndexFormat {
+    pub fn from_vertex_count(&self, vertices: u32) -> u32 {
+        match self {
+            Self::OneIndexPerTriangle => vertices,
+            Self::TwoIndicesPerTriangle => vertices / 2,
+            Self::OneIndexMinusOnePerTriangle => vertices - 1,
+            Self::ThreeIndicesPerTriangle => vertices / 3,
+            Self::OneIndexMinusTwoPerTriangle4 => vertices - 2,
+            Self::OneIndexMinusTwoPerTriangle5 => vertices - 2,
+        }
+    }
+
+    pub fn to_vertex_count(&self, vertices: u32) -> u32 {
+        match self {
+            Self::OneIndexPerTriangle => vertices,
+            Self::TwoIndicesPerTriangle => vertices * 2,
+            Self::OneIndexMinusOnePerTriangle => vertices - 1,
+            Self::ThreeIndicesPerTriangle => vertices * 3,
+            Self::OneIndexMinusTwoPerTriangle4 => vertices + 2,
+            Self::OneIndexMinusTwoPerTriangle5 => vertices + 2,
+        }
+    }
 }
 
 bitflags! {
@@ -109,28 +192,18 @@ bitflags! {
     }
 }
 
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GeometryPrimType {
-    NoChange = 0,
-    DoubleTriCount = 1,
-    MinusOneTriCount = 2,
-    TripleTriCount = 3,
-    PlusTwoTriCount4 = 4,
-    PlusTwoTriCount5 = 5
-}
-
 #[repr(C)]
 #[derive(GfdRcAuto)]
 // #[derive(Debug)]
-pub struct Geometry<A = GfdAllocator> 
+pub struct Geometry<A = GfdAllocator>
 where A: Allocator + Clone
 {
-    _super: Object,
+    super_: Object,
     flags: GeometryFlags,
     type_: i32,
     lock: i32,
-    prim: GeometryPrimType,
+    prim: TriangleIndexFormat,
+    index: TriangleIndexType,
     fvf: VertexAttributeFlags,
     num_vertices: i32,
     num_indices: i32,
@@ -139,19 +212,19 @@ where A: Allocator + Clone
     vertex_usage: i32,
     index_buffer: Option<NonNull<GeometryIndexBuffer>>, // TriCount > 0
     skin: Option<NonNull<SkinRef>>, // Flags & Skin
-    material: Option<NonNull<Material>>, // Flags & Material
+    material: Option<NonNull<Material<A>>>, // Flags & Material
     morph_targets: *mut std::os::raw::c_void,
     light_container: Option<NonNull<LightContainer>>,
     vertices: [*mut std::os::raw::c_void; 2usize],
     indices: *mut std::os::raw::c_void,
     bounding_box: BoundingBox,
     bounding_sphere: BoundingSphere,
-    local_obb: *mut [Vec3A; 8usize],
+    local_obb: Option<NonNull<[Vec3A; 8usize]>>,
     cull: [CullObject; 3usize],
     resources: [GeometryCommand; 3usize],
-    reflection_mat: *mut Material,
-    outline_mat: *mut Material,
-    ssss_mat: *mut Material,
+    reflection_mat: Option<NonNull<Material<A>>>,
+    outline_mat: Option<NonNull<Material<A>>>,
+    ssss_mat: Option<NonNull<Material<A>>>,
     lod_start: f32,
     lod_end: f32,
     color_mask: u32,
@@ -177,10 +250,185 @@ where A: Allocator + Clone
     field51_0x19e: u16,
     field52_0x1a0: u8,
     field53_0x1a1: u8,
-    job_data: *mut JobData,
-    container: *mut ::std::os::raw::c_void,
+    field1a2: u16,
+    job_data: Option<NonNull<JobData>>,
+    container: Option<NonNull<std::ffi::c_void>>,
     ref_: Reference,
     _allocator: A
+}
+
+impl<A> Geometry<A>
+where A: Allocator + Clone
+{
+    pub fn vertex_sizeof_metaphor(&self) -> usize {
+        let mut sizeof = if self.fvf.contains(VertexAttributeFlags::PositionXYZW) {
+            size_of::<Vec4>()
+        } else if self.fvf.contains(VertexAttributeFlags::PositionXYZ) {
+            size_of::<Vec3>()
+        } else {
+            0
+        };
+        sizeof += size_of::<Vec3>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Normal));
+        sizeof += size_of::<Vec3>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Binormal));
+        sizeof += size_of::<Vec3>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Tangent));
+        sizeof += size_of::<RGBA>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::DiffuseColor));
+        sizeof += size_of::<[f16; 2]>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::TexCoord0));
+        sizeof += size_of::<[f16; 2]>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::TexCoord1));
+        sizeof += size_of::<[f16; 2]>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::TexCoord2));
+        sizeof += size_of::<RGBA>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Color2));
+        sizeof
+    }
+
+    pub fn vertex_sizeof_p5r(&self) -> usize {
+        let mut sizeof = if self.fvf.contains(VertexAttributeFlags::PositionXYZW) {
+            size_of::<Vec4>()
+        } else if self.fvf.contains(VertexAttributeFlags::PositionXYZ) {
+            size_of::<Vec3>()
+        } else {
+            0
+        };
+        sizeof += size_of::<Vec3>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Normal));
+        sizeof += size_of::<Vec3>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Binormal));
+        sizeof += size_of::<Vec3>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Tangent));
+        sizeof += size_of::<RGBA>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::DiffuseColor));
+        sizeof += size_of::<Vec2>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::TexCoord0));
+        sizeof += size_of::<Vec2>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::TexCoord1));
+        sizeof += size_of::<Vec2>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::TexCoord2));
+        sizeof += size_of::<RGBA>() * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Color3));
+        sizeof += 0x14 * Into::<usize>::into(self.fvf.contains(VertexAttributeFlags::Flag31));
+        sizeof
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, AObject, T> GfdSerialize<AStream, T, AObject, DeserializationHeap<Self, AObject>, SerializationSingleAllocator<AObject>> for Geometry<AObject>
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+      AObject: Allocator + Clone
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<DeserializationHeap<Self, AObject>, Box<dyn Error>> {
+        let mut this = DeserializationHeap::<Self, AObject>::zeroed(param);
+        unsafe { this.super_.set_id(ObjectId::Geometry) };
+        this.ref_ = Reference::new();
+        for i in 0..3 {
+            this.cull[i] = CullObject::new(1, 1, 0, 0.);
+        }
+        this.field42_0x18e = 1;
+        this.blend_dst_color = 1;
+        this.color_mask = 0xf;
+        this.stencil_func = ComparisonFunc::Always;
+        this.stencil_mask = 0xff;
+        this.field50_0x19c = 7;
+        this.field52_0x1a0 = 1;
+        this.field53_0x1a1 = 1;
+        this.field1a2 = 3;
+        this.stream_read_inner(stream, param)?;
+        Ok(this)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AObject> Geometry<AObject>
+where AObject: Allocator + Clone
+{
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<(), Box<dyn Error>>
+    where T: Debug + Read + Write + Seek + StreamIODevice,
+          AStream: Allocator + Clone + Debug {
+        self.flags = GeometryFlags::from_bits_retain(stream.read_u32()?);
+        self.fvf = VertexAttributeFlags::from_bits_retain(stream.read_u32()?);
+        let (num_triangles, index_format) = match self.flags.contains(GeometryFlags::Triangles) {
+            true => (stream.read_u32()?, stream.read_u16()?.try_into()?),
+            false => (0, TriangleIndexType::None)
+        };
+        self.num_triangles = num_triangles as i32;
+        self.num_vertices = stream.read_u32()? as i32;
+        /*
+        // TODO: replicate this behavior (why is it done like this?)
+        let mut vertex_usage = match self.flags.contains(GeometryFlags::Skin) {
+            true => 0x10000005u32,
+            false => 4
+        };
+        vertex_usage += 0x10000000 * Into::<u32>::into(self.flags.contains(GeometryFlags::MorphTargets));
+        vertex_usage += 0x8 * Into::<u32>::into(self.flags.contains(GeometryFlags::System));
+        */
+        self.prim = stream
+            .has_feature(GfdVersion::EnvAddInfiniteOcean_LUTRecolorParams)
+            .map_or::<Result<TriangleIndexFormat, Box<dyn Error>>, _>(
+                Ok(TriangleIndexFormat::ThreeIndicesPerTriangle),
+                |_| Ok(stream.read_u8()?.try_into()?)
+            )?;
+        self.type_ = stream
+            .has_feature(GfdVersion::GeometryAddGeomType)
+            .map_or::<Result<i32, Box<dyn Error>>, _>(
+                Ok(0), |_| Ok(stream.read_u32()? as i32)
+            )?;
+        // Add vertex attributes
+        let vertex_sizeof = stream.
+            has_feature(GfdVersion::GFDV2).
+            map_or_else(
+                || self.vertex_sizeof_p5r(),
+                |_| self.vertex_sizeof_metaphor()
+            );
+        // Add vertex weighting
+        let vertex_sizeof = vertex_sizeof + match self.flags.contains(GeometryFlags::Skin) {
+            true => stream
+                .has_feature(GfdVersion::GeometryUseNewVertexWeightFormat)
+                .map_or_else(
+                    || size_of::<[u32; 0x4]>() + size_of::<[u8; 0x4]>(),
+                    |_| size_of::<[f16; 0x8]>() + size_of::<[u16; 0x8]>()
+                ),
+            false => 0
+        };
+        // Get skin mask
+        stream.seek(SeekFrom::Current(self.num_vertices as i64 * vertex_sizeof as i64))?;
+        let weigh_mask = stream
+            .has_feature(GfdVersion::GeometryAddMetaphorSkinMask)
+            .map_or::<Result<u8, Box<dyn Error>>, _>(
+                Ok(u8::MAX), |_| Ok(stream.read_u8()?)
+            )?;
+        // Read morph targets
+        if self.flags.contains(GeometryFlags::MorphTargets) {
+            let _ = MorphTarget::<AObject>::stream_read(stream, param);
+        }
+        // Read triangles
+        if self.flags.contains(GeometryFlags::Triangles) {
+            match self.index {
+                TriangleIndexType::None => (),
+                TriangleIndexType::UInt16 => { let _ = stream.seek(SeekFrom::Current(size_of::<u16>() as i64 * self.num_triangles as i64))?; },
+                TriangleIndexType::UInt32 => { let _ = stream.seek(SeekFrom::Current(size_of::<u32>() as i64 * self.num_triangles as i64))?; },
+            };
+        }
+        // Read material info
+        if self.flags.contains(GeometryFlags::Material) {
+            let material_name = Name::<AObject>::stream_read(stream, &mut NameSerializationContext::new(param.get_heap_allocator().unwrap(), NameSerializationHash))?.into_raw();
+        }
+        // Read bounding box
+        if self.flags.contains(GeometryFlags::BoundingBox) {
+            self.bounding_box = BoundingBox::stream_read(stream, &mut ())?.into_raw();
+        }
+        // Read bounding sphere
+        if self.flags.contains(GeometryFlags::BoundingSphere) {
+            self.bounding_sphere = BoundingSphere::stream_read(stream, &mut ())?.into_raw();
+        }
+        // Read hidden, cull and reflection caster flags
+        /*
+        if self.flags.contains(GeometryFlags::Hidden) {
+
+        }
+        if self.flags.contains(GeometryFlags::Cull) {
+
+        }
+        if self.flags.contains(GeometryFlags::ReflectionCaster) {
+
+        }
+        */
+        // Read LOD data
+        if self.flags.contains(GeometryFlags::Lod) {
+            self.lod_start = stream.read_f32()?;
+            self.lod_end = stream.read_f32()?;
+        }
+        Ok(())
+    }
 }
 
 #[repr(C)]
@@ -244,7 +492,7 @@ where A: Allocator + Clone
 
     // pub fn get_indices(&self) -> &[u8]
     /// Original function: gfdGeoemtryGetMaterial
-    pub fn get_material(&self) -> Option<&Material> {
+    pub fn get_material(&self) -> Option<&Material<A>> {
         if self.flags.contains(GeometryFlags::Material) {
             /* 
             let res = self.material.map(|v| unsafe { v.as_ref() });
@@ -260,25 +508,24 @@ where A: Allocator + Clone
         }
     }
 
-    pub fn get_material_mut(&mut self) -> Option<&mut Material> {
+    pub fn get_material_mut(&mut self) -> Option<&mut Material<A>> {
         match self.flags.contains(GeometryFlags::Material) {
             true => self.material.map(|mut v| unsafe { v.as_mut() }),
             false => None
         }
     }
 
-    pub fn get_reflection_material(&self) -> Option<&Material> {
-        if self.flags.contains(GeometryFlags::ReflectionCaster) {
-            unsafe { self.reflection_mat.as_ref() }
-        } else {
-            None
+    pub fn get_reflection_material(&self) -> Option<&Material<A>> {
+        match self.flags.contains(GeometryFlags::ReflectionCaster) {
+            true => self.reflection_mat.map(|v| unsafe { v.as_ref() }),
+            false => None
         }
     }
-    pub fn get_outline_material(&self) -> Option<&Material> {
+    pub fn get_outline_material(&self) -> Option<&Material<A>> {
         // TODO: Material check outline
         None
     }
-    pub fn get_subsurface_material(&self) -> Option<&Material> {
+    pub fn get_subsurface_material(&self) -> Option<&Material<A>> {
         // TODO: Material subsurface scatter check
         None
     }

@@ -12,14 +12,14 @@ use crate::utility::stream::{DeserializationHeap, DeserializationStrategy, GfdSe
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct EdgeFlags : u32 {
-        const Flag0 = 1 << 0;
-        const DisableEdgeBacklight = 1 << 1;
-        const Flag2 = 1 << 2;
-        const Flag3 = 1 << 3;
-        const Flag4 = 1 << 4;
-        const Flag5 = 1 << 5;
-        const Flag6 = 1 << 6;
-        const Flag7 = 1 << 7;
+        const NormalMap = 1 << 0;
+        const Backlight = 1 << 1;
+        const LightAdd = 1 << 2;
+        const CavernMap = 1 << 3;
+        const LightNormalMapAlphaMask = 1 << 4;
+        const LockYAxis = 1 << 5;
+        const LightDiffuseMapAlphaMask = 1 << 6;
+        const LightShadowMapAlphaMask = 1 << 7;
     }
 }
 
@@ -69,16 +69,16 @@ where AObject: Allocator + Clone {
             self.flags = EdgeFlags::from_bits_truncate(stream.read_u32()?);
         } else {
             if stream.read_u8()? != 0 {
-                self.flags |= EdgeFlags::Flag0;
+                self.flags |= EdgeFlags::NormalMap;
             }
-            if stream.get_header_version() >= GfdVersion::MaterialExtensionEdgeFlag1 as u32 && stream.read_u8()? != 0 {
-                self.flags |= EdgeFlags::DisableEdgeBacklight;
+            if stream.get_header_version() >= GfdVersion::MaterialExtensionEdgeBacklight as u32 && stream.read_u8()? != 0 {
+                self.flags |= EdgeFlags::Backlight;
             }
-            if stream.get_header_version() >= GfdVersion::MaterialExtensionEdgeFlag2 as u32 && stream.read_u8()? != 0 {
-                self.flags |= EdgeFlags::Flag2;
+            if stream.get_header_version() >= GfdVersion::MaterialExtensionEdgeLightAdd as u32 && stream.read_u8()? != 0 {
+                self.flags |= EdgeFlags::LightAdd;
             }
-            if stream.get_header_version() >= GfdVersion::MaterialExtensionEdgeFlag3 as u32 && stream.read_u8()? != 0 {
-                self.flags |= EdgeFlags::Flag3;
+            if stream.get_header_version() >= GfdVersion::MaterialExtensionEdgeCavernmap as u32 && stream.read_u8()? != 0 {
+                self.flags |= EdgeFlags::CavernMap;
             }
         }
         Ok(())

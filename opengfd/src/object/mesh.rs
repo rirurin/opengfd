@@ -39,15 +39,15 @@ use std::{
     ptr::NonNull
 };
 use std::fmt::Formatter;
-use std::io::SeekFrom;
+// use std::io::SeekFrom;
 use std::time::Instant;
 use opengfd_proc::GfdRcAuto;
-use crate::device::ngr::allocator::AllocatorHook;
-use crate::graphics::texture::{Texture, TextureFormat, TextureSerializationContext};
-use crate::kernel::version::GfdVersion;
+// use crate::device::ngr::allocator::AllocatorHook;
+use crate::graphics::texture::{Texture, /*TextureFormat,*/ TextureSerializationContext};
+// use crate::kernel::version::GfdVersion;
 use crate::object::object::{CastFromObject, ObjectId};
 use crate::utility::misc::RGB;
-use crate::utility::name::{Name, NameSerializationContext, NameSerializationNoHash};
+// use crate::utility::name::{Name, NameSerializationContext, NameSerializationNoHash};
 
 #[cfg(feature = "serialize")]
 use crate::utility::stream::{
@@ -59,7 +59,6 @@ use crate::utility::stream::{
     GfdSerializationUserData,
     SerializationSingleAllocator,
     Stream,
-    StreamError,
     StreamIODevice
 };
 
@@ -111,25 +110,25 @@ const CULL_OBJECT_COUNT: usize = 3;
 pub struct Mesh<A = GfdAllocator> 
 where A: Allocator + Clone
 {
-    _super: Object,
+    super_: Object,
     flags: MeshFlags,
     hierarchy: Option<NonNull<Node<A>>>,
-    node_array: *mut ItemArray<*mut Node<A>>,
-    geometry_array: *mut ItemArray<*mut Geometry<A>>,
-    material_array: *mut ItemArray<*mut Material<A>>,
-    morph_array: *mut ItemArray<*mut MorphController>,
-    camera_array: *mut ItemArray<*mut Camera<A>>,
-    light_array: *mut ItemArray<*mut Light>,
-    effect_array: *mut ItemArray<*mut EPL>,
+    node_array: Option<NonNull<ItemArray<NonNull<Node<A>>>>>,
+    geometry_array: Option<NonNull<ItemArray<NonNull<Geometry<A>>>>>,
+    material_array: Option<NonNull<ItemArray<NonNull<Material<A>>>>>,
+    morph_array: Option<NonNull<ItemArray<NonNull<MorphController>>>>,
+    camera_array: Option<NonNull<ItemArray<NonNull<Camera<A>>>>>,
+    light_array: Option<NonNull<ItemArray<NonNull<Light<A>>>>>,
+    effect_array: Option<NonNull<ItemArray<NonNull<EPL<A>>>>>,
     anim_interpolator: Option<NonNull<AnimInterpolator>>,
-    anim_controller: Option<NonNull<AnimController>>,
+    anim_controller: Option<NonNull<AnimController<A>>>,
     anim_effector: Option<NonNull<AnimEffector>>,
     neck_interpolator: [Option<NonNull<AnimInterpolator>>; NECK_INTERPOLATOR_COUNT],
     // For Bullet Physics, unused in Metaphor
     physics_sector: usize,
     bounding_box: BoundingBox,
     bounding_sphere: BoundingSphere,
-    local_obb: *mut [Vec3A; LOCAL_OBB_COUNT],
+    local_obb: Option<NonNull<[Vec3A; LOCAL_OBB_COUNT]>>,
     cull: [CullObject; CULL_OBJECT_COUNT],
     skin_bone_matrix_array: *mut ItemArray<usize>, // TODO
     skin_bone_object: *mut SkinBoneObject,
@@ -170,48 +169,51 @@ where A: Allocator + Clone
     pub fn get_root_node_mut(&mut self) -> Option<&mut Node<A>> {
         self.hierarchy.map(|mut v| unsafe { v.as_mut() })
     }
-    pub fn get_node_list(&self) -> &[*mut Node<A>] {
-        match unsafe { self.node_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+
+    pub fn get_node_list(&self) -> &[NonNull<Node<A>>] {
+        self.node_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
-    pub fn get_geometry_list(&self) -> &[*mut Geometry<A>] {
-        match unsafe { self.geometry_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+    pub fn get_geometry_list(&self) -> &[NonNull<Geometry<A>>] {
+        self.geometry_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
-    pub fn get_material_list(&self) -> &[*mut Material<A>] {
-        match unsafe { self.material_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+    pub fn get_material_list(&self) -> &[NonNull<Material<A>>] {
+        self.material_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
-    pub fn get_morph_list(&self) -> &[*mut MorphController] {
-        match unsafe { self.morph_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+    pub fn get_morph_list(&self) -> &[NonNull<MorphController>] {
+        self.morph_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
-    pub fn get_camera_list(&self) -> &[*mut Camera<A>] {
-        match unsafe { self.camera_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+    pub fn get_camera_list(&self) -> &[NonNull<Camera<A>>] {
+        self.camera_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
-    pub fn get_light_list(&self) -> &[*mut Light] {
-        match unsafe { self.light_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+    pub fn get_light_list(&self) -> &[NonNull<Light<A>>] {
+        self.light_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
-    pub fn get_effect_list(&self) -> &[*mut EPL] {
-        match unsafe { self.effect_array.as_ref() } {
-            Some(a) => a.as_slice(),
-            None => &[]
-        }
+    pub fn get_effect_list(&self) -> &[NonNull<EPL<A>>] {
+        self.effect_array.map_or(&[], |v| unsafe { v.as_ref().as_slice() })
     }
+
+    pub fn get_node_list_mut(&mut self) -> &mut [NonNull<Node<A>>] {
+        self.node_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+    pub fn get_geometry_list_mut(&mut self) -> &mut [NonNull<Geometry<A>>] {
+        self.geometry_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+    pub fn get_material_list_mut(&mut self) -> &mut [NonNull<Material<A>>] {
+        self.material_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+    pub fn get_morph_list_mut(&mut self) -> &mut [NonNull<MorphController>] {
+        self.morph_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+    pub fn get_camera_list_mut(&mut self) -> &mut [NonNull<Camera<A>>] {
+        self.camera_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+    pub fn get_light_list_mut(&mut self) -> &mut [NonNull<Light<A>>] {
+        self.light_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+    pub fn get_effect_list_mut(&mut self) -> &mut [NonNull<EPL<A>>] {
+        self.effect_array.map_or(&mut [], |mut v| unsafe { v.as_mut().as_slice_mut() })
+    }
+
     pub fn get_bounding_box(&self) -> &BoundingBox {
         &self.bounding_box
     }
@@ -230,10 +232,10 @@ where A: Allocator + Clone
     pub fn get_anim_interpolator_mut(&mut self) -> Option<&mut AnimInterpolator> {
         self.anim_interpolator.map(|mut v| unsafe { v.as_mut() })
     }
-    pub fn get_anim_controller(&self) -> Option<&AnimController> {
+    pub fn get_anim_controller(&self) -> Option<&AnimController<A>> {
         self.anim_controller.map(|v| unsafe { v.as_ref() })
     }
-    pub fn get_anim_controller_mut(&mut self) -> Option<&mut AnimController> {
+    pub fn get_anim_controller_mut(&mut self) -> Option<&mut AnimController<A>> {
         self.anim_controller.map(|mut v| unsafe { v.as_mut() })
     }
     pub fn get_anim_effector(&self) -> Option<&AnimEffector> {
@@ -252,6 +254,7 @@ where T: Debug + Read + Write + Seek + StreamIODevice,
 {
     fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> Result<DeserializationHeap<Self, AObject>, Box<dyn Error>> {
         let mut this = DeserializationHeap::<Self, AObject>::zeroed(param);
+        unsafe { this.super_.set_id(ObjectId::Mesh) };
         this.reference = Reference::new();
         this.stream_read_inner(stream, param)?;
         Ok(this)

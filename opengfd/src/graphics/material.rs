@@ -1019,7 +1019,7 @@ where AObject: Allocator + Clone {
     where T: Debug + Read + Write + Seek + StreamIODevice,
           AStream: Allocator + Clone + Debug {
         self.mat_type = stream
-            .has_feature(GfdVersion::MaterialUseParameterSet)
+            .has_feature(GfdVersion::GFDV2)
             .map_or::<Result<params::MaterialId, Box<dyn Error>>, _>(
                 Ok(params::MaterialId::Lambert),
                 |_| Ok(stream.read_u16()?.try_into()?)

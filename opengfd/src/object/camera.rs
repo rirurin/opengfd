@@ -31,7 +31,7 @@ type DynRes<T> = Result<T, Box<dyn Error>>;
 pub struct Camera<A = GfdAllocator> 
 where A: Allocator + Clone
 {
-    _super: Object<A>,
+    super_: Object<A>,
     view: Mat4,
     projection: Mat4,
     plane_frustum: [Vec4; 6usize],
@@ -62,7 +62,7 @@ where A: Allocator + Clone
     pub fn get_near_clip(&self) -> f32 { self.near_clip }
     /// Original function: gfdCameraGetNode
     pub fn get_node(&self) -> Option<&Node<A>> {
-        self._super.get_parent()
+        self.super_.get_parent()
     }
     pub fn get_projection_transform(&self) -> Mat4 {
         self.projection
@@ -133,8 +133,8 @@ where A: Allocator + Clone
     pub fn get_field19c_mut(&mut self) -> &mut f32 { &mut self.field12_0x19c }
     pub fn get_field1a0_mut(&mut self) -> &mut f32 { &mut self.field13_0x1a0 }
 
-    pub fn get_super(&self) -> &Object<A> { &self._super }
-    pub fn get_super_mut(&mut self) -> &mut Object<A> { &mut self._super }
+    pub fn get_super(&self) -> &Object<A> { &self.super_ }
+    pub fn get_super_mut(&mut self) -> &mut Object<A> { &mut self.super_ }
 }
 
 impl<A> CastFromObject for Camera<A>
@@ -151,6 +151,7 @@ where T: Debug + Read + Write + Seek + StreamIODevice,
 {
     fn stream_read(stream: &mut Stream<AStream, T>, param: &mut SerializationSingleAllocator<AObject>) -> DynRes<DeserializationHeap<Self, AObject>> {
         let mut this = DeserializationHeap::<Self, AObject>::zeroed(param);
+        unsafe { this.super_.set_id(ObjectId::Camera) };
         this.ref_ = Reference::new();
         this.stream_read_inner(stream)?;
         Ok(this)
