@@ -45,6 +45,7 @@ bitflags! {
         const MultiFitting = 1 << 0xc;
         const FlowMapMultiRefAlphaBaseColor = 1 << 0xd;
         const FlowMapBloomRefAlphaMultiColor = 1 << 0xe;
+        const FLAG15 = 1 << 0xf;
     }
 }
 
@@ -103,7 +104,10 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        if self.flags.contains(DistortionFlags::FLAG15) {
+            return false;
+        }
+        !(self.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -190,6 +194,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        0x92
     }
 }
 

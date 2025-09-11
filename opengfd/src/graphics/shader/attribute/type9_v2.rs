@@ -9,14 +9,44 @@ use crate::{
             Material, 
             MaterialType, 
         },
-        shader::shader::ShaderFlags
+        shader::{
+            flag::{
+                Flags0 as ShaderFlag0,
+                Flags1 as ShaderFlag1,
+                Flags2 as ShaderFlag2
+            },
+            shader::ShaderFlags
+        }
     },
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
 use crate::utility::misc::{RGBAFloat, RGBFloat};
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
+use bitflags::bitflags;
 // See https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Type9Flags: u32 {
+        const ToonRefNormalMap = 1 << 0;
+        const ToonRemoveLightYAxis = 1 << 1;
+        const EdgeRefNormalMap = 1 << 2;
+        const HasOutline = 1 << 3;
+        const FLAG4 = 1 << 4;
+        const EdgeReferenceNormalAlpha = 1 << 5;
+        const Semitrans = 1 << 6;
+        const FLAG7 = 1 << 7;
+        const FLAG8 = 1 << 8;
+        const FLAG9 = 1 << 9;
+        const FLAG10 = 1 << 10;
+        const FLAG11 = 1 << 11;
+        const FLAG12 = 1 << 12;
+        const FLAG13 = 1 << 13;
+        const FLAG14 = 1 << 14;
+        const FLAG15 = 1 << 15;
+    }
+}
 
 /// Shader File: 39.HLSL or 41.HLSL
 #[repr(C)]
@@ -28,20 +58,20 @@ where A: Allocator + Clone
     field4: f32,
     field8: f32,
     fieldc: f32,
-    field10: RGBAFloat,
-    field20: RGBAFloat,
-    field30: RGBAFloat,
-    field40: RGBAFloat,
-    field50: RGBFloat,
-    field5c: f32,
-    field60: f32,
-    field64: f32,
-    field68: f32,
-    field6c: f32,
+    base_color: RGBAFloat,
+    shadow_color: RGBAFloat,
+    edge_color: RGBAFloat,
+    emissive_color: RGBAFloat,
+    specular_color: RGBFloat,
+    specular_threshold: f32,
+    specular_power: f32,
+    metallic: f32,
+    roughness: f32,
+    edge_threshold: f32,
     field70: f32,
     field74: f32,
     field78: f32,
-    field7c: u32,
+    flags: Type9Flags,
     _allocator: std::marker::PhantomData<A>
 }
 
@@ -79,7 +109,7 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        !(self.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -93,9 +123,38 @@ where A: Allocator + Clone
     fn get_tex1_name(&self) -> &'static str { "Base Texture" }
     fn get_tex5_name(&self) -> &'static str { "Multiply Texture" }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+        if self.metallic > 0. {
+            *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION;
+        }
+        if self.edge_threshold > 0. &&  self.edge_color.get_alpha_f32() > 0. {
+            *flags |= ShaderFlag2::FLAG2_EDGE_BACKLIGHT;
+        }
+        if self.flags.contains(Type9Flags::ToonRefNormalMap) {
+            *flags |= ShaderFlag2::FLAG2_TOON_REFERENCE_NORMALMAP;
+        }
+        if self.flags.contains(Type9Flags::ToonRemoveLightYAxis) {
+            *flags |= ShaderFlag2::FLAG2_TOON_REMOVAL_LIGHT_YAXIS;
+        }
+        if self.flags.contains(Type9Flags::EdgeRefNormalMap) {
+            *flags |= ShaderFlag2::FLAG2_EDGE_REFERENCE_NORMALMAP;
+        }
+        if self.flags.contains(Type9Flags::EdgeReferenceNormalAlpha) {
+            *flags |= ShaderFlag2::FLAG2_EDGE_REFERENCE_NORMALALPHA;
+        }
+        if self.flags.contains(Type9Flags::Semitrans) {
+            *flags |= ShaderFlag2::FLAG2_EDGE_SEMITRANS;
+        }
+        if self.specular_power > 0.
+            && self.specular_threshold > 0.
+            && self.specular_color != RGBFloat::default() {
+            *flags |= ShaderFlag1::FLAG1_MATERIAL_SPECULAR;
+        }
     }
     fn update(&mut self) {
+    }
+    fn get_shader_id(&self) -> u32 {
+        0x9b
     }
 }
 
@@ -123,19 +182,20 @@ where AObject: Allocator + Clone {
         self.field4 = stream.read_f32()?;
         self.field8 = stream.read_f32()?;
         self.fieldc = stream.read_f32()?;
-        self.field10 = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
-        self.field20 = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
-        self.field30 = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
-        self.field40 = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
-        self.field50 = RGBFloat::stream_read(stream, &mut ())?.into_raw();
-        self.field60 = stream.read_f32()?;
-        self.field64 = stream.read_f32()?;
-        self.field68 = stream.read_f32()?;
-        self.field6c = stream.read_f32()?;
+        self.base_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.shadow_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.edge_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.emissive_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.specular_color = RGBFloat::stream_read(stream, &mut ())?.into_raw();
+        self.specular_threshold = stream.read_f32()?;
+        self.specular_power = stream.read_f32()?;
+        self.metallic = stream.read_f32()?;
+        self.roughness = stream.read_f32()?;
+        self.edge_threshold = stream.read_f32()?;
         self.field70 = stream.read_f32()?;
         self.field74 = stream.read_f32()?;
         self.field78 = stream.read_f32()?;
-        self.field7c = stream.read_u32()?;
+        self.flags = Type9Flags::from_bits_retain(stream.read_u32()?);
         Ok(())
     }
 }

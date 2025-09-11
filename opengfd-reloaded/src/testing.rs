@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+use std::ptr::NonNull;
 use opengfd::{
     device::ngr::renderer::platform::d3d::TextureResource,
     graphics::texture::{
@@ -13,8 +14,12 @@ use opengfd::{
     utility::reference::GfdRc,
 };
 // use opengfd_inspector::state::Inspector as GfdInspector;
-use riri_mod_tools_proc::riri_hook_fn;
+use riri_mod_tools_proc::{riri_hook_fn, riri_hook_static};
 use riri_mod_tools_rt::logln;
+use opengfd::graphics::material::Material;
+use opengfd::kernel::global::Global;
+use opengfd::object::geometry::VertexAttributeFlags;
+use crate::globals;
 // use windows::Win32::UI::Input::KeyboardAndMouse::{ GetAsyncKeyState, VK_F5 };
 
 /*
@@ -435,3 +440,69 @@ pub unsafe extern "C" fn gfdTextureCreate(bytes: *mut u8, length: u32, p_flags: 
     res as *mut u8
 }
  */
+//
+
+#[no_mangle]
+pub unsafe extern "C" fn setGfdMaterialUpdateShader(ofs: usize) -> Option<NonNull<u8>> {
+    let addr = match riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v, None => return None  };
+    logln!(Information, "got gfdMaterialUpdateShader: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+
+#[riri_hook_fn(dynamic_offset(
+    signature = "48 8B C4 55 53 48 8B EC",
+    resolve_type = setGfdMaterialUpdateShader,
+    calling_convention = "microsoft",
+))]
+pub unsafe extern "C" fn gfdMaterialUpdateShader(p_material: *mut u8, p_vertex: u32, p_light: *mut u8) {
+    let material = &mut *(p_material as *mut Material<GfdAllocator>);
+    let shader_prev = material.get_shader_data().get_flags().clone();
+    let _ = original_function!(p_material, p_vertex, p_light);
+    if let Some(name) = material.get_name() {
+        let vertex = VertexAttributeFlags::from_bits_truncate(p_vertex);
+        let shader_new = material.get_shader_data().get_flags();
+        if shader_new != &shader_prev {
+            let new_impl = material.get_shader_flags(vertex);
+            /*
+            let mut output = String::new();
+            match new_impl.get_flag0() == shader_new.get_flag0() {
+                true => output.push_str(&format!("FLAG0_PASS(0x{:x}), ", new_impl.get_flag0())),
+                false => output.push_str(&format!("FLAG0_FAIL(0x{:x} != 0x{:x}), ", new_impl.get_flag0(), shader_new.get_flag0())),
+            }
+            match new_impl.get_flag1() == shader_new.get_flag1() {
+                true => output.push_str(&format!("FLAG1_PASS(0x{:x}), ", new_impl.get_flag1())),
+                false => output.push_str(&format!("FLAG1_FAIL(0x{:x} != 0x{:x}), ", new_impl.get_flag1(), shader_new.get_flag1())),
+            }
+            match new_impl.get_flag2() == shader_new.get_flag2() {
+                true => output.push_str(&format!("FLAG2_PASS(0x{:x}), ", new_impl.get_flag2())),
+                false => output.push_str(&format!("FLAG2_FAIL(0x{:x} != 0x{:x}), ", new_impl.get_flag2(), shader_new.get_flag2())),
+            }
+            logln!(Information, "gfdMaterialUpdateShader(material: {}, type {:?} vertex: {:?}) = {}", name, material.get_data_type(), vertex, &output);
+            */
+            if &new_impl == shader_new {
+                /*
+                logln!(
+                    Debug, "gfdMaterialUpdateShader(material: {}, vertex: {:?}) = <0x{:x}, 0x{:x}, 0x{:x}>",
+                    name, vertex,
+                    new_impl.get_flag0().bits(),
+                    new_impl.get_flag1().bits(),
+                    new_impl.get_flag2().bits(),
+                );
+                */
+            } else {
+                logln!(
+                    Warning, "SHADER FLAG ERROR: gfdMaterialUpdateShader(material: {}, type: {:?}, vertex: {:?}) = <0x{:x}, 0x{:x}, 0x{:x}> != <0x{:x}, 0x{:x}, 0x{:x}>",
+                    name, vertex, material.get_data_type(),
+                    new_impl.get_flag0().bits(),
+                    new_impl.get_flag1().bits(),
+                    new_impl.get_flag2().bits(),
+                    shader_new.get_flag0().bits(),
+                    shader_new.get_flag1().bits(),
+                    shader_new.get_flag2().bits(),
+                );
+            }
+        }
+    }
+
+}

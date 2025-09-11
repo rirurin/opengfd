@@ -38,6 +38,7 @@ pub enum EplError {
     InvalidCirclePolygonType(u32),
     InvalidThunderPolygonType(u32),
     InvalidWindPolygonType(u32),
+    InvalidModelType(u32),
 }
 impl Error for EplError {}
 impl Display for EplError {

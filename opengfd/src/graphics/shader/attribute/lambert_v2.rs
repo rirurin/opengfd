@@ -9,12 +9,20 @@ use crate::{
             Material, 
             MaterialType, 
         },
-        shader::shader::ShaderFlags
+        shader::{
+            flag::{
+                Flags0 as ShaderFlag0,
+                Flags1 as ShaderFlag1,
+                Flags2 as ShaderFlag2
+            },
+            shader::ShaderFlags
+        }
     },
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
 use glam::Vec4;
+use crate::graphics::material::{MaterialFlags, MaterialFlags2};
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -69,6 +77,20 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
+        /*
+        let mat = self.get_material();
+        if self.diffuse_color.get_alpha_f32() < 1. {
+            true
+        } else if mat.get_constant() == -1 && !mat.get_flag2().contains(MaterialFlags2::ConstantColor) {
+            true
+        } else if !mat.get_flag2().contains(MaterialFlags2::Flag12) {
+            false
+        } else if self.specular_color.get_alpha_f32() >= 1. {
+            false
+        } else {
+            true
+        }
+        */
         false
     }
     fn check_transparent_14107980(&self) -> bool {
@@ -85,8 +107,21 @@ where A: Allocator + Clone
     fn get_tex5_name(&self) -> &'static str { "Multiply Texture" }
     fn get_tex6_name(&self) -> &'static str { "Emissive Texture" }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
-        // TODO
+    fn set_shader_flags(&self, _: VertexAttributeFlags, flags: &mut ShaderFlags) {
+        let mat = self.get_material();
+        // Specular -> Emissive for Lambert type
+        if mat.get_flag().contains(MaterialFlags::Specular) && self.emissive_color.get_alpha_f32() > 0. {
+            *flags |= ShaderFlag1::FLAG1_MATERIAL_SPECULAR;
+        }
+        if mat.get_flag().contains(MaterialFlags::Reflection | MaterialFlags::Texture4) {
+            *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION;
+            if self.reflectivity < 1. {
+                *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION_LERP;
+            }
+            if mat.get_flag2().contains(MaterialFlags2::Flag8) {
+                *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION_ADD;
+            }
+        }
     }
     fn update(&mut self) {
         /* 
@@ -94,6 +129,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        0
     }
 }
 

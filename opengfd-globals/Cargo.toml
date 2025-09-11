@@ -22,8 +22,12 @@ quote = "1.0"
 
 
 [features]
-default = ["v2-core"]
+default = [ "v2-core" ]
 # Builds OpenGFD to interoperate with Persona 5 Royal
-v1-core = ["opengfd/v1-core"]
+v1-core = [ "opengfd/v1-core" ]
 # Builds OpenGFD to interoperate with Metaphor: Refantazio
-v2-core = ["opengfd/v2-core"]
+v2-core = [ "opengfd/v2-core" ]
+# Include serialization
+reloaded = [ "opengfd/reloaded" ]
+image_loader = [ "opengfd/image_loader" ]
+serialize = [ "opengfd/serialize" ]

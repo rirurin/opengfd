@@ -113,6 +113,9 @@ impl ShaderID {
     pub fn get_id(&self) -> i16 {
         self.id
     }
+    pub fn get_flags(&self) -> &ShaderFlags {
+        &self.flags
+    }
 }
 
 #[cfg(all(feature = "serialize", feature = "v2-core"))]
@@ -143,7 +146,7 @@ impl ShaderID {
 
 #[cfg(feature = "v2-core")]
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ShaderFlags {
     flag0: Flags0,
     flag1: Flags1,
@@ -159,6 +162,15 @@ impl ShaderFlags {
     }
     pub fn reset_flag2(&mut self, val: Flags2) {
         self.flag2 = val;
+    }
+    pub fn get_flag0(&self) -> Flags0 {
+        self.flag0
+    }
+    pub fn get_flag1(&self) -> Flags1 {
+        self.flag1
+    }
+    pub fn get_flag2(&self) -> Flags2 {
+        self.flag2
     }
 }
 
@@ -177,6 +189,16 @@ impl BitOrAssign<Flags1> for ShaderFlags {
 impl BitOrAssign<Flags2> for ShaderFlags {
     fn bitor_assign(&mut self, rhs: Flags2) {
         self.flag2 |= rhs;
+    }
+}
+
+impl Default for ShaderFlags {
+    fn default() -> Self {
+        Self {
+            flag0: Flags0::empty(),
+            flag1: Flags1::empty(),
+            flag2: Flags2::empty(),
+        }
     }
 }
 

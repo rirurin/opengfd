@@ -40,7 +40,7 @@ bitflags! {
         const EdgeRemoveLightYAxis = 0x00000080;
         const Flag8 = 0x00000100;
         const SubsurfaceScatterReceiver = 0x00000200;
-        const Flag10 = 0x00000400;
+        const Punchthrough = 0x00000400;
         const Flag11 = 0x00000800;
         const Flag12 = 0x00001000;
         const ApplyPBRLight = 0x00002000;
@@ -96,7 +96,10 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        if self.has_flag(Type3Flags::Punchthrough) {
+            return false;
+        }
+        !(self._impl.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -112,7 +115,7 @@ where A: Allocator + Clone
 
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
         // TODO: Vertex
-        if self.has_flag(Type3Flags::Flag10) {
+        if self.has_flag(Type3Flags::Punchthrough) {
             // TODO: Punchthrough
         }
         if self.has_flag(Type3Flags::Flag12) {
@@ -125,6 +128,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        0x84
     }
 }
 

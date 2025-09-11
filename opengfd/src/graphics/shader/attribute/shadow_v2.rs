@@ -60,7 +60,7 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        true
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -75,6 +75,9 @@ where A: Allocator + Clone
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
     fn update(&mut self) {
+    }
+    fn get_shader_id(&self) -> u32 {
+        0xd0
     }
 }
 

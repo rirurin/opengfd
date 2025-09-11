@@ -8,13 +8,18 @@ use crate::{
     graphics::{
         material::{ Material, MaterialType },
         shader::{
-            flag::Flags2 as ShaderFlag2,
+            flag::{
+                Flags0 as ShaderFlag0,
+                Flags1 as ShaderFlag1,
+                Flags2 as ShaderFlag2,
+            },
             shader::ShaderFlags
         }
     },
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags
 };
+use crate::graphics::material::MaterialFlags;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -133,15 +138,13 @@ where A: Allocator + Clone
         0
     }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
-        // let mat = self.get_material();
+    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+        let mat = self.get_material();
         if self.flags.contains(TwoLayerFlags::Automatic) {
             // #define FLAG2_TRIPLANARMAPPING_LAYER0 FLAG2_HDR_TONEMAP
             // #define FLAG2_TRIPLANARMAPPING_LAYER1 FLAG2_EDGE_CAVERNMAP
             // #define FLAG2_TRIPLANARMAPPING_BLEND  FLAG2_EDGE_REFERENCE_NORMALALPHA
-            *flags |= ShaderFlag2::FLAG2_HDR_TONEMAP;
-            *flags |= ShaderFlag2::FLAG2_EDGE_CAVERNMAP;
-            *flags |= ShaderFlag2::FLAG2_EDGE_REFERENCE_NORMALALPHA;
+            *flags |= (ShaderFlag2::FLAG2_HDR_TONEMAP | ShaderFlag2::FLAG2_EDGE_CAVERNMAP | ShaderFlag2::FLAG2_EDGE_REFERENCE_NORMALALPHA);
         } else {
             if self.flags.contains(TwoLayerFlags::TriplanarMappingLayer0) {
                 *flags |= ShaderFlag2::FLAG2_HDR_TONEMAP;
@@ -157,10 +160,12 @@ where A: Allocator + Clone
             // #define FLAG2_USECOLORSET2            FLAG2_HDR_STAR
             *flags |= ShaderFlag2::FLAG2_HDR_STAR;
         }
+        if vtx.contains(VertexAttributeFlags::Color2) {
+            *flags |= ShaderFlag0::FLAG0_OUTLINE;
+        }
         if self.flags.contains(TwoLayerFlags::Sky) {
             *flags |= ShaderFlag2::FLAG2_SKY;
         }
-        // TODO: Punchthrough 
     }
     fn update(&mut self) {
         /* 
@@ -168,6 +173,12 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        match self.get_material().get_flag().contains(MaterialFlags::Diffusivity) {
+            true => 0x97,
+            false => 0x96
+        }
     }
 }
 

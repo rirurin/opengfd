@@ -12,6 +12,7 @@ use crate::{
         },
         shader::{
             flag::{
+                Flags0 as ShaderFlag0,
                 Flags1 as ShaderFlag1,
                 Flags2 as ShaderFlag2
             },
@@ -22,6 +23,8 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use glam::{ Vec3, Vec4 };
+use crate::graphics::material::{BlendType, MaterialFlags2};
+use crate::graphics::shader::attribute::toon_v2::CharaToonFlags;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::{RGBAFloat, RGBFloat};
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -29,19 +32,22 @@ use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamI
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct MetalFlags: u32 {
-        const FLAG0 = 0x00000001;
+        const ToonReferenceNormalMap = 0x00000001;
         const FLAG1 = 0x00000002;
-        const FLAG2 = 0x00000004;
+        const EdgeReferenceNormalMap = 0x00000004;
         const HasOutline = 0x00000008;
         const FLAG4 = 0x00000010;
         const FLAG5 = 0x00000020;
-        const FLAG6 = 0x00000040;
-        const FLAG7 = 0x00000080;
+        const Semitrans = 0x00000040;
+        const EdgeRemovalLightYAxis = 0x00000080;
         const SubsurfaceScatter = 0x00000100;
-        const FLAG9 = 0x00000200;
-        const FLAG10 = 0x00000400;
-        const FLAG11 = 0x00000800;
-        const FLAG12 = 0x00001000;
+        const RampRefLightDirection = 0x00000200;
+        const Punchthrough = 0x00000400;
+        const ApplyPBRLight = 0x00000800;
+        const ForcedBloomIntensity = 0x00001000;
+        const MultiForeground = 0x00002000;
+        const DisableShadowHatching = 0x00004000;
+        const ShadowHatchingRefAlphaBaseColor = 0x00008000;
     }
 }
 
@@ -142,7 +148,7 @@ where A: Allocator + Clone
     fn get_tex6_name(&self) -> &'static str { "Toon Params 2 Texture" }
     fn get_tex9_name(&self) -> &'static str { "Toon Edge Color Texture" }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         if self.metallic != 0. {
             *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION;
         }
@@ -150,14 +156,54 @@ where A: Allocator + Clone
         && self.edge_color.get_alpha_f32() != 0. {
             *flags |= ShaderFlag2::FLAG2_EDGE_BACKLIGHT;
         }
-        if self.flags.contains(MetalFlags::FLAG0) {
+        if self.flags.contains(MetalFlags::ToonReferenceNormalMap) {
             *flags |= ShaderFlag2::FLAG2_TOON_REFERENCE_NORMALMAP;
         }
-        if self.flags.contains(MetalFlags::FLAG2) {
+        if self.flags.contains(MetalFlags::EdgeReferenceNormalMap) {
             *flags |= ShaderFlag2::FLAG2_EDGE_REFERENCE_NORMALMAP;
         }
-        if self.flags.contains(MetalFlags::FLAG6) {
+        if self.flags.contains(MetalFlags::Semitrans) {
             *flags |= ShaderFlag2::FLAG2_EDGE_SEMITRANS;
+        }
+        if self.flags.contains(MetalFlags::EdgeRemovalLightYAxis) {
+            *flags |= ShaderFlag0::FLAG0_EDGE_REMOVAL_LIGHT_YAXIS;
+        }
+        if self.flags.contains(MetalFlags::RampRefLightDirection) {
+            // #define FLAG2_RAMP_REFLIGHTDIRECTION             FLAG2_HDR_TONEMAP
+            *flags |= ShaderFlag2::FLAG2_HDR_TONEMAP;
+        }
+        if self.flags.contains(MetalFlags::Punchthrough)
+            && self.get_material().get_blend().get_type() == BlendType::Opaque
+            && (
+            self.base_color.get_alpha_f32() < 1.
+                || self.get_material().get_flag2().contains(MaterialFlags2::Punchthrough)
+                || self.get_material().get_constant() as i8 != -1
+        )
+        {
+            *flags |= ShaderFlag2::FLAG2_PUNCHTHROUGH;
+        }
+        if self.specular_power > 0.
+            && self.specular_threshold > 0.
+            && self.specular_color != RGBFloat::default() {
+            *flags |= ShaderFlag1::FLAG1_MATERIAL_SPECULAR;
+        }
+        if vtx.contains(VertexAttributeFlags::Color2) {
+            *flags |= ShaderFlag0::FLAG0_OUTLINE;
+        }
+        if self.flags.contains(MetalFlags::ApplyPBRLight) {
+            *flags |= ShaderFlag2::FLAG2_APPLY_PBR_LIGHT;
+        }
+        if self.flags.contains(MetalFlags::ForcedBloomIntensity) {
+            // #define FLAG2_FORCED_BLOOMINTENSITY              FLAG2_SPECULAR_NORMALMAPALPHA
+            *flags |= ShaderFlag2::FLAG2_SPECULAR_NORMALMAPALPHA;
+        }
+        if self.flags.contains(MetalFlags::MultiForeground) {
+            *flags |= ShaderFlag0::FLAG0_LIGHT1_POINT;
+        }
+        if self.flags.contains(MetalFlags::DisableShadowHatching) {
+            *flags |= ShaderFlag1::FLAG1_LIGHTMAP_MODULATE2;
+        } else if self.flags.contains(MetalFlags::ShadowHatchingRefAlphaBaseColor) {
+            *flags |= ShaderFlag0::FLAG0_LIGHT1_DIRECTION;
         }
     }
     fn update(&mut self) {
@@ -166,6 +212,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        0xbb
     }
 }
 

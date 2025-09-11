@@ -78,7 +78,7 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        !(self.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -104,6 +104,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        0x9d
     }
 }
 

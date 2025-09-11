@@ -14,6 +14,7 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::graphics::material::MaterialFlags;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -64,7 +65,7 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        !(self.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -81,6 +82,13 @@ where A: Allocator + Clone
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
     fn update(&mut self) {
+    }
+    fn get_shader_id(&self) -> u32 {
+        if !self.get_material().get_flag().contains(MaterialFlags::Light | MaterialFlags::Outline) || self.check_translucency() {
+            0xb0
+        } else {
+            0xb1
+        }
     }
 }
 

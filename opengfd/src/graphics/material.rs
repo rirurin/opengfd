@@ -95,6 +95,28 @@ impl Blending {
         // self.control = stream.read_u8()?;
         Ok(())
     }
+
+    pub fn get_type(&self) -> BlendType {
+        self.ty
+    }
+    pub fn get_src_color(&self) -> u8 {
+        self.src_color
+    }
+    pub fn get_dst_color(&self) -> u8 {
+        self.dst_color
+    }
+    pub fn get_src_alpha(&self) -> u8 {
+        self.src_alpha
+    }
+    pub fn get_dst_alpha(&self) -> u8 {
+        self.dst_alpha
+    }
+    pub fn get_multiply_type(&self) -> MultiplyType {
+        self.multiple
+    }
+    pub fn get_control(&self) -> u8 {
+        self.control
+    }
 }
 
 #[repr(u8)]
@@ -197,7 +219,7 @@ bitflags! {
         const LightMapModulate2       = 1 << 2;
         const Flag3                    = 1 << 3;
         const DisableCharacterOutline = 1 << 5; 
-        const Flag6 = 1 << 6;
+        const Punchthrough = 1 << 6;
         const ConstantColor = 1 << 7;
         const Flag8 = 1 << 8;
         const Grayscale = 1 << 9;
@@ -395,6 +417,9 @@ pub mod params {
                 MaterialId::Type15 => unsafe { &*(&raw const self.data as *const Type15<A>) },
                 MaterialId::Shadow => unsafe { &*(&raw const self.data as *const CharacterToon<A>) },
             })
+        }
+        pub fn get_data_type(&self) -> MaterialId {
+            self.mat_type
         }
     }
 }
@@ -826,6 +851,9 @@ where A: Allocator + Clone
     pub fn set_all_flags2(&mut self, flag: MaterialFlags2) {
         self.flags2 = flag;
     }
+    pub fn get_blend(&self) -> &Blending {
+        &self.blend
+    }
 }
 pub trait MaterialType {
     fn check_billboard_shadow_map(&self) -> bool;
@@ -865,7 +893,8 @@ pub trait MaterialType {
     fn update(&mut self);
     // Material->MapType also called from 
     // - inside gfdThJobGeometryUpdate
-    // TODO: StreamRead/StreamWrite, create material
+    fn get_shader_id(&self) -> u32;
+    // TODO: StreamWrite, create material
 
 }
 
@@ -895,28 +924,39 @@ where A: Allocator + Clone
         }
     }
 
+    // Original function: 0x14107860 (Metaphor Prologue Demo Steam 1.01)
+    pub fn check_translucency(&self) -> bool {
+        match self.get_blend().get_type() {
+            BlendType::Opaque => self.get_data().check_translucency(),
+            _ => true
+        }
+    }
+
     // Original function: 0x141071d70 (Metaphor Prologue Demo)
-    pub fn get_shader_flags(&self, map_id: u16, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    pub fn get_shader_flags(&self, vtx: VertexAttributeFlags) -> ShaderFlags {
         let param = self.get_data();
+        let map_id = param.get_shader_id();
         let glb = GraphicsGlobal::get_gfd_graphics_global();
-        flags.reset_flag0(ShaderFlag0::FLAG0_ALWAYS_ENABLED);
+        let mut flags = ShaderFlags::default();
+        flags.reset_flag0(ShaderFlag0::FLAG0_ALWAYS_ENABLED | ShaderFlag0::FLAG0_CONSTANTCOLOR);
         flags.reset_flag1(ShaderFlag1::FLAG1_MATERIAL_AMBDIFF);
         flags.reset_flag2(ShaderFlag2::empty());
         // Light info
         if self.flags.contains(MaterialFlags::Light) {
-            *flags |= ShaderFlag1::FLAG1_MATERIAL_LIGHT;
+            flags |= ShaderFlag1::FLAG1_MATERIAL_LIGHT;
+            flags |= ShaderFlag0::FLAG0_LIGHT0_DIRECTION;
             if self.flags.contains(MaterialFlags::Texture9) { // light map
                 if !self.flags2.contains(MaterialFlags2::LightMapModulateMode) {
                     if self.flags2.contains(MaterialFlags2::LightMapModulate2) {
-                        *flags |= ShaderFlag1::FLAG1_LIGHTMAP_MODULATE2;
+                        flags |= ShaderFlag1::FLAG1_LIGHTMAP_MODULATE2;
                     }
                 } else {
-                    *flags |= ShaderFlag2::FLAG2_LIGHTMAP_MODULATE;
+                    flags |= ShaderFlag2::FLAG2_LIGHTMAP_MODULATE;
                 }
             }
         }
         if self.flags.contains(MaterialFlags::AlphaTest) {
-            *flags |= match self.alpha_test.func {
+            flags |= match self.alpha_test.func {
                 AlphaTestFunc::Never => ShaderFlag2::FLAG2_ATEST_NEVER,
                 AlphaTestFunc::LessOrEqual0 |
                 AlphaTestFunc::LessOrEqual1 => ShaderFlag2::FLAG2_ATEST_LESS_LEQUAL,
@@ -926,65 +966,77 @@ where A: Allocator + Clone
                 AlphaTestFunc::GreaterOrEqual1 => ShaderFlag2::FLAG2_ATEST_GREATER_GEQUAL,
             };
         }
-        if param.check_translucency() {
-            *flags |= ShaderFlag1::FLAG1_MATERIAL_TRANSPARENCY;
+        if self.check_translucency() {
+            flags |= ShaderFlag1::FLAG1_MATERIAL_TRANSPARENCY;
         } else if self.flags.contains(MaterialFlags::Diffusivity) {
-            *flags |= ShaderFlag0::FLAG0_TEMPERARE;
+            flags |= ShaderFlag0::FLAG0_TEMPERARE;
         }
         if self.flags.contains(MaterialFlags::VertexColor) 
         && vtx.contains(VertexAttributeFlags::DiffuseColor) {
-            *flags |= ShaderFlag1::FLAG1_MATERIAL_VERTEXCOLOR;
+            flags |= ShaderFlag1::FLAG1_MATERIAL_VERTEXCOLOR;
         }
         if self.flags.contains(MaterialFlags::Fog) {
             if glb.has_flags(GraphicsFlags::Fog) {
-                *flags |= ShaderFlag1::FLAG1_MATERIAL_FOG;
+                flags |= ShaderFlag1::FLAG1_MATERIAL_FOG;
             }
             if glb.has_flags(GraphicsFlags::HeightFog) {
-                *flags |= ShaderFlag1::FLAG1_MATERIAL_HEIGHTFOG;
+                flags |= ShaderFlag1::FLAG1_MATERIAL_HEIGHTFOG;
             }
             if self.blend.ty == BlendType::AddTrans
             || self.blend.ty == BlendType::Modulate2Trans {
-                *flags |= ShaderFlag2::FLAG2_MATERIAL_MODULATE_FOG;
+                flags |= ShaderFlag2::FLAG2_MATERIAL_MODULATE_FOG;
             }
         }
         if self.flags.contains(MaterialFlags::SSAO) {
-            *flags |= ShaderFlag1::FLAG1_MATERIAL_OCCLUSION;
+            flags |= ShaderFlag1::FLAG1_MATERIAL_OCCLUSION;
         }
         if self.flags.contains(MaterialFlags::Emissive) {
-            *flags |= ShaderFlag1::FLAG1_MATERIAL_EMISSIVE;
+            flags |= ShaderFlag1::FLAG1_MATERIAL_EMISSIVE;
         }
         if self.flags.contains(MaterialFlags::ShadowReceiver) 
         && glb.has_flags(GraphicsFlags::ShadowCaster) {
-            *flags |= ShaderFlag1::FLAG1_MATERIAL_SHADOW;
+            flags |= ShaderFlag1::FLAG1_MATERIAL_SHADOW;
         }
         if self.flags.contains(MaterialFlags::Texture5) {
             match self.blend.multiple {
-                MultiplyType::Semi => *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SEMI,
-                MultiplyType::Add => *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_ADD,
-                MultiplyType::Mod => *flags |= ShaderFlag1::FLAG1_MATERIAL_MULTIPLE_MOD,
-                MultiplyType::Sub => *flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SUB,
+                MultiplyType::Semi => flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SEMI,
+                MultiplyType::Add => flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_ADD,
+                MultiplyType::Mod => flags |= ShaderFlag1::FLAG1_MATERIAL_MULTIPLE_MOD,
+                MultiplyType::Sub => flags |= ShaderFlag2::FLAG2_MATERIAL_MULTIPLE_SUB,
                 _ => {}
             }
         }
         for i in 0..10 {
-            self.set_texture_map_flags(i, flags);
+            self.set_texture_map_flags(i, &mut flags);
         }
         if self.flags.contains(MaterialFlags::SpNormalAlpha) {
-            *flags |= ShaderFlag2::FLAG2_SPECULAR_NORMALMAPALPHA;
+            flags |= ShaderFlag2::FLAG2_SPECULAR_NORMALMAPALPHA;
         }
         if map_id == 4 {
-            *flags |= ShaderFlag0::FLAG0_INFINITE;
+            flags |= ShaderFlag0::FLAG0_INFINITE;
         }
-        param.set_shader_flags(vtx, flags);
+        param.set_shader_flags(vtx, &mut flags);
         if self.flags.contains(MaterialFlags::ReflectionCaster) {
-            *flags |= ShaderFlag2::FLAG2_REFLECTION_CASTER;
+            flags |= ShaderFlag2::FLAG2_REFLECTION_CASTER;
         }
         if self.flags2.contains(MaterialFlags2::ConstantColor) {
-            *flags |= ShaderFlag0::FLAG0_CONSTANTCOLOR;
+            flags |= ShaderFlag0::FLAG0_COLOR_OP_LERP;
         }
         if self.flags2.contains(MaterialFlags2::Grayscale) {
-            *flags |= ShaderFlag0::FLAG0_CONSTANTCOLOR | ShaderFlag0::FLAG0_GRAYSCALE;
+            flags |= ShaderFlag0::FLAG0_GRAYSCALE;
         }
+        flags
+    }
+
+    pub fn get_name(&self) -> Option<&str> {
+        self.name.get_string()
+    }
+
+    pub fn get_shader_data(&self) -> &ShaderID {
+        &self.shader
+    }
+    pub fn get_constant(&self) -> i32 {
+        self.constant
     }
 }
 
@@ -1026,7 +1078,6 @@ where AObject: Allocator + Clone {
             )?;
         self.name = Name::<AObject>::stream_read(stream, &mut NameSerializationContext::new(alloc.clone(), NameSerializationHash))?.into_raw();
         self.flags = MaterialFlags::from_bits_truncate(stream.read_u32()?);
-        println!("{}: {:?}, {:?}", self.name, self.mat_type, self.flags);
         if stream.has_feature(GfdVersion::MaterialDiffusivitySSAONotRequired).is_none() {
             self.flags |= (MaterialFlags::Diffusivity | MaterialFlags::SSAO);
         }
@@ -1090,6 +1141,8 @@ where AObject: Allocator + Clone {
                 let tex_info: MaterialTexture<AObject> = MaterialTexture::stream_read(stream, &mut SerializationSingleAllocator::new(alloc.clone()))?.into_raw();
             }
         }
+        println!("{}: {:?}, {:?}", self.name, self.mat_type, self.flags);
+        // println!("ShaderFlags(PositionXYZ) = {:?}", self.get_shader_flags(VertexAttributeFlags::PositionXYZ));
         // GFD extensions (v1 only)
         #[cfg(feature = "v1-core")]
         {

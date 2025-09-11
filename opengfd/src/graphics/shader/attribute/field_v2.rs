@@ -19,6 +19,7 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::graphics::material::{BlendType, MaterialFlags2};
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -32,7 +33,7 @@ bitflags! {
         const Flag3 = 0x00000008;
         const Flag4 = 0x00000010;
         const InfluencedBySky = 0x00000020;
-        const Transparency = 0x00000040;
+        const Semitrans = 0x00000040;
         const MultiTextureMask = 0x00000080;
         const RemoveDiffuseShadow = 0x00000100;
         const BillboardShadowMap = 0x00000200;
@@ -93,11 +94,14 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        self.flags.contains(FieldFlags::Transparency)
+        if self.flags.contains(FieldFlags::Semitrans) {
+            return false;
+        }
+        !(self.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         // let mat = self.get_material();
-        if self.flags.contains(FieldFlags::Transparency) {
+        if self.flags.contains(FieldFlags::Semitrans) {
             self.get_base_color_opacity() != 1.
         } else {
             false
@@ -120,7 +124,7 @@ where A: Allocator + Clone
         if self.flags.contains(FieldFlags::InfluencedBySky) {
             *flags |= ShaderFlag2::FLAG2_SKY;
         }
-        if self.flags.contains(FieldFlags::InfluencedBySky)
+        if self.flags.contains(FieldFlags::MultiTextureMask)
         && mat.has_flags(MaterialFlags::Texture5) {
             *flags |= ShaderFlag2::FLAG2_MULTITEXTURE_AS_MASK;
         }
@@ -132,7 +136,23 @@ where A: Allocator + Clone
             // #define FLAG2_BILLBOARD_SHADOWMAP   FLAG2_SPECULAR_NORMALMAPALPHA
             *flags |= ShaderFlag2::FLAG2_SPECULAR_NORMALMAPALPHA;
         }
-        // TODO: Transparency
+        /*
+        if self.flags.contains(FieldFlags::Semitrans) {
+            if (
+                (
+                    // Use multiply texture as mask
+                    self.flags.contains(FieldFlags::MultiTextureMask)
+                    && self.get_material().get_flag().contains(MaterialFlags::Texture5)
+                )
+                || self.base_color.get_alpha_f32() < 1.
+                || self.get_material().get_constant() as i8 == -1
+                || self.get_material().get_flag2().contains(MaterialFlags2::Punchthrough)
+            )
+            && self.get_material().get_blend().get_type() == BlendType::Opaque {
+                *flags |= ShaderFlag2::FLAG2_PUNCHTHROUGH;
+            }
+        }
+        */
     }
     fn update(&mut self) {
         /* 
@@ -140,6 +160,13 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        if !self.get_material().get_flag().contains(MaterialFlags::Outline) || self.check_translucency() {
+            2
+        } else {
+            0x36
+        }
     }
 }
 

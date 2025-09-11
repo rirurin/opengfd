@@ -285,6 +285,10 @@ impl GlobalImpl for GlobalUWP {
 }
 
 impl Global {
+    pub fn gfd_global_exists() -> bool {
+        unsafe { crate::globals::get_gfd_global().is_some() }
+    }
+
     pub fn get_gfd_global() -> &'static dyn GlobalImpl {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked() };
         if unsafe { *crate::globals::get_is_steam_unchecked() } { glb }

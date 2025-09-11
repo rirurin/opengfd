@@ -14,6 +14,7 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::graphics::material::MaterialFlags;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 // See https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
@@ -28,7 +29,7 @@ where A: Allocator + Clone
     field4: f32,
     field8: f32,
     fieldc: f32,
-    field10: RGBAFloat,
+    base_color: RGBAFloat,
     field20: f32,
     field24: f32,
     field28: f32,
@@ -70,7 +71,7 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        !(self.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -87,6 +88,12 @@ where A: Allocator + Clone
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
     fn update(&mut self) {
+    }
+    fn get_shader_id(&self) -> u32 {
+        match self.get_material().get_flag().contains(MaterialFlags::Outline) {
+            true => 0x9a,
+            false => 0x99
+        }
     }
 }
 
@@ -114,7 +121,7 @@ where AObject: Allocator + Clone {
         self.field4 = stream.read_f32()?;
         self.field8 = stream.read_f32()?;
         self.fieldc = stream.read_f32()?;
-        self.field10 = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
+        self.base_color = RGBAFloat::stream_read(stream, &mut ())?.into_raw();
         self.field20 = stream.read_f32()?;
         self.field24 = stream.read_f32()?;
         self.field28 = stream.read_f32()?;

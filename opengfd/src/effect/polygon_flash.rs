@@ -113,7 +113,7 @@ where AObject: Allocator + Clone
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct BasicParamFlags : u32 {
+    pub struct EplPolygonFlashFlags : u32 {
         const Flag0 = 1 << 0;
         const Flag1 = 1 << 1;
         const Flag2 = 1 << 2;
@@ -157,7 +157,7 @@ pub struct BasicParts(f32);
 #[repr(C)]
 #[derive(Debug)]
 pub struct BasicParams {
-    flag: BasicParamFlags,
+    flag: EplPolygonFlashFlags,
     life: f32,
     number: u32,
     count: Range,
@@ -189,7 +189,7 @@ impl BasicParams {
         T: Debug + Read + Write + Seek + StreamIODevice,
         AStream: Allocator + Clone + Debug,
     {
-        self.flag = BasicParamFlags::from_bits_truncate(stream.read_u32()?);
+        self.flag = EplPolygonFlashFlags::from_bits_truncate(stream.read_u32()?);
         self.life = stream.read_f32()?;
         self.number = stream.read_u32()?;
         self.alpha = stream.read_f32()?;

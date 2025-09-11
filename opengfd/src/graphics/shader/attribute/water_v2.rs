@@ -126,6 +126,9 @@ where A: Allocator + Clone
         }
         */
     }
+    fn get_shader_id(&self) -> u32 {
+        0x93
+    }
 }
 
 #[cfg(feature = "serialize")]

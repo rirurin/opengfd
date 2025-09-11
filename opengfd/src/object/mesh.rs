@@ -1,4 +1,5 @@
 use allocator_api2::alloc::Allocator;
+use allocator_api2::boxed::Box as ABox;
 use bitflags::bitflags;
 use crate::{
     anim::{
@@ -297,14 +298,11 @@ where AObject: Allocator + Clone {
                     }
                 },
                 ChunkType::TextureDictionary => {
-                    // TEMPORARY
-                    let tex_count = stream.read_u32()? as usize;
-                    println!("{} textures", tex_count);
-                    for i in 0..tex_count {
-                        let _ = Texture::<AObject>::stream_read(stream, &mut TextureSerializationContext::new(allocator.clone(), allocator.clone()))?.into_raw();
+                    let mut textures = ItemArray::<NonNull<Texture<AObject>>, AObject>::with_capacity(stream.read_u32()? as usize, self._allocator.clone())?;
+                    println!("texture count: {}", textures.capacity());
+                    for i in 0..textures.capacity() {
+                        textures.push(Texture::<AObject>::stream_read(stream, &mut TextureSerializationContext::new(allocator.clone(), allocator.clone()))?.into_raw())?;
                     }
-                    // let textures = ItemArray::<u32, GfdAllocator>::with_capacity(stream.read_u32()? as usize, self._allocator.clone())?;
-                    // println!("texture count: {}", textures.capacity());
                 },
                 /*
                 ChunkType::AnimationPack => {

@@ -65,6 +65,7 @@ pub enum GfdVersion {
     EnvFogColorMultiplyFactor = 0x2101001,
     EnvCloudsAddCloudColor = 0x2110011,
     MaterialParameterLayerExtraFields = 0x2110021,
+    EplModelExtraFields = 0x2110031,
     MaterialParameter0AddFlags = 0x2110041,
     CameraAddUnkMetaphor = 0x2110051,
     EplLeafHasRangeFade = 0x2110061,

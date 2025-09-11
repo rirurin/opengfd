@@ -18,6 +18,39 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
+use bitflags::bitflags;
+use crate::graphics::shader::attribute::toon_v2::ToonBaseFlags;
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord )]
+    pub struct Type13Flags : u32 {
+        const ToonRefNormalMap = 0x00000001;
+        const ToonRemoveLightYAxis = 0x00000002;
+        const EdgeRefNormalMap = 0x00000004;
+        const Flag3 = 0x00000008;
+        const Flag4 = 0x00000010;
+        const EdgeRefNormalAlpha = 0x00000020;
+        const EdgeSemitrans = 0x00000040;
+        const EdgeRemoveLightYAxis = 0x00000080;
+        const Flag8 = 0x00000100;
+        const SubsurfaceScatterReceiver = 0x00000200;
+        const Punchthrough = 0x00000400;
+        const Flag11 = 0x00000800;
+        const Flag12 = 0x00001000;
+        const ApplyPBRLight = 0x00002000;
+        const ForcedBloomIntensity = 0x00004000;
+        const Flag15 = 0x00008000;
+        const RefShadowColorAlpha = 0x00010000;
+        const MultiLayerBaseTexture = 0x00020000;
+        const MultiForeground = 0x00040000;
+        const Fitting= 0x00080000;
+        const MultiRefBaseAlpha = 1 << 20;
+        const MultiFitting = 1 << 21;
+        const ReflectionBackground = 1 << 22;
+        const ShadowHatchingDisable = 1 << 23;
+        const ShadowHatchingRefAlphaBaseColor = 1 << 24;
+    }
+}
 
 pub struct Type13<A = GfdAllocator>
 where A: Allocator + Clone
@@ -32,6 +65,9 @@ where A: Allocator + Clone
     pub fn get_material(&self) -> &Material<A> {
         let ofs = Material::<A>::get_mat_data_offset();
         unsafe { &*((&raw const *self as *const u8).sub(ofs) as *const Material<A>) }
+    }
+    pub fn has_flag(&self, flag: Type13Flags) -> bool {
+        self._impl.flags.contains(ToonBaseFlags::from_bits_truncate(flag.bits()))
     }
 }
 
@@ -60,7 +96,10 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        if self.has_flag(Type13Flags::Punchthrough) {
+            return false;
+        }
+        !(self._impl.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -80,6 +119,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        0xbc
     }
 }
 

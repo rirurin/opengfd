@@ -79,6 +79,11 @@ public class Executor : ExecutorBase<ArgumentList, ProjectManager>
         var opengfdBindings = Path.Combine(EnvManager["cri-adx-path"], "cri-adx-globals/middata/ext.rs");
         var libraryCrates = new List<string>() { "opengfd", "opengfd-inspector", "opengfd-reloaded", "opengfd-tests" };
         File.Copy(opengfdBindings, Path.Combine(ProjectManager["opengfd-reloaded"].RootPath, "src/adx.rs"), true);
+
+        List<String> FeatureList = [ "v2-core", "reloaded", "image_loader", "serialize" ];
+        foreach (var Feature in FeatureList) {
+            ((RustCrate)ProjectManager["opengfd-globals"]).Features.Add(Feature);
+        }
             
         // Build OpenGFD globals crate
         if (!ArgList["SkipGlobals"].Enabled)

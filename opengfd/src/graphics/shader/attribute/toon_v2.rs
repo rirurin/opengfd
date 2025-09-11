@@ -24,6 +24,7 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use glam::{Vec3, Vec3A, Vec4};
+use crate::graphics::material::{BlendType, MaterialFlags2};
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::{RGBAFloat, RGBFloat};
 #[cfg(feature = "serialize")]
@@ -64,30 +65,30 @@ bitflags! {
 #[repr(C)]
 #[derive(Debug)]
 pub struct Toon {
-    base_color: RGBAFloat,
-    shadow_color: RGBAFloat,
-    edge_color: RGBAFloat,
-    emissive_color: RGBAFloat,
-    specular_color: RGBFloat,
-    specular_threshold: f32,
-    specular_power: f32,
-    metallic: f32,
-    roughness: f32,
-    bloom_strength: f32,
-    edge_threshold: f32,
-    edge_factor: f32,
-    edge_remove_y_axis_factor: f32,
-    shadow_threshold: f32,
-    shadow_factor: f32,
-    field74: f32,
-    field78: f32,
-    field7c: Vec3,
-    field88: f32,
-    field8c: f32,
-    field90: f32,
-    field94: f32,
-    fitting_tile: f32,
-    multi_fitting_tile: f32,
+    pub(super) base_color: RGBAFloat,
+    pub(super) shadow_color: RGBAFloat,
+    pub(super) edge_color: RGBAFloat,
+    pub(super) emissive_color: RGBAFloat,
+    pub(super) specular_color: RGBFloat,
+    pub(super) specular_threshold: f32,
+    pub(super) specular_power: f32,
+    pub(super) metallic: f32,
+    pub(super) roughness: f32,
+    pub(super) bloom_strength: f32,
+    pub(super) edge_threshold: f32,
+    pub(super) edge_factor: f32,
+    pub(super) edge_remove_y_axis_factor: f32,
+    pub(super) shadow_threshold: f32,
+    pub(super) shadow_factor: f32,
+    pub(super) field74: f32,
+    pub(super) field78: f32,
+    pub(super) field7c: Vec3,
+    pub(super) field88: f32,
+    pub(super) field8c: f32,
+    pub(super) field90: f32,
+    pub(super) field94: f32,
+    pub(super) fitting_tile: f32,
+    pub(super) multi_fitting_tile: f32,
     pub(super) flags: ToonBaseFlags
 }
 
@@ -104,7 +105,7 @@ bitflags! {
         const EdgeRemoveLightYAxis = 0x00000080;
         const Flag8 = 0x00000100;
         const SubsurfaceScatterReceiver = 0x00000200;
-        const Flag10 = 0x00000400;
+        const Punchthrough = 0x00000400;
         const Flag11 = 0x00000800;
         const Flag12 = 0x00001000;
         const ApplyPBRLight = 0x00002000;
@@ -171,7 +172,10 @@ where A: Allocator + Clone
         false
     }
     fn check_translucency(&self) -> bool {
-        false
+        if self.has_flag(CharaToonFlags::Punchthrough) {
+            return false;
+        }
+        !(self._impl.base_color.get_alpha_f32() >= 1. && self.get_material().get_constant() as i8 == -1)
     }
     fn check_transparent_14107980(&self) -> bool {
         false
@@ -192,11 +196,11 @@ where A: Allocator + Clone
     fn get_tex8_name(&self) -> &'static str { "Toon Params Texture" }
     fn get_tex9_name(&self) -> &'static str { "Toon Edge Color Texture" }
 
-    fn set_shader_flags(&self, _vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
+    fn set_shader_flags(&self, vtx: VertexAttributeFlags, flags: &mut ShaderFlags) {
         if self._impl.metallic > 0. {
             *flags |= ShaderFlag1::FLAG1_MATERIAL_REFLECTION;
         }
-        if self._impl.shadow_threshold > 0.
+        if self._impl.edge_threshold > 0.
         && self._impl.edge_color.get_alpha_f32() > 0. {
             *flags |= ShaderFlag2::FLAG2_EDGE_BACKLIGHT;
         }
@@ -218,8 +222,24 @@ where A: Allocator + Clone
         if self.has_flag(CharaToonFlags::EdgeRemoveLightYAxis) {
             *flags |= ShaderFlag0::FLAG0_EDGE_REMOVAL_LIGHT_YAXIS;
         }
-        // TODO: conditions for this
-        *flags |= ShaderFlag1::FLAG1_MATERIAL_SPECULAR;
+        if self._impl.specular_power > 0.
+            && self._impl.specular_threshold > 0.
+            && self._impl.specular_color != RGBFloat::default() {
+            *flags |= ShaderFlag1::FLAG1_MATERIAL_SPECULAR;
+        }
+        if vtx.contains(VertexAttributeFlags::Color2) {
+            *flags |= ShaderFlag0::FLAG0_OUTLINE;
+        }
+        if self.has_flag(CharaToonFlags::Punchthrough)
+            && self.get_material().get_blend().get_type() == BlendType::Opaque
+            && (
+                self._impl.base_color.get_alpha_f32() < 1.
+                || self.get_material().get_flag2().contains(MaterialFlags2::Punchthrough)
+                || self.get_material().get_constant() as i8 != -1
+            )
+        {
+            *flags |= ShaderFlag2::FLAG2_PUNCHTHROUGH;
+        }
         if self.has_flag(CharaToonFlags::SubsurfaceScatterReceiver) {
             // #define FLAG2_SSSS_RECEIVER                      FLAG2_HDR_STAR
             *flags |= ShaderFlag2::FLAG2_HDR_STAR;
@@ -273,6 +293,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_shader_id(&self) -> u32 {
+        3
     }
 }
 
