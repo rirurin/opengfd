@@ -101,7 +101,7 @@ pub struct BasicParts {
 #[repr(C)]
 #[derive(Debug)]
 pub struct BasicParams {
-    flag: BasicParamFlags,
+    flag: EplPolygonTrackFlags,
     number: u32,
     thick_core: f32,
     thick_outside: f32,
@@ -117,7 +117,7 @@ pub struct BasicParams {
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct BasicParamFlags : u32 {
+    pub struct EplPolygonTrackFlags : u32 {
         const Flag0 = 1 << 0;
         const Flag1 = 1 << 1;
         const Flag2 = 1 << 2;
@@ -172,7 +172,7 @@ impl BasicParams {
         T: Debug + Read + Write + Seek + StreamIODevice,
         AStream: Allocator + Clone + Debug,
     {
-        self.flag = BasicParamFlags::from_bits_truncate(stream.read_u32()?);
+        self.flag = EplPolygonTrackFlags::from_bits_truncate(stream.read_u32()?);
         self.number = stream.read_u32()?;
         self.thick_core = stream.read_f32()?;
         self.thick_outside = stream.read_f32()?;

@@ -22,6 +22,7 @@ libc = "0.2.169"
 opengfd-proc = { path = "../opengfd-proc" }
 riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools", default-features = false }
+rlsf = "0.2.1"
 rkyv = { version = "0.8.9", optional = true }
 
 [target.'cfg(windows)'.dependencies.windows]

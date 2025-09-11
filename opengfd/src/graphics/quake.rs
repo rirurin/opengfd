@@ -1,3 +1,7 @@
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::{Read, Seek, Write};
+use std::mem::MaybeUninit;
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
 use crate::{
@@ -9,6 +13,7 @@ use crate::{
 };
 use glam::Vec3A;
 use opengfd_proc::GfdRcAuto;
+use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -29,6 +34,34 @@ impl QuakeParams {
             fade_in_time: 0.,
             fade_out_time: 0.
         }
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<AStream, T> GfdSerialize<AStream, T> for QuakeParams
+where T: Debug + Read + Write + Seek + StreamIODevice,
+      AStream: Allocator + Clone + Debug,
+{
+    fn stream_read(stream: &mut Stream<AStream, T>, _: &mut ()) -> Result<DeserializationStack<Self>, Box<dyn Error>> {
+        let mut this: QuakeParams = unsafe { MaybeUninit::zeroed().assume_init() };
+        this.stream_read_inner(stream)?;
+        Ok(this.into())
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl QuakeParams {
+    fn stream_read_inner<AStream, T>(&mut self, stream: &mut Stream<AStream, T>) -> Result<(), Box<dyn Error>>
+    where
+        T: Debug + Read + Write + Seek + StreamIODevice,
+        AStream: Allocator + Clone + Debug,
+    {
+        self.power = stream.read_f32()?;
+        self.pitch_weight = stream.read_f32()?;
+        self.total_time = stream.read_f32()?;
+        self.fade_in_time = stream.read_f32()?;
+        self.fade_out_time = stream.read_f32()?;
+        Ok(())
     }
 }
 

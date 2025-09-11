@@ -20,6 +20,8 @@ use opengfd::graphics::material::Material;
 use opengfd::kernel::global::Global;
 use opengfd::object::geometry::VertexAttributeFlags;
 use crate::globals;
+use riri_mod_tools_rt::address::ProcessInfo;
+use std::hash::Hasher;
 // use windows::Win32::UI::Input::KeyboardAndMouse::{ GetAsyncKeyState, VK_F5 };
 
 /*
@@ -505,4 +507,31 @@ pub unsafe extern "C" fn gfdMaterialUpdateShader(p_material: *mut u8, p_vertex: 
         }
     }
 
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn setNgrCreateShaderBytecode(ofs: usize) -> Option<NonNull<u8>> {
+    let addr = match riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v, None => return None  };
+    logln!(Information, "got ngrCreateShaderBytecode: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+
+#[riri_hook_fn(dynamic_offset(
+    signature = "48 89 5C 24 ?? 48 89 6C 24 ?? 4C 89 4C 24 ?? 56 57 41 57",
+    resolve_type = setNgrCreateShaderBytecode,
+    calling_convention = "microsoft",
+))]
+pub unsafe extern "C" fn ngrCreateShaderBytecode(pp_out: *mut u8, p_bytecode: *mut u8, length: usize, p_hint: *mut u8) -> *mut u8 {
+    let process = ProcessInfo::get_current_process().unwrap();
+    let exec_addr = process.get_executable_address();
+    let exec_size = process.get_executable_size();
+    if (p_bytecode as usize) > exec_addr && (p_bytecode as usize) < exec_addr + exec_size {
+        let bytecode = unsafe { std::slice::from_raw_parts(p_bytecode, length) };
+        let mut hasher = twox_hash::XxHash3_64::new();
+        hasher.write(bytecode);
+        let hash = hasher.finish();
+        logln!(Information, "Built in shader at 0x{:x} hashed as 0x{:x}", p_bytecode as usize, hash);
+    }
+    original_function!(pp_out, p_bytecode, length, p_hint)
 }

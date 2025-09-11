@@ -39,6 +39,11 @@ pub enum EplError {
     InvalidThunderPolygonType(u32),
     InvalidWindPolygonType(u32),
     InvalidModelType(u32),
+    InvalidBoardPolygonType(u32),
+    InvalidGlitterPolygonType(u32),
+    InvalidCameraType(u32),
+    InvalidLightType(u32),
+    InvalidPostEffectType(u32),
 }
 impl Error for EplError {}
 impl Display for EplError {
