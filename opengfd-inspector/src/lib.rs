@@ -1,3 +1,5 @@
+#[cfg(feature = "v2-core")]
+#[path = "globals_xrd759.rs"]
 pub mod globals;
 pub mod imgui_hook;
 pub mod panels {

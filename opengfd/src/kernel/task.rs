@@ -1,6 +1,5 @@
 use allocator_api2::alloc::Allocator;
 use crate::{
-    device::ngr::allocator::AllocatorHook,
     kernel::{
         allocator::GfdAllocator,
         global::{ Global, GlobalFlags }
@@ -18,7 +17,7 @@ use riri_mod_tools_rt::logln;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct TaskLink<A = AllocatorHook>
+pub struct TaskLink<A = GfdAllocator>
 where A: Allocator + Clone
 {
     pub parent: *mut Task<A>,
@@ -28,7 +27,7 @@ where A: Allocator + Clone
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct TaskListNode<A = AllocatorHook>
+pub struct TaskListNode<A = GfdAllocator>
 where A: Allocator + Clone
 {
     prev: *mut Task<A>,
@@ -37,7 +36,7 @@ where A: Allocator + Clone
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct TaskList<A = AllocatorHook>
+pub struct TaskList<A = GfdAllocator>
 where A: Allocator + Clone 
 {
     head: *mut Task<A>,
@@ -78,7 +77,7 @@ pub enum TaskFunctionReturn {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct Task<A = AllocatorHook, D = u8>
+pub struct Task<A = GfdAllocator, D = u8>
 where A: Allocator + Clone,
       D: 'static
 {

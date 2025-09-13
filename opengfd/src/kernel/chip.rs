@@ -1,9 +1,17 @@
 use allocator_api2::alloc::{ Allocator, AllocError };
+#[cfg(not(feature = "v1-core"))]
 use crate::{
     kernel::{
         allocator::GfdAllocator,
         global::Global,
         job::Job
+    },
+    utility::free_list::FreeList
+};
+#[cfg(feature = "v1-core")]
+use crate::{
+    kernel::{
+        allocator::GfdAllocator,
     },
     utility::free_list::FreeList
 };
@@ -34,6 +42,7 @@ impl Chip {
 pub struct ChipAllocator;
 
 unsafe impl Allocator for ChipAllocator {
+    #[cfg(not(feature = "v1-core"))]
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         if layout.size() > MAXIMUM_ACCEPTABLE_SIZE { return Err(AllocError) }
         let chip_list = match Job::get_worker() {
@@ -48,8 +57,13 @@ unsafe impl Allocator for ChipAllocator {
         unsafe { *(&mut *new).get_free_list_ptr() = chip_list; }
         let alloc = unsafe { NonNull::new_unchecked(new as *mut u8) };
         Ok(NonNull::slice_from_raw_parts(alloc, CHIP_SIZE))
-
     }
+    // TEMPORARY
+    #[cfg(feature = "v1-core")]
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        GfdAllocator.allocate(layout)
+    }
+
     #[allow(unused_variables)]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
         let inst = unsafe { &mut *(ptr.as_ptr() as *mut Chip) };

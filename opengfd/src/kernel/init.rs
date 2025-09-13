@@ -20,7 +20,11 @@ pub struct VideoMode {
     height: i32,
     depth: i32,
     ref_rate: i32,
-    format: i32
+    format: i32,
+    #[cfg(feature = "v1-core")]
+    field18: i32,
+    #[cfg(feature = "v1-core")]
+    field1c: i32,
 }
 
 impl VideoMode {
@@ -31,7 +35,11 @@ impl VideoMode {
             height: if is_4k { 2160 } else { 1080 },
             depth: 32,
             ref_rate: 60,
-            format: 0
+            format: 0,
+            #[cfg(feature = "v1-core")]
+            field18: 0,
+            #[cfg(feature = "v1-core")]
+            field1c: 0,
         }
     }
 }

@@ -1,0 +1,48 @@
+{
+  "ModId": "p5rpc.opengfd","ModName": "OpenGFD for Persona 5 Royal","ModAuthor": "Rirurin","ModVersion": "0.2.0","ModDescription": "Reimplementation of portions of GFD Engine, designed to interoperate with Persona 5 Royal","ModDll": "p5rpc.opengfd.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/p5rpc.opengfd.dll","ModR2RManagedDll64": "x64/p5rpc.opengfd.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
+    "GithubDependencies": {
+      "IdToConfigMap": {
+        "mrfpc.modloader": {
+          "Config": {
+            "UserName": "DeathChaos","RepositoryName": "mrfpc.modloader","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "mrfpc.modloader.ReleaseMetadata.json"
+        },
+        "Reloaded.Memory.SigScan.ReloadedII": {
+          "Config": {
+            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+        },
+        "reloaded.sharedlib.hooks": {
+          "Config": {
+            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
+          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
+        },
+        "SharedScans.Reloaded": {
+          "Config": {
+            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
+        }
+      }
+    },"GameBananaDependencies": {
+      "IdToConfigMap": {
+        "mrfpc.modloader": {
+          "Config": {
+            "ItemType": "Mod","ItemId": 548481
+          },"ReleaseMetadataName": "mrfpc.modloader.ReleaseMetadata.json"
+        }
+      }
+    },"GithubRelease": {
+      "UserName": "Rirurin","RepositoryName": "opengfd","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+    }
+  },"IsLibrary": false,"ReleaseMetadataFileName": "p5rpc.opengfd.ReleaseMetadata.json","IsUniversalMod": false,"ModDependencies": [
+    "mrfpc.modloader",
+    "reloaded.sharedlib.hooks",
+    "Reloaded.Memory.SigScan.ReloadedII",
+    "SharedScans.Reloaded",
+    "riri.criadx",
+    "riri.modruntime"
+  ],"OptionalDependencies": [],"SupportedAppId": [
+    "persona5royal",
+    "p5r.exe"
+  ],"ProjectUrl": "https://riri.wtf"
+}

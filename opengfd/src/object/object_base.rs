@@ -183,6 +183,7 @@ where A: Allocator + Clone
     }
 }
 
+#[cfg(feature = "v2-core")]
 impl TryFrom<*const Object> for &super::mesh::Mesh {
     type Error = ObjectErrorID;
     fn try_from(_value: *const Object) -> Result<Self, Self::Error> {
@@ -191,6 +192,7 @@ impl TryFrom<*const Object> for &super::mesh::Mesh {
     }
 }
 
+#[cfg(feature = "v2-core")]
 impl TryFrom<*mut Object> for &mut super::mesh::Mesh {
     type Error = ObjectErrorID;
     fn try_from(_value: *mut Object) -> Result<Self, Self::Error> {

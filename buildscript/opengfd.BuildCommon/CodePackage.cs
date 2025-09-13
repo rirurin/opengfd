@@ -44,6 +44,7 @@ public class RustCrate : CodePackage
     public string CrateType { get; set; }
     public string Target { get; set; }
     public List<string> Features { get; private set; }
+    public bool UseDefaultFeatures { get; set; }
     public RustCrate(ArgumentListBase arg, string path) : base(arg, path)
     {
         BuildCommand = "+nightly rustc"; // Build using nightly Rust
@@ -56,6 +57,7 @@ public class RustCrate : CodePackage
         CrateType = "cdylib";
         Target = "x86_64-pc-windows-msvc";
         Features = new();
+        UseDefaultFeatures = true;
     }
 
     string GetFeatureList()
@@ -85,6 +87,8 @@ public class RustCrate : CodePackage
         Cmd += $" --profile={Profile} {BuildStd}";
         if (CrateType != "bin")
             Cmd += $" --crate-type {CrateType}";
+        if (!UseDefaultFeatures)
+            Cmd += $" --no-default-features";
         Cmd += $" --target {Target} {GetFeatureList()}";
         Console.WriteLine($"{new BoldFormat()}{Name}{new ClearFormat()}: cargo {Cmd}");
         using (var crateBuild = new Process())

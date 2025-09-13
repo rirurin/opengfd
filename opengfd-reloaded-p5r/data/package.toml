@@ -1,0 +1,84 @@
+Id = "persona5royal.mod.opengfd.riri"
+Reloaded2Id = "p5rpc.opengfd"
+LoggerPrefix = "OpenGFD"
+LoggerColor = "MediumTurquoise"
+Name = "OpenGFD for Persona 5 Royal"
+Author = "Rirurin"
+PackageType = "Mod"
+DocsFile = "index.html"
+Tags = [ "deharcoding" ]
+IsDependency = false 
+ClientSide = false
+
+Icon = "icon.jxl"
+Reloaded2Icon = "Icon.png"
+SupportedGames = [ "persona5royal", "p5r.exe" ]
+
+[CargoImport]
+Summary = true
+Version = true
+SourceUrl = true
+ProjectUrl = true
+
+[[Credits]]
+Name = "Rirurin"
+Role = "Main Developer"
+Url = "https://riri.wtf"
+
+[[Credits]]
+Name = "Atlus/P-Studio"
+Role = "Making the game"
+
+[UpdateSourceData]
+[UpdateSourceData.Gamebanana]
+ItemType = "Mod"
+ItemId = 559400
+
+[UpdateSourceData.Github]
+UserName = "Rirurin"
+RepositoryName = "opengfd"
+
+[[R2Dependencies]]
+Id = "mrfpc.modloader"
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Gamebanana]
+ItemType = "Mod"
+ItemId = 548481
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "DeathChaos"
+RepositoryName = "mrfpc.modloader"
+
+[[R2Dependencies]]
+Id = "reloaded.sharedlib.hooks"
+[R2Dependencies.UpdateSourceData]
+ReleaseMetadataFileName = "Sewer56.Update.ReleaseMetadata.json"
+AssetFileName = "reloaded.sharedlib.hooks.zip"
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "Sewer56"
+RepositoryName = "Reloaded.SharedLib.Hooks.ReloadedII"
+
+[[R2Dependencies]]
+Id = "Reloaded.Memory.SigScan.ReloadedII"
+[R2Dependencies.UpdateSourceData]
+ReleaseMetadataFileName = "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "Reloaded-Project"
+RepositoryName = "Reloaded.Memory.SigScan"
+
+[[R2Dependencies]]
+Id = "SharedScans.Reloaded"
+HasInterface = true
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "RyoTune"
+RepositoryName = "SharedScans"
+
+[[R2Dependencies]]
+Id = "riri.criadx"
+
+[[R2Dependencies]]
+Id = "riri.modruntime"
+
+[HookSettings]
+HookLibrary = "Reloaded2CSharpHooks"
+DefaultCallingConvention = "Microsoft"

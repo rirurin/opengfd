@@ -444,6 +444,7 @@ pub unsafe extern "C" fn gfdTextureCreate(bytes: *mut u8, length: u32, p_flags: 
  */
 //
 
+/*
 #[no_mangle]
 pub unsafe extern "C" fn setGfdMaterialUpdateShader(ofs: usize) -> Option<NonNull<u8>> {
     let addr = match riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk(ofs) {
@@ -535,3 +536,4 @@ pub unsafe extern "C" fn ngrCreateShaderBytecode(pp_out: *mut u8, p_bytecode: *m
     }
     original_function!(pp_out, p_bytecode, length, p_hint)
 }
+*/

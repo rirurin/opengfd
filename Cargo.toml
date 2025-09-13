@@ -2,12 +2,13 @@
 resolver = "2"
 members = [ 
     "opengfd", 
-    "opengfd-globals", 
-    "opengfd-inspector", 
+    "opengfd-globals",
+    "opengfd-inspector",
     "opengfd-inspector-components",
     "opengfd-proc", 
     "opengfd-proc-impl",
     "opengfd-reloaded",
+    "opengfd-reloaded-p5r",
     "opengfd-tests",
     "tools/build-field-character-anims",
     "tools/serializer-test", 

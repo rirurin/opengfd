@@ -12,6 +12,7 @@ compile_error!("adapter-hedge and adapter-ngr are mutually exclusive!");
 pub mod ai {
 
 }
+#[cfg(not(feature = "v1-core"))]
 pub mod anim {
     pub mod anim_controller;
     pub mod anim_effector;
@@ -20,13 +21,41 @@ pub mod anim {
     pub mod key;
     pub mod timeline;
 }
+#[cfg(not(feature = "v1-core"))]
 pub mod debug {
     pub mod perf_meter;
 }
 pub mod device {
     #[cfg(feature = "adapter-hedge")]
     pub mod hedge {
+        pub mod fnd {
+            pub mod allocator;
+            pub mod free_list;
+            pub mod heap_base;
+            pub mod mutex;
+            pub mod tlsf_heap;
+        }
+        pub mod fw {
+            pub mod heap;
+        }
+        pub mod hid {
 
+        }
+        pub mod needle {
+            #[cfg(target_os = "windows")]
+            #[path = "d3d"]
+            pub mod platform {
+
+            }
+            pub mod refcount;
+            pub mod surface_base;
+            pub mod texture;
+        }
+        pub mod ut {
+            pub mod array;
+            pub mod link_list;
+            pub mod pair;
+        }
     }
     #[cfg(feature = "adapter-ngr")]
     pub mod ngr {
@@ -59,6 +88,7 @@ pub mod device {
         pub mod structures;
     }
 }
+#[cfg(not(feature = "v1-core"))]
 pub mod effect {
     pub mod behavior;
     pub mod camera;
@@ -90,7 +120,14 @@ pub mod gfw {
     pub mod list;
     pub mod smartpointer;
 }
+// pub mod globals;
+#[cfg(feature = "v2-core")]
+#[path = "globals_xrd759.rs"]
 pub mod globals;
+#[cfg(feature = "v1-core")]
+#[path = "globals_xrd744.rs"]
+pub mod globals;
+#[cfg(not(feature = "v1-core"))]
 pub mod graphics {
     pub mod cull;
     pub mod curve;
@@ -167,11 +204,26 @@ pub mod graphics {
     pub mod terrain;
     pub mod texture;
 }
+#[cfg(not(feature = "v1-core"))]
 pub mod io {
     pub mod controller;
     pub mod keyboard;
     pub mod mouse;
 }
+#[cfg(feature = "v1-core")]
+pub mod kernel {
+    pub mod allocator;
+    pub mod chip;
+    #[cfg(feature = "v1-core")]
+    #[path = "global_xrd744.rs"]
+    pub mod global;
+    #[cfg(feature = "v1-core")]
+    #[path = "graphics_xrd744.rs"]
+    pub mod graphics;
+    pub mod init;
+    pub mod version;
+}
+#[cfg(not(feature = "v1-core"))]
 pub mod kernel {
     pub mod allocator;
     pub mod asset;
@@ -190,6 +242,7 @@ pub mod kernel {
     pub mod task;
     pub mod version;
 }
+#[cfg(not(feature = "v1-core"))]
 pub mod object {
     #[path = "object_base.rs"]
     pub mod object;
@@ -201,6 +254,19 @@ pub mod object {
     pub mod epl;
     pub mod morph;
 }
+#[cfg(feature = "v1-core")]
+pub mod object {
+    #[path = "object_base.rs"]
+    pub mod object;
+    // pub mod mesh;
+    pub mod node;
+    // pub mod geometry;
+    pub mod camera;
+    pub mod light;
+    // pub mod epl;
+    pub mod morph;
+}
+#[cfg(not(feature = "v1-core"))]
 pub mod platform {
     pub mod utils;
 }
@@ -228,6 +294,7 @@ pub mod tests {
         pub fn new_str<T: AsRef<str>>(t: T) -> Self { OpengfdError(t.as_ref().to_owned()) }
     }
 }
+#[cfg(feature = "tpl")]
 pub mod tpl {
     pub mod file_manager;
     pub mod sound {

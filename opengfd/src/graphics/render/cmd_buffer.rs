@@ -1,4 +1,4 @@
-use crate::kernel::global_common::RENDER_LISTS;
+use crate::kernel::global::RENDER_LISTS;
 use std::{
     ffi::c_void,
     mem::size_of,

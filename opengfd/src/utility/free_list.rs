@@ -1,8 +1,18 @@
 use allocator_api2::alloc::Allocator;
 use bitflags::bitflags;
+#[cfg(not(feature = "v1-core"))]
 use crate::{
-    device::ngr::allocator::AllocatorHook,
-    kernel::global::Global,
+    kernel::{
+        allocator::GfdAllocator,
+        global::Global
+    },
+    utility::mutex::Mutex as GfdMutex
+};
+#[cfg(feature = "v1-core")]
+use crate::{
+    kernel::{
+        allocator::GfdAllocator,
+    },
     utility::mutex::Mutex as GfdMutex
 };
 use std::{
@@ -14,7 +24,7 @@ use std::{
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct FreeList<T = usize, A = AllocatorHook> 
+pub struct FreeList<T = usize, A = GfdAllocator>
 where A: Allocator + Clone
 {
     // flags: i32,
@@ -47,7 +57,7 @@ bitflags! {
 impl<T> FreeList<T>
 where T: Debug + 'static
 {
-    pub fn new(alloc: AllocatorHook) -> &'static mut Self { Self::new_in(alloc) }
+    pub fn new(alloc: GfdAllocator) -> &'static mut Self { Self::new_in(alloc) }
 }
 
 impl<T, A> FreeList<T, A>
@@ -77,6 +87,7 @@ where A: Allocator + Clone
         }
     }
 
+    #[cfg(not(feature = "v1-core"))]
     pub fn link(&mut self) {
         let glb = Global::get_gfd_global_mut();
         let glb2 = unsafe { &mut *(&raw mut *glb) };
@@ -86,6 +97,10 @@ where A: Allocator + Clone
             (&mut *glb_mutex).get_free_list_head_mut().unwrap().prev = Some(unsafe { NonNull::new_unchecked(&raw mut *self as *mut FreeList) }); 
         }
         (&mut *glb_mutex).set_free_list_head_mut(&raw mut *self as *mut FreeList);
+    }
+
+    #[cfg(feature = "v1-core")]
+    pub fn link(&mut self) {
     }
 
     pub fn add(&mut self, /*_hint: &MemHint*/) -> *mut T {

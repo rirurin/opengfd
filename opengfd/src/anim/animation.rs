@@ -78,7 +78,8 @@ where A: Allocator + Clone
     _allocator: A
 }
 
-impl Animation {
+impl<A> Animation<A>
+where A: Allocator + Clone {
     pub fn has_flags(&self, flags: AnimationFlags) -> bool {
         self.flags.contains(flags)
     }

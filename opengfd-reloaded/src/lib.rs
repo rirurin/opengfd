@@ -1,4 +1,5 @@
 pub mod adx; // cri adx bindings
+#[path = "globals_xrd759.rs"]
 pub mod globals; // opengfd bindings
 pub mod graphics; // ngr graphics
 pub mod init;

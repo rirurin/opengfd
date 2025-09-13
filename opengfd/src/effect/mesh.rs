@@ -238,7 +238,7 @@ impl BasicParams {
         }
         #[cfg(feature = "v1-core")]
         {
-            if self.flags.contains(EplModelFlags::Flag28) {
+            if self.flag.contains(EplModelFlags::Flag28) {
                 self.extra_scroll_texture_opacity = stream.read_f32()?;
                 self.field10 = stream.read_f32()?;
                 self.field14 = stream.read_f32()?;

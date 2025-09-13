@@ -97,7 +97,7 @@ public class Executor : ExecutorBase<ArgumentList, ProjectManager>
             ProjectManager["opengfd-globals"].Build();
             // Copy OpenGFD globals and functions to library crates + Reloaded crate
             foreach (string crate in libraryCrates)
-                File.Copy(GetGlobalBindingPath(crate), Path.Combine(ProjectManager[crate].RootPath, "src/globals.rs"), true);
+                File.Copy(GetGlobalBindingPath(crate), Path.Combine(ProjectManager[crate].RootPath, "src/globals_xrd759.rs"), true);
         }
         else Console.WriteLine($"Global crate compilation was skipped!");
         // Create riri_hook folder if it doesn't already exist

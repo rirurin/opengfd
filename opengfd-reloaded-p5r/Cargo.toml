@@ -1,0 +1,34 @@
+[package]
+name = "opengfd-reloaded-p5r"
+description = "Reimplementation of portions of GFD Engine, designed to interoperate with Persona 5 Royal"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license-file.workspace = true
+edition.workspace = true
+
+[dependencies]
+allocator-api2 = "0.2.21"
+glam = "0.30.3"
+opengfd = { path = "../opengfd", default-features = false, features = [ "v1-core", "image_loader", "serialize" ] }
+riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.61.1"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D11",
+    "Win32_System_Kernel",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse"
+]
+
+[build-dependencies]
+toml = "0.8"
+walkdir = "2.5"
+csbindgen = { git = "https://github.com/rirurin/csbindgen", branch = "riri-mod-tools" }
+riri-mod-tools = { git = "https://github.com/rirurin/riri-mod-tools" }
