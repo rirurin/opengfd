@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+#[cfg(feature = "v2-core")]
 use crate::graphics::texture::Texture;
 use std::{
     ptr::NonNull,
@@ -30,6 +31,7 @@ pub struct WindowMouseState {
 }
 
 impl WindowMouseState {
+    #[cfg(feature = "v2-core")]
     pub fn update_from(&mut self, other: &WindowMouseState) -> bool {
         // let block_lock = BLOCK_MOUSE_UPDATE.lock().unwrap(); 
         if unsafe { !*crate::globals::get_block_mouse_focus_unchecked() } {
@@ -44,6 +46,10 @@ impl WindowMouseState {
         self.scroll[0] *= 5;
         true
     }
+    #[cfg(feature = "v1-core")]
+    pub fn update_from(&mut self, _: &WindowMouseState) -> bool {
+        true
+    }
     pub fn get_scroll(&self) -> i16 {
         self.scroll[0]
     }
@@ -52,6 +58,7 @@ impl WindowMouseState {
     }
 }
 
+#[cfg(feature = "v2-core")]
 #[repr(C)]
 pub struct MouseState {
     pos: [u32; 2],

@@ -30,6 +30,7 @@ pub mod device {
     pub mod hedge {
         pub mod fnd {
             pub mod allocator;
+            pub mod base_object;
             pub mod free_list;
             pub mod heap_base;
             pub mod mutex;
@@ -39,7 +40,7 @@ pub mod device {
             pub mod heap;
         }
         pub mod hid {
-
+            pub mod keyboard;
         }
         pub mod needle {
             #[cfg(target_os = "windows")]
@@ -204,7 +205,6 @@ pub mod graphics {
     pub mod terrain;
     pub mod texture;
 }
-#[cfg(not(feature = "v1-core"))]
 pub mod io {
     pub mod controller;
     pub mod keyboard;
@@ -217,10 +217,12 @@ pub mod kernel {
     #[cfg(feature = "v1-core")]
     #[path = "global_xrd744.rs"]
     pub mod global;
+    pub mod global_impl;
     #[cfg(feature = "v1-core")]
     #[path = "graphics_xrd744.rs"]
     pub mod graphics;
     pub mod init;
+    pub mod task;
     pub mod version;
 }
 #[cfg(not(feature = "v1-core"))]
@@ -235,6 +237,7 @@ pub mod kernel {
     #[cfg(feature = "v2-core")]
     #[path = "global_xrd759.rs"]
     pub mod global;
+    pub mod global_impl;
     pub mod global_common;
     pub mod graphics;
     pub mod init;
@@ -266,7 +269,6 @@ pub mod object {
     // pub mod epl;
     pub mod morph;
 }
-#[cfg(not(feature = "v1-core"))]
 pub mod platform {
     pub mod utils;
 }

@@ -11,6 +11,7 @@ edition.workspace = true
 
 [dependencies]
 allocator-api2 = "0.2.21"
+cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 glam = "0.30.3"
 opengfd = { path = "../opengfd", default-features = false, features = [ "v1-core", "image_loader", "serialize" ] }
 riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }

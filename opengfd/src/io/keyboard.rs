@@ -87,6 +87,7 @@ impl Keyboard {
     // 0x1410ba940 (from Metaphor Prologue Demo Steam)
     /// Original function: gfdDeviceKeyboardGetData
     #[cfg(target_os = "windows")]
+    #[cfg(feature = "v2-core")]
     pub fn update(&mut self) -> bool {
         let mut key_state: MaybeUninit<[u8; 256]> = MaybeUninit::uninit();
         unsafe { GetKeyboardState(key_state.assume_init_mut()).unwrap() }
@@ -158,5 +159,10 @@ impl Keyboard {
             *mouse_keycode = 0;
             false 
         }
+    }
+    #[cfg(target_os = "windows")]
+    #[cfg(feature = "v1-core")]
+    pub fn update(&mut self) -> bool {
+        true
     }
 }

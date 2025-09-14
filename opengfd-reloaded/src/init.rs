@@ -3,7 +3,7 @@ use opengfd::{
     kernel::job::Job,
     platform::utils::PlatformInfo
 };
-use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static, riri_init_fn, riri_mods_loaded_fn };
+use riri_mod_tools_proc::{ riri_hook_fn, riri_hook_static, riri_init_fn };
 use riri_mod_tools_rt::{
     address::get_thread_id,
     logln, 
@@ -65,9 +65,4 @@ pub unsafe extern "C" fn gfd_win32_start(p_exec: *const u8) -> bool {
 #[riri_init_fn()]
 fn init_set_steam_check() {
     PlatformInfo::set_platform_steam();
-}
-
-#[riri_mods_loaded_fn]
-fn end_init_test() {
-    logln!(Verbose, "Mod Loader finished initializing!");
 }

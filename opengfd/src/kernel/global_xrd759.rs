@@ -15,7 +15,6 @@ use crate::{
         texture::Texture
     },
     kernel::{
-        allocator::GfdAllocator,
         asset::Asset,
         chip::Chip,
         graphics::{
@@ -23,11 +22,8 @@ use crate::{
             GraphicsStateSteam,
             GraphicsStateUWP
         },
+        global_impl::GlobalImpl,
         init::VideoMode,
-        task::{
-            Task as GfdTask,
-            TaskList
-        }
     },
     platform::utils::PlatformInfo,
     object::mesh::Mesh,
@@ -36,7 +32,6 @@ use crate::{
         item_array::ItemArray,
         math::RandomUnaligned,
         misc::Range,
-        mutex::{ Mutex, RecursiveMutex },
         name::Name
     }
 };
@@ -45,26 +40,6 @@ use riri_mod_tools_proc::ensure_layout;
 use riri_mod_tools_rt::address::ProcessInfo;
 
 include!("global_common.rs");
-
-pub trait GlobalImpl {
-    fn get_flags(&self) -> GlobalFlags;
-    fn get_tasks(&self) -> &TaskGlobal;
-    fn get_tasks_mut(&mut self) -> &mut TaskGlobal;
-    fn get_random_mut(&mut self) -> &mut RandomUnaligned;
-    /// Original function: gfdGetUID
-    fn get_uid(&mut self) -> u64;
-    fn get_task_free_list_unchecked_mut(&mut self) 
-    -> &mut GfdFreeList<GfdTask, GfdAllocator>;
-    fn get_free_list_mutex(&mut self) -> &mut Mutex;
-    fn get_free_list_head(&self) -> Option<&GfdFreeList>;
-    fn get_free_list_head_mut(&self) -> Option<&mut GfdFreeList>;
-    fn get_free_list_head_ptr(&self) -> *mut GfdFreeList;
-    fn set_free_list_head_mut(&mut self, new: *mut GfdFreeList);
-    fn get_chip_free_list(&self) -> Option<&GfdFreeList<Chip, GfdAllocator>>;
-    fn get_chip_free_list_mut(&self) -> Option<&mut GfdFreeList<Chip, GfdAllocator>>;
-    fn get_task_free_list(&self) -> Option<&GfdFreeList<GfdTask, GfdAllocator>>;
-    fn get_task_free_list_mut(&self) -> Option<&mut GfdFreeList<GfdTask, GfdAllocator>>;
-}
 
 pub(crate) const RENDER_STATES: usize = 33;
 pub(crate) const SCENE_LISTS: usize = 2;
@@ -272,7 +247,7 @@ impl Global {
         let glb = unsafe { crate::globals::get_gfd_global_unchecked_mut() };
         if unsafe { *crate::globals::get_is_steam_unchecked() } { glb }
         else { unsafe { &mut *(&raw mut *glb as *mut GlobalUWP) } }
-    }  
+    }
 }
 
 // PHYSICS START
@@ -305,107 +280,3 @@ pub struct PhysicsGlobal {
 }
 
 // PHYSICS END
-
-// TASK START
-
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct TaskFlag : u32 {
-        const PRE_GFD = 1 << 2;
-    }
-}
-
-#[derive(Debug)]
-#[repr(C)]
-pub struct TaskGlobal {
-    pub flag: TaskFlag,
-    pub begin: TaskList<GfdAllocator>,
-    pub update: TaskList<GfdAllocator>,
-    pub render: TaskList<GfdAllocator>,
-    pub end: TaskList<GfdAllocator>,
-    pub release: TaskList<GfdAllocator>,
-    pub task_count: u32,
-    pub pad: TaskList<GfdAllocator>,
-    pub detach_mutex: *mut GfdTask<GfdAllocator>,
-    pub current: *mut GfdTask<GfdAllocator>,
-    pub mutex: Mutex,
-}
-
-impl TaskGlobal {
-    pub fn get_first_begin_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.begin.get_head_ptr()
-    }
-    pub fn get_first_begin_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.begin.get_head_ptr()
-    }
-    pub fn get_first_update_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.update.get_head_ptr()
-    }
-    pub fn get_first_update_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.update.get_head_ptr()
-    }
-    pub fn get_first_render_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.render.get_head_ptr()
-    }
-    pub fn get_first_render_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.render.get_head_ptr()
-    }
-    pub fn get_first_ending_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.end.get_head_ptr()
-    }
-    pub fn get_first_ending_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.end.get_head_ptr()
-    }
-
-    pub fn get_last_begin_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.begin.get_tail_ptr()
-    }
-    pub fn get_last_begin_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.begin.get_tail_ptr()
-    }
-    pub fn get_last_update_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.update.get_tail_ptr()
-    }
-    pub fn get_last_update_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.update.get_tail_ptr()
-    }
-    pub fn get_last_render_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.render.get_tail_ptr()
-    }
-    pub fn get_last_render_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.render.get_tail_ptr()
-    }
-    pub fn get_last_ending_task(&self) -> *const GfdTask<GfdAllocator> {
-        self.end.get_tail_ptr()
-    }
-    pub fn get_last_ending_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
-        self.end.get_tail_ptr()
-    }
-
-    pub fn set_first_begin_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.begin.set_head(val);
-    }
-    pub fn set_first_update_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.update.set_head(val);
-    }
-    pub fn set_first_render_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.render.set_head(val);
-    }
-    pub fn set_first_ending_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.end.set_head(val);
-    }
-    pub fn set_last_begin_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.begin.set_tail(val);
-    }
-    pub fn set_last_update_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.update.set_tail(val);
-    }
-    pub fn set_last_render_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.render.set_tail(val);
-    }
-    pub fn set_last_ending_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
-        self.end.set_tail(val);
-    }
-}
-
-// TASK END

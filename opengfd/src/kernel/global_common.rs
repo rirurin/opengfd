@@ -1,4 +1,14 @@
 use bitflags::bitflags;
+use crate::{
+    kernel::{
+        allocator::GfdAllocator,
+        task::{
+            Task as GfdTask,
+            TaskList
+        },
+    },
+    utility::mutex::{ Mutex, RecursiveMutex }
+};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,3 +48,110 @@ bitflags! {
         const Flag31 = 1 << 31;
     }
 }
+
+// TASK START
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct TaskFlag : u32 {
+        const PRE_GFD = 1 << 2;
+    }
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct TaskGlobal {
+    pub flag: TaskFlag,
+    pub begin: TaskList<GfdAllocator>,
+    pub update: TaskList<GfdAllocator>,
+    pub render: TaskList<GfdAllocator>,
+    pub end: TaskList<GfdAllocator>,
+    pub release: TaskList<GfdAllocator>,
+    pub task_count: u32,
+    pub pad: TaskList<GfdAllocator>,
+    pub detach_mutex: *mut GfdTask<GfdAllocator>,
+    pub current: *mut GfdTask<GfdAllocator>,
+    #[cfg(feature = "v2-core")]
+    pub mutex: Mutex,
+    #[cfg(feature = "v1-core")]
+    pub mutex: RecursiveMutex
+}
+
+impl TaskGlobal {
+    pub fn get_first_begin_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.begin.get_head_ptr()
+    }
+    pub fn get_first_begin_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.begin.get_head_ptr()
+    }
+    pub fn get_first_update_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.update.get_head_ptr()
+    }
+    pub fn get_first_update_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.update.get_head_ptr()
+    }
+    pub fn get_first_render_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.render.get_head_ptr()
+    }
+    pub fn get_first_render_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.render.get_head_ptr()
+    }
+    pub fn get_first_ending_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.end.get_head_ptr()
+    }
+    pub fn get_first_ending_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.end.get_head_ptr()
+    }
+
+    pub fn get_last_begin_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.begin.get_tail_ptr()
+    }
+    pub fn get_last_begin_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.begin.get_tail_ptr()
+    }
+    pub fn get_last_update_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.update.get_tail_ptr()
+    }
+    pub fn get_last_update_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.update.get_tail_ptr()
+    }
+    pub fn get_last_render_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.render.get_tail_ptr()
+    }
+    pub fn get_last_render_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.render.get_tail_ptr()
+    }
+    pub fn get_last_ending_task(&self) -> *const GfdTask<GfdAllocator> {
+        self.end.get_tail_ptr()
+    }
+    pub fn get_last_ending_task_mut(&self) -> *mut GfdTask<GfdAllocator> {
+        self.end.get_tail_ptr()
+    }
+
+    pub fn set_first_begin_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.begin.set_head(val);
+    }
+    pub fn set_first_update_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.update.set_head(val);
+    }
+    pub fn set_first_render_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.render.set_head(val);
+    }
+    pub fn set_first_ending_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.end.set_head(val);
+    }
+    pub fn set_last_begin_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.begin.set_tail(val);
+    }
+    pub fn set_last_update_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.update.set_tail(val);
+    }
+    pub fn set_last_render_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.render.set_tail(val);
+    }
+    pub fn set_last_ending_task(&mut self, val: *mut GfdTask<GfdAllocator>) {
+        self.end.set_tail(val);
+    }
+}
+
+// TASK END

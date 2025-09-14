@@ -7,7 +7,7 @@ Author = "Rirurin"
 PackageType = "Mod"
 DocsFile = "index.html"
 Tags = [ "deharcoding" ]
-IsDependency = false 
+IsDependency = true
 ClientSide = false
 
 Icon = "icon.jxl"
@@ -39,14 +39,11 @@ UserName = "Rirurin"
 RepositoryName = "opengfd"
 
 [[R2Dependencies]]
-Id = "mrfpc.modloader"
+Id = "p5rpc.modloader"
 [R2Dependencies.UpdateSourceData]
-[R2Dependencies.UpdateSourceData.Gamebanana]
-ItemType = "Mod"
-ItemId = 548481
 [R2Dependencies.UpdateSourceData.Github]
-UserName = "DeathChaos"
-RepositoryName = "mrfpc.modloader"
+UserName = "Sewer56"
+RepositoryName = "p5rpc.modloader"
 
 [[R2Dependencies]]
 Id = "reloaded.sharedlib.hooks"

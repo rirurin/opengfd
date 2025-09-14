@@ -230,6 +230,7 @@ where A: Allocator + Clone
         unsafe { std::ptr::write_bytes(ptr, 0, size_of::<Self>()) }
         unsafe { &mut *ptr }
     }
+
     fn get_uid() -> u64 {
         let glb = Global::get_gfd_global_mut();
         glb.get_uid()

@@ -4,6 +4,8 @@ use std::{
     mem::MaybeUninit,
     sync::Mutex
 };
+#[cfg(feature = "v1-core")]
+use std::ops::{Index, IndexMut};
 use windows::Win32::UI::Input::XboxController::{
     XInputGetState,
     XINPUT_STATE,
@@ -69,6 +71,11 @@ impl From<i16> for ControllerStickInput {
         Self((value as f32 / 256. + CONTROLLER_STICK_ZERO_POINT as f32) as u16)
     }
 }
+impl ControllerStickInput {
+    pub const fn default_const() -> Self {
+        Self(CONTROLLER_STICK_ZERO_POINT)
+    }
+}
 
 
 pub const MAX_CONTROLLER_COUNT: usize = 2;
@@ -88,6 +95,24 @@ impl Display for ControllerPlatform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ControllerPlatform {{ button: {:?}, lstick: [{}, {}], rstick: [{}, {}] }} ",
         self.button, self.lstick_hori, self.lstick_vert, self.rstick_hori, self.rstick_vert)
+    }
+}
+
+impl ControllerPlatform {
+    pub fn get_lstick(&self) -> ControllerStick {
+        ControllerStick {
+            horizontal: self.lstick_hori.0 as u8,
+            vertical: self.lstick_vert.0 as u8
+        }
+    }
+    pub fn get_rstick(&self) -> ControllerStick {
+        ControllerStick {
+            horizontal: self.rstick_hori.0 as u8,
+            vertical: self.rstick_vert.0 as u8
+        }
+    }
+    pub fn get_hold_press(&self) -> ControllerButton {
+        self.button
     }
 }
 
@@ -172,6 +197,22 @@ impl ControllerPlatform {
     pub fn get_button(&self) -> ControllerButton {
         self.button
     }
+
+    pub const fn default_const() -> Self {
+        Self {
+            button: ControllerButton::empty(),
+            rstick_vert: ControllerStickInput::default_const(),
+            rstick_hori: ControllerStickInput::default_const(),
+            lstick_vert: ControllerStickInput::default_const(),
+            lstick_hori: ControllerStickInput::default_const(),
+        }
+    }
+}
+
+impl Default for ControllerPlatform {
+    fn default() -> Self {
+        Self::default_const()
+    }
 }
 
 #[repr(C)]
@@ -249,5 +290,35 @@ impl Controller {
     }
     pub fn get_control_id(&self) -> usize {
         self.control_id as usize
+    }
+}
+
+#[cfg(feature = "v1-core")]
+static CONTROLLER_MAX: usize = 4;
+
+#[cfg(feature = "v1-core")]
+#[derive(Debug)]
+pub struct ControllerPlatformManager([ControllerPlatform; CONTROLLER_MAX]);
+impl ControllerPlatformManager {
+    pub fn new() -> Self {
+        Self(std::array::from_fn::<_, CONTROLLER_MAX, _>(|_| ControllerPlatform::default()))
+    }
+    pub fn get_current(&self) -> &ControllerPlatform {
+        &self.0[0]
+    }
+}
+
+#[cfg(feature = "v1-core")]
+impl Index<usize> for ControllerPlatformManager {
+    type Output = ControllerPlatform;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+#[cfg(feature = "v1-core")]
+impl IndexMut<usize> for ControllerPlatformManager {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }

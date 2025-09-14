@@ -12,28 +12,38 @@ use windows::Win32::System::Threading::{
 };
 
 #[derive(Debug)]
-pub struct RecursiveMutexGuard<'a, T>{
+pub struct RecursiveMutexGuard<'a, T>
+where T: ?Sized
+{
     mutex: &'a mut RecursiveMutex,
     data: &'a mut T
 }
-impl<'a, T> RecursiveMutexGuard<'a, T> {
+impl<'a, T> RecursiveMutexGuard<'a, T>
+where T: ?Sized
+{
     fn new(mutex: &'a mut RecursiveMutex, data: &'a mut T) -> Self {
         unsafe { EnterCriticalSection(&mut mutex.0 as *mut CRITICAL_SECTION) }
         Self { mutex, data }
     }
 }
-impl<'a, T> Drop for RecursiveMutexGuard<'a, T> {
+impl<'a, T> Drop for RecursiveMutexGuard<'a, T>
+where T: ?Sized
+{
     fn drop(&mut self) { 
         unsafe { LeaveCriticalSection(&mut self.mutex.0 as *mut CRITICAL_SECTION) };
     }
 }
-impl<'a, T> Deref for RecursiveMutexGuard<'a, T> {
+impl<'a, T> Deref for RecursiveMutexGuard<'a, T>
+where T: ?Sized
+{
     type Target = T;
     fn deref(&self) -> &Self::Target {
         self.data
     }
 }
-impl<'a, T> DerefMut for RecursiveMutexGuard<'a, T> {
+impl<'a, T> DerefMut for RecursiveMutexGuard<'a, T>
+where T: ?Sized
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
@@ -50,7 +60,9 @@ impl RecursiveMutex {
         unsafe { InitializeCriticalSectionAndSpinCount(platform.as_mut_ptr(), 1500).unwrap() };
         Self(unsafe { platform.assume_init() })
     }
-    pub fn lock<'a, T>(&'a mut self, data: &'a mut T) -> RecursiveMutexGuard<'a, T> {
+    pub fn lock<'a, T>(&'a mut self, data: &'a mut T) -> RecursiveMutexGuard<'a, T>
+    where T: ?Sized
+    {
         RecursiveMutexGuard::new(self, data)
     }
 }
