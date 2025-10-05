@@ -1,8 +1,9 @@
 param (
     [System.Boolean] $Debug = $False,
     [System.Boolean] $SkipGlobals = $False,
-    [System.Boolean] $Timings = $False
+    [System.Boolean] $Timings = $False,
+    [System.Boolean] $Publish = $False
 )
 
 $ProjectName = "opengfd.BuildMetaphor"
-dotnet run --project "buildscript/$ProjectName/$ProjectName.csproj" -- (Get-Location).ToString() "Debug" $Debug "SkipGlobals" $SkipGlobals "Timings" $Timings
+dotnet run --project "buildscript/$ProjectName/$ProjectName.csproj" -- (Get-Location).ToString() "Debug" $Debug "SkipGlobals" $SkipGlobals "Timings" $Timings "Publish" $Publish

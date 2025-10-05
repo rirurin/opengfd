@@ -1,3 +1,4 @@
+# Rust build files
 /target
 /Cargo.lock
 /*/target
@@ -9,6 +10,7 @@
 
 /*/incl/
 /*/middata/
+!*-globals/middata/
 *.g.cs
 
 # See sample script in SetEnv.ps1
@@ -20,7 +22,10 @@
 /buildscript/*/obj
 
 # Jetbrains IDE
-/.idea
+**/.idea
 
 # Tool data
 /tools/bin/*
+
+# Reloaded-II publish script
+/Publish/*

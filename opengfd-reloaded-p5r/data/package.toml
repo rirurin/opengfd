@@ -38,6 +38,9 @@ ItemId = 559400
 UserName = "Rirurin"
 RepositoryName = "opengfd"
 
+[UpdateSourceData.Nuget]
+RepositoryUrls = [ "https://packages.sewer56.moe/v3/index.json" ]
+
 [[R2Dependencies]]
 Id = "p5rpc.modloader"
 [R2Dependencies.UpdateSourceData]
@@ -72,9 +75,17 @@ RepositoryName = "SharedScans"
 
 [[R2Dependencies]]
 Id = "riri.criadx"
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "rirurin"
+RepositoryName = "cri-adx-rs"
 
 [[R2Dependencies]]
 Id = "riri.modruntime"
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "rirurin"
+RepositoryName = "riri-mod-tools"
 
 [HookSettings]
 HookLibrary = "Reloaded2CSharpHooks"

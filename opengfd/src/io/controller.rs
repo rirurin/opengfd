@@ -2,10 +2,9 @@ use bitflags::bitflags;
 use std::{
     fmt::Display,
     mem::MaybeUninit,
+    ops::{Index, IndexMut},
     sync::Mutex
 };
-#[cfg(feature = "v1-core")]
-use std::ops::{Index, IndexMut};
 use windows::Win32::UI::Input::XboxController::{
     XInputGetState,
     XINPUT_STATE,
@@ -293,22 +292,23 @@ impl Controller {
     }
 }
 
-#[cfg(feature = "v1-core")]
-static CONTROLLER_MAX: usize = 4;
+// #[cfg(feature = "v1-core")]
+#[allow(dead_code)]
+static CONTROLLER_MAX_P5R: usize = 4;
 
-#[cfg(feature = "v1-core")]
+// #[cfg(feature = "v1-core")]
 #[derive(Debug)]
-pub struct ControllerPlatformManager([ControllerPlatform; CONTROLLER_MAX]);
+pub struct ControllerPlatformManager([ControllerPlatform; CONTROLLER_MAX_P5R]);
 impl ControllerPlatformManager {
     pub fn new() -> Self {
-        Self(std::array::from_fn::<_, CONTROLLER_MAX, _>(|_| ControllerPlatform::default()))
+        Self(std::array::from_fn::<_, CONTROLLER_MAX_P5R, _>(|_| ControllerPlatform::default()))
     }
     pub fn get_current(&self) -> &ControllerPlatform {
         &self.0[0]
     }
 }
 
-#[cfg(feature = "v1-core")]
+// #[cfg(feature = "v1-core")]
 impl Index<usize> for ControllerPlatformManager {
     type Output = ControllerPlatform;
     fn index(&self, index: usize) -> &Self::Output {
@@ -316,7 +316,7 @@ impl Index<usize> for ControllerPlatformManager {
     }
 }
 
-#[cfg(feature = "v1-core")]
+// #[cfg(feature = "v1-core")]
 impl IndexMut<usize> for ControllerPlatformManager {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]

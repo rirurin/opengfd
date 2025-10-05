@@ -1,0 +1,174 @@
+# Script to build and publish a Reloaded Mod.
+# by Sewer56
+
+# Produces: 
+#   - Build to Upload to GameBanana
+#   - Build to Upload to GitHub
+#   - Build to Upload to NuGet
+#   - Changelog
+
+# When pushing a tag
+#   - Upload to GitHub Releases
+#   - Upload to Reloaded NuGet Repository (if GitHub Secret RELOADED_NUGET_KEY is specified) 
+
+name: Build and Publish Reloaded Mod
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+
+env:
+  PUBLISH_BASE: ./Publish
+  PUBLISH_GAMEBANANA_PATH: ToUpload/GameBanana
+  PUBLISH_GITHUB_PATH: ToUpload/Generic
+  PUBLISH_NUGET_PATH: ToUpload/NuGet
+  
+  PUBLISH_CHANGELOG_PATH: ./CHANGELOG.md
+  
+  RELOADEDIIMODS: .
+  RELOADED_TOOLS_PATH: ./Publish/Tools/Reloaded-Tools
+
+  # Default value is official Reloaded package server.  
+  RELOADED_NUGET_URL: https://packages.sewer56.moe/v3/index.json
+
+  IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/') }}
+  RELEASE_TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        submodules: 'recursive'
+    - name: Setup .NET Core 5.0 # For Reloaded Publisher
+      uses: actions/setup-dotnet@v1.8.2
+      with:
+        dotnet-version: 5.0.x
+
+    - name: Setup .NET Core 9.0 # For C# parts of mod
+      uses: actions/setup-dotnet@v1.8.2
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Setup Rust Nightly # For Rust parts of mod
+      uses: actions-rs/toolchain@v1.0.6
+      with:
+        toolchain: nightly
+        components: rust-src
+        target: x86_64-pc-windows-msvc
+
+    - name: Download Reloaded Tools
+      run: |
+        if (-not(Test-Path -Path ${{ env.RELOADED_TOOLS_PATH }} -PathType Any)) {
+          Write-Host "Downloading Reloaded Tools"
+          $TempDirectory = [System.IO.Path]::GetTempPath() + [System.IO.Path]::GetRandomFileName()
+          New-Item $TempDirectory -ItemType Directory -ErrorAction SilentlyContinue
+          Invoke-WebRequest -Uri "https://github.com/Reloaded-Project/Reloaded-II/releases/latest/download/Tools.zip" -OutFile "$TempDirectory/Tools.zip"
+          Expand-Archive -LiteralPath "$TempDirectory/Tools.zip" -DestinationPath ${{ env.RELOADED_TOOLS_PATH }}
+          Remove-Item $TempDirectory -Recurse -ErrorAction SilentlyContinue
+        }
+
+    - name: Build Metaphor Refantazio
+      run: |
+        ./BuildMetaphor.ps1 -Publish $True
+
+    - name: Build Persona 5 Royal
+      run: |
+        ./BuildP5R.ps1 -Publish $True
+
+    - name: (Metaphor) Upload Github Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ '[Metaphor Refantazio] Github Release' }} # Artifact name
+        path: | # A file, directory or wildcard pattern that describes what to upload
+          ${{ env.PUBLISH_BASE }}/Metaphor/${{ env.PUBLISH_GITHUB_PATH }}/*
+
+    - name: (P5R) Upload Github Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ '[Persona 5 Royal] Github Release' }} # Artifact name
+        path: | # A file, directory or wildcard pattern that describes what to upload
+          ${{ env.PUBLISH_BASE }}/P5R/${{ env.PUBLISH_GITHUB_PATH }}/*
+
+    - name: (Metaphor) Upload NuGet Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ '[Metaphor Refantazio] NuGet Release' }} # Artifact name
+        path: | # A file, directory or wildcard pattern that describes what to upload
+          ${{ env.PUBLISH_BASE }}/Metaphor/${{ env.PUBLISH_NUGET_PATH }}/*
+
+    - name: (P5R) Upload NuGet Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ '[Persona 5 Royal] NuGet Release' }} # Artifact name
+        path: | # A file, directory or wildcard pattern that describes what to upload
+          ${{ env.PUBLISH_BASE }}/P5R/${{ env.PUBLISH_NUGET_PATH }}/*
+
+    - name: (Metaphor) Upload GameBanana Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ '[Metaphor Refantazio] GameBanana Release' }} # Artifact name
+        path: | # A file, directory or wildcard pattern that describes what to upload
+          ${{ env.PUBLISH_BASE }}/Metaphor/${{ env.PUBLISH_GAMEBANANA_PATH }}/*
+
+    - name: (P5R) Upload GameBanana Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ '[Persona 5 Royal] GameBanana Release' }} # Artifact name
+        path: | # A file, directory or wildcard pattern that describes what to upload
+          ${{ env.PUBLISH_BASE }}/P5R/${{ env.PUBLISH_GAMEBANANA_PATH }}/*
+
+    - name: Upload Changelog Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: Changelog
+        # A file, directory or wildcard pattern that describes what to upload
+        path: ${{ env.PUBLISH_CHANGELOG_PATH }}
+        retention-days: 0
+
+    - name: Upload to GitHub Releases (on Tag)
+      uses: softprops/action-gh-release@v0.1.14
+      if: env.IS_RELEASE == 'true'
+      with:
+        # Path to load note-worthy description of changes in release from
+        body_path: ${{ env.PUBLISH_CHANGELOG_PATH }}
+        # Newline-delimited list of path globs for asset files to upload
+        files: |
+          ${{ env.PUBLISH_BASE }}/Metaphor/${{ env.PUBLISH_GITHUB_PATH }}/*
+          ${{ env.PUBLISH_BASE }}/P5R/${{ env.PUBLISH_GITHUB_PATH }}/*
+
+    - name: Push to NuGet (on Tag)
+      env: 
+        NUGET_KEY: ${{ secrets.RELOADED_NUGET_KEY }}
+      if: env.IS_RELEASE == 'true'
+      run: |
+        if ([string]::IsNullOrEmpty("$env:NUGET_KEY"))
+        {
+            Write-Host "NuGet Repository Key (GitHub Secrets -> RELOADED_NUGET_KEY) Not Specified. Skipping."
+            return
+        }
+        
+        $items = Get-ChildItem -Path "${{ env.PUBLISH_BASE }}/Metaphor/${{ env.PUBLISH_NUGET_PATH }}/*.nupkg"
+        Foreach ($item in $items)
+        {
+            Write-Host "Pushing $item"
+            dotnet nuget push "$item" -k "$env:NUGET_KEY" -s "$env:RELOADED_NUGET_URL" --skip-duplicate
+        }
+
+        $items = Get-ChildItem -Path "${{ env.PUBLISH_BASE }}/P5R/${{ env.PUBLISH_NUGET_PATH }}/*.nupkg"
+        Foreach ($item in $items)
+        {
+            Write-Host "Pushing $item"
+            dotnet nuget push "$item" -k "$env:NUGET_KEY" -s "$env:RELOADED_NUGET_URL" --skip-duplicate
+        }

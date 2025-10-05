@@ -31,4 +31,23 @@ public static class Utils
             }
         }
     }
+    
+    public static byte[] DownloadFile(string Url)
+    {
+        Console.Write($"DownloadFile {new ItalicFormat()}{Url}{new ClearFormat()} ...");
+        var DownloadTools = Task.Run(async () =>
+        {
+            using (var client = new HttpClient())
+            {
+                using (var response = await client.GetAsync(Url))
+                {
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsByteArrayAsync();
+                }
+            }
+        });
+        DownloadTools.Wait();
+        Console.WriteLine($"{new ColorRGB(78, 207, 147)}OK{new ClearFormat()} ({DownloadTools.Result.Length} bytes)");
+        return DownloadTools.Result;
+    }
 }

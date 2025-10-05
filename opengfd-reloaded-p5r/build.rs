@@ -106,5 +106,9 @@ fn main() {
     // Generate Config.cs
     config_codegen::generate(&base).unwrap();
     // Copy middata to C# project
+    let hook_dir = (&output_path).join("riri_hook");
+    if !std::fs::exists(&hook_dir).unwrap() {
+        std::fs::create_dir(&hook_dir).unwrap();
+    }
     copy_to_output(&middata, &output_path).unwrap();
 }

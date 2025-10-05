@@ -2,6 +2,16 @@
   "ModId": "p5rpc.opengfd","ModName": "OpenGFD for Persona 5 Royal","ModAuthor": "Rirurin","ModVersion": "0.2.0","ModDescription": "Reimplementation of portions of GFD Engine, designed to interoperate with Persona 5 Royal","ModDll": "p5rpc.opengfd.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/p5rpc.opengfd.dll","ModR2RManagedDll64": "x64/p5rpc.opengfd.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
     "GithubDependencies": {
       "IdToConfigMap": {
+        "riri.modruntime": {
+          "Config": {
+            "UserName": "rirurin","RepositoryName": "riri-mod-tools","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "riri.modruntime.ReleaseMetadata.json"
+        },
+        "reloaded.sharedlib.hooks": {
+          "Config": {
+            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
+          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
+        },
         "Reloaded.Memory.SigScan.ReloadedII": {
           "Config": {
             "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
@@ -12,10 +22,10 @@
             "UserName": "Sewer56","RepositoryName": "p5rpc.modloader","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "p5rpc.modloader.ReleaseMetadata.json"
         },
-        "reloaded.sharedlib.hooks": {
+        "riri.criadx": {
           "Config": {
-            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
-          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
+            "UserName": "rirurin","RepositoryName": "cri-adx-rs","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "riri.criadx.ReleaseMetadata.json"
         },
         "SharedScans.Reloaded": {
           "Config": {
@@ -25,6 +35,10 @@
       }
     },"GithubRelease": {
       "UserName": "Rirurin","RepositoryName": "opengfd","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+    },"NuGet": {
+      "DefaultRepositoryUrls": [
+        "https://packages.sewer56.moe/v3/index.json"
+      ],"AllowUpdateFromAnyRepository": false
     }
   },"IsLibrary": true,"ReleaseMetadataFileName": "p5rpc.opengfd.ReleaseMetadata.json","IsUniversalMod": false,"ModDependencies": [
     "p5rpc.modloader",

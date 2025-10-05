@@ -75,9 +75,17 @@ RepositoryName = "SharedScans"
 
 [[R2Dependencies]]
 Id = "riri.criadx"
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "rirurin"
+RepositoryName = "cri-adx-rs"
 
 [[R2Dependencies]]
 Id = "riri.modruntime"
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "rirurin"
+RepositoryName = "riri-mod-tools"
 
 [HookSettings]
 HookLibrary = "Reloaded2CSharpHooks"

@@ -32,6 +32,21 @@ public class Timings : Argument
     public override int GetParamCount() => 1;
 }
 
+public class Publish : Argument
+{
+    public override void HandleParams(string[] args)
+    {
+        Enabled = args[0].ToLower() switch
+        {
+            "true" => true,
+            "false" => false,
+            _ => throw new Exception($"Expected a boolean value, got {args[0]} instead")
+        };
+    }
+
+    public override int GetParamCount() => 1;
+}
+
 public class ArgumentList : ArgumentListBase
 {
     public ArgumentList(string[] args) : base(args) { }
@@ -43,6 +58,7 @@ public class ArgumentList : ArgumentListBase
             { "Debug", new Debug() },
             { "SkipGlobals", new SkipGlobals() },
             { "Timings", new Timings() },
+            { "Publish", new Publish() }
         };
     }
 }
@@ -69,16 +85,33 @@ public class Executor : ExecutorBase<ArgumentList, ProjectManager>
         get => "CLIENT";
     }
 
-    public Executor(string[] args) : base(args) { }
+    public Executor(string[] args, string PackageFolder) : base(args, PackageFolder) { }
 
     public override void Execute()
     {
+        if (ArgList["Publish"].Enabled)
+        {
+            PublishState.Cleanup();
+            PublishState.CheckTools();
+        }
         PrintInformation();
+        // Create riri_hook folder if it doesn't already exist
+        Directory.CreateDirectory(Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "riri_hook"));
         // Copy Cri ADX links
-        var opengfdBindings = Path.Combine(EnvManager["cri-adx-path"], "cri-adx-globals/middata/ext.rs");
         var libraryCrates = new List<string>() { "opengfd", "opengfd-reloaded-p5r" };
-        File.Copy(opengfdBindings, Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "src/adx.rs"), true);
-
+        if (ArgList["Publish"].Enabled)
+        {
+            // Copy from remote repository - make sure that dependencies have committed up-to-date bindings first!
+            var linkFile = Utils.DownloadFile(
+                "https://raw.githubusercontent.com/rirurin/cri-adx-rs/refs/heads/main/cri-adx-globals/middata/ext.rs");
+            File.WriteAllBytes(Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "src/adx.rs"), linkFile);
+        }
+        else
+        {
+            // Copy from local environment
+            var opengfdBindings = Path.Combine(EnvManager["cri-adx-path"], "cri-adx-globals/middata/ext.rs");
+            File.Copy(opengfdBindings, Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "src/adx.rs"), true);   
+        }
         List<string> FeatureList = [ "v1-core", "reloaded", "image_loader", "serialize" ];
         foreach (var Feature in FeatureList) {
             ((RustCrate)ProjectManager["opengfd-globals"]).Features.Add(Feature);
@@ -105,15 +138,38 @@ public class Executor : ExecutorBase<ArgumentList, ProjectManager>
         // Build OpenGFD (Rust portion)
         ProjectManager["opengfd-reloaded-p5r"].Build();
         // Build OpenGFD (C# portion)
+        if (ArgList["Publish"].Enabled)
+        {
+            ((CSharpProject)ProjectManager["p5rpc.opengfd"]).PublishBuildDirectory = PublishState.PublishBuildDirectory;
+            ((CSharpProject)ProjectManager["p5rpc.opengfd"]).TempDirectory = PublishState.TempDirectoryBuild;
+            Directory.CreateDirectory(PublishState.PublishBuildDirectory);
+            ((RustCrate)ProjectManager["opengfd-reloaded-p5r"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, 
+                RootPath, PublishState.PublishBuildDirectory);
+            ((RustCrate)ProjectManager["opengfd-globals"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, 
+                RootPath, PublishState.PublishBuildDirectory);
+            var modFiles = Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "data", "modfiles");
+            if (Directory.Exists(modFiles))
+            {
+                Utils.CopyDirectory(modFiles, PublishState.PublishBuildDirectory, true);
+            }
+        }
         ProjectManager["p5rpc.opengfd"].Build();
-        // Copy output files from target folder into Reloaded mod
-        var reloadedDirectory = Path.Combine(Environment.GetEnvironmentVariable("RELOADEDIIMODS")!, "p5rpc.opengfd");
-        ((RustCrate)ProjectManager["opengfd-reloaded-p5r"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, RootPath, reloadedDirectory);
-        ((RustCrate)ProjectManager["opengfd-globals"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, RootPath, reloadedDirectory);
-        // Copy mod files into Reloaded mod
-        // Copied from Microsoft documentation :naosmiley:
-        // https://learn.microsoft.com/en-us/dotnet/standard/io/how-to-copy-directories
-        Utils.CopyDirectory(Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "data", "modfiles"), reloadedDirectory, true);
+        if (ArgList["Publish"].Enabled)
+        {
+            PublishState.CreateArtifacts("p5rpc.opengfd");
+        }
+        else
+        {
+            // Copy output files from target folder into Reloaded mod
+            var reloadedDirectory = Path.Combine(Environment.GetEnvironmentVariable("RELOADEDIIMODS")!, "p5rpc.opengfd");
+            ((RustCrate)ProjectManager["opengfd-reloaded-p5r"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, RootPath, reloadedDirectory);
+            ((RustCrate)ProjectManager["opengfd-globals"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, RootPath, reloadedDirectory);
+            var modFiles = Path.Combine(ProjectManager["opengfd-reloaded-p5r"].RootPath, "data", "modfiles");
+            if (Directory.Exists(modFiles))
+            {
+                Utils.CopyDirectory(modFiles, reloadedDirectory, true);
+            }   
+        }
         PrintCompleted();
     }
 }
@@ -124,7 +180,7 @@ public static class Program
     {
         if (Environment.GetEnvironmentVariable("RELOADEDIIMODS") == null)
             throw new Exception("The environment variable RELOADEDIIMODS is not defined!");
-        var exec = new Executor(args);
+        var exec = new Executor(args, "P5R");
         exec.Execute();
     }
 }

@@ -269,7 +269,13 @@ pub mod object {
     // pub mod epl;
     pub mod morph;
 }
+#[cfg(feature = "v1-core")]
+pub mod pak {
+    pub mod file;
+}
 pub mod platform {
+    #[cfg(feature = "v1-core")]
+    pub mod global;
     pub mod utils;
 }
 pub mod tests {
