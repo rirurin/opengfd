@@ -34,16 +34,24 @@ where A: Allocator + Clone
     super_: Object<A>,
     view: Mat4,
     projection: Mat4,
+    #[cfg(feature = "v1-core")]
+    flags: u32,
     plane_frustum: [Vec4; 6usize],
     vec_frustrum: [Vec3A; 8usize],
+    #[cfg(feature = "v1-core")]
+    field190: [u8; 0x10],
+    #[cfg(feature = "v2-core")]
     field180: f32,
     near_clip: f32,
     far_clip: f32,
     fovy: f32,
     aspect: f32,
     roll: f32,
+    #[cfg(feature = "v2-core")]
     field11_0x198: u8,
+    #[cfg(feature = "v2-core")]
     field12_0x19c: f32,
+    #[cfg(feature = "v2-core")]
     field13_0x1a0: f32,
     dirty: i32,
     sync: NonNull<Object<A>>,
@@ -129,12 +137,18 @@ where A: Allocator + Clone
     pub fn get_fovy_mut(&mut self) -> &mut f32 { &mut self.fovy }
     pub fn get_aspect_ratio_mut(&mut self) -> &mut f32 { &mut self.aspect }
     pub fn get_roll_mut(&mut self) -> &mut f32 { &mut self.roll }
-    pub fn get_field198_mut(&mut self) -> &mut u8 { &mut self.field11_0x198 }
-    pub fn get_field19c_mut(&mut self) -> &mut f32 { &mut self.field12_0x19c }
-    pub fn get_field1a0_mut(&mut self) -> &mut f32 { &mut self.field13_0x1a0 }
 
     pub fn get_super(&self) -> &Object<A> { &self.super_ }
     pub fn get_super_mut(&mut self) -> &mut Object<A> { &mut self.super_ }
+}
+
+#[cfg(feature = "v2-core")]
+impl<A> Camera<A>
+where A: Allocator + Clone
+{
+    pub fn get_field198_mut(&mut self) -> &mut u8 { &mut self.field11_0x198 }
+    pub fn get_field19c_mut(&mut self) -> &mut f32 { &mut self.field12_0x19c }
+    pub fn get_field1a0_mut(&mut self) -> &mut f32 { &mut self.field13_0x1a0 }
 }
 
 impl<A> CastFromObject for Camera<A>
@@ -170,9 +184,12 @@ where AObject: Allocator + Clone {
         self.fovy = stream.read_f32()?;
         self.aspect = stream.read_f32()?;
         self.roll = stream.has_feature(GfdVersion::CameraAddRoll).map_or(Ok(0.), |_| stream.read_f32())?;
-        self.field11_0x198 = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0), |_| stream.read_u8())?;
-        self.field12_0x19c = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0.), |_| stream.read_f32())?;
-        self.field13_0x1a0 = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0.), |_| stream.read_f32())?;
+        #[cfg(feature = "v2-core")]
+        {
+            self.field11_0x198 = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0), |_| stream.read_u8())?;
+            self.field12_0x19c = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0.), |_| stream.read_f32())?;
+            self.field13_0x1a0 = stream.has_feature(GfdVersion::CameraAddUnkMetaphor).map_or(Ok(0.), |_| stream.read_f32())?;
+        }
         Ok(())
     }
 }

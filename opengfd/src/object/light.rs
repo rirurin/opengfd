@@ -108,6 +108,7 @@ where A: Allocator + Clone {
     type_: LightType,
     scale: f32,
     alpha: f32,
+    #[cfg(feature = "v2-core")]
     toon: f32,
     ref_: Reference,
     state: Option<NonNull<LightState>>,
@@ -195,7 +196,10 @@ where AObject: Allocator + Clone
             }
         }
         self.alpha = stream.has_feature(GfdVersion::LightAddAlpha).map_or(Ok(0.), |_| stream.read_f32())?;
-        self.toon = stream.has_feature(GfdVersion::LightAddToonInfluence).map_or(Ok(1.), |_| stream.read_f32())?;
+        #[cfg(feature = "v2-core")]
+        {
+            self.toon = stream.has_feature(GfdVersion::LightAddToonInfluence).map_or(Ok(1.), |_| stream.read_f32())?;
+        }
         Ok(())
     }
 }
