@@ -128,6 +128,11 @@ pub mod globals;
 #[cfg(feature = "v1-core")]
 #[path = "globals_xrd744.rs"]
 pub mod globals;
+#[cfg(feature = "v1-core")]
+pub mod graphics {
+    pub mod quake;
+    pub mod scene;
+}
 #[cfg(not(feature = "v1-core"))]
 pub mod graphics {
     pub mod cull;

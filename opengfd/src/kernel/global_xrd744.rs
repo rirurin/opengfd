@@ -29,7 +29,7 @@ pub struct Global { // (GlobalSteam, default state)
     tick: u64,
     timestamp: u64,
     frames1: u64,
-    graphics: GraphicsStateSteam,
+    pub(crate) graphics: GraphicsStateSteam,
     physics: [u8; 0x50],
     tasks: TaskGlobal,
     field2ce8: [u8; 0x80],

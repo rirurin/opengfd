@@ -1,10 +1,86 @@
 use crate::kernel::global::{ FIXED_PIXEL_SHADERS, FIXED_VERTEX_SHADERS, MATERIAL_LISTS, RENDER_LISTS, RENDER_STATES, SCENE_LISTS, SHADER_SOURCE };
 use crate::kernel::init::VideoMode;
 use crate::utility::item_array::ItemArray;
-use crate::utility::mutex::RecursiveMutex;
+use crate::utility::mutex::{RecursiveMutex, RecursiveMutexGuard};
 use glam::Vec2;
+use crate::graphics::scene::Scene;
+use crate::object::camera::Camera;
 
 include!("graphics_common.rs");
+
+pub struct GraphicsGlobal;
+impl GraphicsGlobal {
+    pub fn get_gfd_graphics_global() -> &'static dyn GraphicsState {
+        unsafe { &crate::globals::get_gfd_global_unchecked().graphics }
+    }
+    pub fn get_gfd_graphics_global_mut() -> &'static mut dyn GraphicsState {
+        unsafe { &mut crate::globals::get_gfd_global_unchecked_mut().graphics }
+    }
+}
+
+pub trait GraphicsState {
+    fn has_flags(&self, flag: GraphicsFlags) -> bool;
+
+    fn has_any_flag(&self, flag: GraphicsFlags) -> bool;
+
+    fn get_flags(&self) -> GraphicsFlags;
+    fn get_flags_mut(&mut self) -> &mut GraphicsFlags;
+    /// Get a reference to the target scene graph from global state
+    /// (Original function: gfdRenderGetScene)
+    fn get_scene(&self, num: usize) -> Option<&Scene>;
+    /// Get a mutable reference to the target scene graph from global state
+    /// (Original function: gfdRenderGetScene)
+    fn get_scene_mut(&mut self, num: usize) -> Option<&mut Scene>;
+    /// Get a reference to the main camera for the target scene graph
+    /// (Original function: gfdRenderGetSceneCamera)
+    fn get_scene_camera(&self, num: usize) -> Option<&Camera>;
+    /// Get a reference to the main camera for the target scene graph
+    /// (Original function: gfdRenderGetSceneCamera)
+    fn get_scene_camera_mut(&mut self, num: usize) -> Option<&mut Camera>;
+
+    fn is_deferred_rendering_available(&self) -> bool { false }
+
+    fn get_current_scene(&self) -> Option<&Scene> {
+        self.get_scene(0)
+    }
+
+    fn get_current_scene_mut(&mut self) -> Option<&mut Scene> {
+        self.get_scene_mut(0)
+    }
+
+    fn get_current_scene_id(&self) -> usize;
+    /*
+    fn get_current_cmd_buffer(&mut self) -> Option<&mut CmdBuffer>;
+
+    fn get_texture_head(&self) -> Option<&Texture>;
+    fn lock_texture_mutex(&mut self) -> RecursiveMutexGuard<'_, *mut Texture>;
+    fn lock_vertex_shader_mutex(&mut self) -> MutexGuard<'_, *mut VertexShader>;
+    fn lock_pixel_shader_mutex(&mut self) -> MutexGuard<'_, *mut PixelShader>;
+    fn lock_geometry_shader_mutex(&mut self) -> MutexGuard<'_, *mut GeometryShader>;
+    fn lock_compute_shader_mutex(&mut self) -> MutexGuard<'_, *mut ComputeShader>;
+
+    fn get_max_ot_priority(&self) -> usize;
+    fn get_widget_ot_priority(&self) -> usize;
+    fn get_debug_font_ot_priority(&self) -> usize;
+    fn get_mouse_ot_priority(&self) -> usize;
+
+    fn get_frame_id(&self) -> usize;
+
+    fn get_vertex_shader(&self, index: usize) -> Option<&VertexShader>;
+    fn get_pixel_shader(&self, index: usize) -> Option<&PixelShader>;
+    fn get_geometry_cull(&mut self) -> Option<&mut CullObject>;
+    fn get_ot_shadow_list(&self, id: usize, prio: usize) -> Option<&mut RenderOtList>;
+    fn get_ot_render_list(&self, id: usize, prio: usize) -> Option<&mut RenderOtList>;
+    fn get_ot_prepare_list(&self, id: usize, prio: usize) -> Option<&mut RenderOtList>;
+    fn get_current_vertex_shader(&self) -> Option<&VertexShader>;
+    fn get_current_pixel_shader(&self) -> Option<&PixelShader>;
+    fn get_current_vertex_shader_ptr(&mut self) -> *mut *mut VertexShader;
+    fn get_current_pixel_shader_ptr(&mut self) -> *mut *mut PixelShader;
+    fn get_vertex_shader_platform(&self, index: usize) -> Option<&VertexShaderPlatform>;
+    fn get_pixel_shader_platform(&self, index: usize) -> Option<&PixelShaderPlatform>;
+    fn field44b8_clear(&mut self);
+    */
+}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -13,7 +89,7 @@ pub struct GraphicsStateSteam {
     video: VideoMode,
     fps: u32,
     fvf: u32,
-    pub(super) scene: [*mut u8; SCENE_LISTS],
+    pub(super) scene: [*mut Scene; SCENE_LISTS],
     pub(super) cmd_buffer: *mut u8,
     texture_head: *mut u8,
     texture_mutex: RecursiveMutex,
@@ -78,4 +154,51 @@ pub struct GraphicsStateSteam {
     adjustment: Vec2,
     fullscreen_render_target: *mut u8,
     field2a80: [u8; 0x140]
+}
+
+impl GraphicsState for GraphicsStateSteam {
+    fn has_flags(&self, flag: GraphicsFlags) -> bool {
+        self.flags.contains(flag)
+    }
+    fn has_any_flag(&self, flag: GraphicsFlags) -> bool {
+        self.flags.intersects(flag)
+    }
+    fn get_flags(&self) -> GraphicsFlags {
+        self.flags
+    }
+    fn get_flags_mut(&mut self) -> &mut GraphicsFlags {
+        &mut self.flags
+    }
+    fn get_scene(&self, num: usize) -> Option<&Scene> {
+        unsafe { self.scene[num].as_ref() }
+    }
+    fn get_scene_mut(&mut self, num: usize) -> Option<&mut Scene> {
+        unsafe { self.scene[num].as_mut() }
+    }
+    fn get_scene_camera(&self, num: usize) -> Option<&Camera> {
+        match self.get_scene(num) {
+            Some(v) => unsafe { v.camera.as_ref() },
+            None => None
+        }
+    }
+    fn get_scene_camera_mut(&mut self, num: usize) -> Option<&mut Camera> {
+        match self.get_scene_mut(num) {
+            Some(v) => unsafe { v.camera.as_mut() },
+            None => None
+        }
+    }
+    fn get_current_scene_id(&self) -> usize {
+        self.frame_id as usize
+    }
+    /*
+    fn get_current_cmd_buffer(&mut self) -> Option<&mut crate::graphics::render::cmd_buffer::CmdBuffer> {
+        unsafe { self.cmd_buffer.as_mut() }
+    }
+    fn get_texture_head(&self) -> Option<&crate::graphics::texture::Texture> {
+        unsafe { self.texture_head.as_ref() }
+    }
+    fn lock_texture_mutex(&mut self) -> RecursiveMutexGuard<'_, *mut crate::graphics::texture::Texture> {
+        self.texture_mutex.lock(&mut self.texture_head)
+    }
+    */
 }

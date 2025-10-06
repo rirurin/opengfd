@@ -16,6 +16,7 @@ use crate::{
 };
 use glam::Mat4;
 use std::ptr::NonNull;
+use crate::utility::mutex::RecursiveMutex;
 
 #[cfg(feature = "v2-core")]
 #[repr(C)]
@@ -90,7 +91,10 @@ pub struct SceneLightPlacement {
     point: LinkedList<Light>,
     spot: LinkedList<Light>,
     count: u32,
-    mutex: Mutex
+    #[cfg(feature = "v1-core")]
+    mutex: RecursiveMutex,
+    #[cfg(feature = "v2-core")]
+    mutex: Mutex,
 }
 
 #[repr(C)]
@@ -100,10 +104,15 @@ where A: Allocator + Clone
 {
     id: u32,
     flags: u32,
+    #[cfg(feature = "v1-core")]
+    env: *const u8, // gfdEnvironment
     #[cfg(feature = "v2-core")]
     env: MetaphorSceneParams,
     pub(crate) camera: *mut Camera<A>,
     pub(crate) light: [*mut Light; 3],
+    #[cfg(feature = "v1-core")]
+    pub(crate) shadow: [*mut Light; 3],
+    #[cfg(feature = "v2-core")]
     pub(crate) shadow: *mut Light,
     pub(crate) independence: *mut Light,
     pub(crate) hierarchy: *mut Node<A>,
@@ -121,10 +130,15 @@ where A: Allocator + Clone
     render_post_cb_userdata: *mut u8,
     view_cb_fn: Option<fn(*mut Self, *mut Mat4, *mut u8) -> ()>,
     view_cb_userdata: *mut u8,
+    #[cfg(feature = "v2-core")]
     fn278: *mut u8,
+    #[cfg(feature = "v2-core")]
     fn278_data: *mut u8,
     quake: Option<NonNull<Quake>>,
+    #[cfg(feature = "v2-core")]
     field290: [u8; 0x40],
+    #[cfg(feature = "v1-core")]
+    _ref: u32,
     _allocator: A
 }
 
