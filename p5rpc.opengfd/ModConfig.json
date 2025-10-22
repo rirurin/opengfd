@@ -1,36 +1,36 @@
 {
-  "ModId": "p5rpc.opengfd","ModName": "OpenGFD for Persona 5 Royal","ModAuthor": "Rirurin","ModVersion": "0.2.1","ModDescription": "Reimplementation of portions of GFD Engine, designed to interoperate with Persona 5 Royal","ModDll": "p5rpc.opengfd.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/p5rpc.opengfd.dll","ModR2RManagedDll64": "x64/p5rpc.opengfd.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
+  "ModId": "p5rpc.opengfd","ModName": "OpenGFD for Persona 5 Royal","ModAuthor": "Rirurin","ModVersion": "0.2.2","ModDescription": "Reimplementation of portions of GFD Engine, designed to interoperate with Persona 5 Royal","ModDll": "p5rpc.opengfd.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/p5rpc.opengfd.dll","ModR2RManagedDll64": "x64/p5rpc.opengfd.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
     "GithubDependencies": {
       "IdToConfigMap": {
-        "riri.modruntime": {
+        "Reloaded.Memory.SigScan.ReloadedII": {
           "Config": {
-            "UserName": "rirurin","RepositoryName": "riri-mod-tools","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "riri.modruntime.ReleaseMetadata.json"
-        },
-        "reloaded.sharedlib.hooks": {
-          "Config": {
-            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
-          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
+            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
         },
         "p5rpc.modloader": {
           "Config": {
             "UserName": "Sewer56","RepositoryName": "p5rpc.modloader","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "p5rpc.modloader.ReleaseMetadata.json"
         },
-        "Reloaded.Memory.SigScan.ReloadedII": {
+        "reloaded.sharedlib.hooks": {
           "Config": {
-            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
-        },
-        "riri.criadx": {
-          "Config": {
-            "UserName": "rirurin","RepositoryName": "cri-adx-rs","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "riri.criadx.ReleaseMetadata.json"
+            "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
+          },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
         },
         "SharedScans.Reloaded": {
           "Config": {
             "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
           },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
+        },
+        "riri.modruntime": {
+          "Config": {
+            "UserName": "rirurin","RepositoryName": "riri-mod-tools","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "riri.modruntime.ReleaseMetadata.json"
+        },
+        "riri.criadx": {
+          "Config": {
+            "UserName": "rirurin","RepositoryName": "cri-adx-rs","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "riri.criadx.ReleaseMetadata.json"
         }
       }
     },"GithubRelease": {

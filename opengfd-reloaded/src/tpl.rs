@@ -1,4 +1,6 @@
 #![allow(unused_imports)]
+
+use std::alloc::Layout;
 use crate::globals;
 use cpp_types::msvc::{
     string::String as CppString,
@@ -16,12 +18,17 @@ use riri_mod_tools_rt::{
     sigscan_resolver 
 };
 use std::ptr::NonNull;
+use std::sync::OnceLock;
+use std::time::Instant;
+use opengfd::io::keyboard::Keyboard;
+use opengfd::kernel::allocator::GfdAllocator;
+use opengfd::tpl::apk::ApkTextureStream;
+use allocator_api2::alloc::Allocator;
 
 #[no_mangle]
 pub unsafe extern "C" fn set_file_manager_instance_hook(ofs: usize) -> Option<NonNull<u8>> { 
     let addr = match sigscan_resolver::get_indirect_address_long(ofs) {
-        Some(v) => v,
-        None => return None
+        Some(v) => v, None => return None
     };
     logln!(Information, "got File Manager instance: 0x{:x}", addr.as_ptr() as usize);
     globals::set_file_manager_instance(addr.as_ptr() as *mut *mut FileManager);
@@ -35,16 +42,12 @@ pub unsafe extern "C" fn set_file_manager_instance_hook(ofs: usize) -> Option<No
 riri_static!(FILE_MANAGER_INSTANCE_HOOK, usize);
 
 #[no_mangle]
-pub unsafe extern "C" fn set_tpl_resource_shared_ptr_hook(ofs: usize) -> Option<std::ptr::NonNull<u8>> { 
-    let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
-        Some(v) => v,
-        None => return None
+pub unsafe extern "C" fn set_tpl_resource_shared_ptr_hook(ofs: usize) -> Option<NonNull<u8>> {
+    let addr = match sigscan_resolver::get_address_may_thunk(ofs)
+        .and_then(|addr| sigscan_resolver::get_indirect_address_long_abs(addr.add(0x57).as_ptr())) {
+        Some(v) => v, None => return None
     };
-    let addr = match sigscan_resolver::get_indirect_address_long_abs(addr.add(0x57).as_ptr()) {
-        Some(v) => v,
-        None => return None
-    };
-    globals::set_tpl_resource_shared_ptr(addr.as_ptr() as *mut u8);
+    globals::set_tpl_resource_shared_ptr(addr.as_ptr());
     logln!(Information, "got std::shared_ptr<TPL::Resource> vtable: 0x{:x}", addr.as_ptr() as usize);
     Some(addr)
 }
@@ -249,7 +252,6 @@ pub unsafe extern "C" fn tplResourceLoadSubfile(resrc: *mut u8) {
     original_function!(resrc)
 }
 
-*/
 
 
 #[riri_hook_fn(static_offset(0x14870c0))]
@@ -260,14 +262,14 @@ pub unsafe extern "C" fn tplSoundPlayerPlayCue(p_snd_player: *mut u8, id: i32) {
     snd_player.play_cue(id);
     // original_function!(p_snd_player, id)
 }
+*/
 
 #[no_mangle]
 pub unsafe extern "C" fn set_sound_player_send_signal_hook(ofs: usize) -> Option<NonNull<u8>> { 
     let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
-        Some(v) => v,
-        None => return None
+        Some(v) => v, None => return None
     };
-    // logln!(Information, "got TPL::SoundPlayer::SendSignal: 0x{:x}", addr.as_ptr() as usize);
+    logln!(Information, "got TPL::SoundPlayer::SendSignal: 0x{:x}", addr.as_ptr() as usize);
     globals::set_sound_player_send_signal(addr.as_ptr());
     Some(addr)
 }
@@ -277,3 +279,66 @@ pub unsafe extern "C" fn set_sound_player_send_signal_hook(ofs: usize) -> Option
     calling_convention = "microsoft",
 ))]
 riri_static!(SOUND_PLAYER_SEND_SIGNAL_HOOK, usize);
+
+#[no_mangle]
+pub unsafe extern "C" fn set_apk_texture_decompress(ofs: usize) -> Option<NonNull<u8>> {
+    let addr = match sigscan_resolver::get_address_may_thunk(ofs) {
+        Some(v) => v, None => return None
+    };
+    logln!(Information, "got apkTextureDecompress: 0x{:x}", addr.as_ptr() as usize);
+    Some(addr)
+}
+
+static APK_TEXTURE_VTABLE: OnceLock<usize> = OnceLock::new();
+static TPL_MALLOC_FREE: OnceLock<usize> = OnceLock::new();
+
+/// Original function: apk::ApkTextureDecompress (0x141481cf0, Metaphor Steam Prologue Demo 1.01)
+#[riri_hook_fn(dynamic_offset(
+    signature = "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 4C 24 ?? 57 41 54 41 55 41 56 41 57 48 83 EC 60 4D 8B E9",
+    resolve_type = set_apk_texture_decompress,
+    calling_convention = "microsoft",
+))]
+pub unsafe extern "C" fn apk_texture_decompress(p_out: *mut u8, a2: u32, p_header: *mut u8, size: *mut u64) -> *mut u8 {
+    match APK_TEXTURE_VTABLE.get() {
+        Some(vtable) => {
+            *(p_out as *mut *const u8) = std::ptr::null(); // out->ptr
+            *(p_out as *mut *const u8).add(1) = std::ptr::null(); // out->ref
+            let header = &*(p_header as *mut metaphor_apk_rs::serial::DataHeader);
+            let out = &mut *(p_out as *mut SharedPtr<ApkTextureStream, GfdAllocator>);
+            if !header.check_magic() {
+                return p_out;
+            }
+            *size = header.get_decompressed_size() as u64;
+            // C:\\vd_projects\\vd_xrd759_DEMO\\program\\framework\\TPL\\TPL\\GenericLibrary\\FileIO\\Compress\\CompressLib.cpp, line 232
+            let allocator: NonNull<u8> = GfdAllocator.allocate(Layout::from_size_align_unchecked(*size as usize, 0x10)).unwrap().cast();
+            let slice = unsafe { std::slice::from_raw_parts_mut(allocator.as_ptr(), *size as usize) };
+            unsafe { header.decompress_from_raw_parts(slice) };
+            unsafe { std::ptr::write(
+                p_out as *mut SharedPtr<ApkTextureStream, GfdAllocator>,
+                SharedPtr::make_shared_in(ApkTextureStream::new(
+                    std::mem::transmute(*TPL_MALLOC_FREE.get().unwrap()),
+                    allocator.as_ptr()), GfdAllocator)
+            ) };
+            out._force_set_vtable(*vtable as _);
+            // replace out->ptr with byte stream
+            *(p_out as *mut *mut u8) = allocator.as_ptr();
+        },
+        None => {
+            let p_ret = original_function!(p_out, a2, p_header, size);
+            let out = &mut *(p_out as *mut SharedPtr<ApkTextureStream, GfdAllocator>);
+            let success = out._force_get_rep() != std::ptr::null();
+            if success {
+                if APK_TEXTURE_VTABLE.get().is_none() {
+                    let _ = APK_TEXTURE_VTABLE.set(*(out._force_get_rep() as *const usize));
+                    logln!(Information, "got std::_Ref_count_resource<void*, void(void*)>: 0x{:x}", APK_TEXTURE_VTABLE.get().unwrap());
+                }
+                if TPL_MALLOC_FREE.get().is_none() {
+                    // get TPL free callback from Rep object - ptr object only points to data stream
+                    let _ = TPL_MALLOC_FREE.set(*((&*out._force_get_rep()).get_data_ptr() as *mut usize));
+                    logln!(Information, "got tpl::Allocator::Free: 0x{:x}", TPL_MALLOC_FREE.get().unwrap());
+                }
+            }
+        }
+    }
+    p_out
+}

@@ -13,6 +13,7 @@ edition.workspace = true
 allocator-api2 = "0.2.21"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 glam = "0.30.3"
+metaphor-apk-rs = { git = "https://github.com/rirurin/metaphor-apk-rs" }
 opengfd = { path = "../opengfd" }
 # opengfd-inspector = { path = "../opengfd-inspector" }
 twox-hash = "2.1.2"

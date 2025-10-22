@@ -309,6 +309,7 @@ pub mod tests {
 }
 #[cfg(feature = "tpl")]
 pub mod tpl {
+    pub mod apk;
     pub mod file_manager;
     pub mod sound {
         pub mod data;

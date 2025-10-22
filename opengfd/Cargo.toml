@@ -19,6 +19,7 @@ glam = "0.30.3"
 image = { version = "0.25.6", optional = true }
 half = "2.4.1"
 libc = "0.2.169"
+metaphor-apk-rs = { git = "https://github.com/rirurin/metaphor-apk-rs", optional = true }
 opengfd-proc = { path = "../opengfd-proc" }
 riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools", default-features = false }
@@ -52,7 +53,7 @@ v2-core = [ "adapter-ngr", "cfb_gap", "tpl" ]
 adapter-hedge = []
 # Use Metaphor's DX11 wrapper and I/O classes 
 adapter-ngr = []
-tpl = []
+tpl = [ "dep:metaphor-apk-rs" ]
 # Serialize GFD structures using serde
 io_serde = []
 # Serialize GFD structures using rkyv
