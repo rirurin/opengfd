@@ -14,6 +14,7 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::graphics::material::params::MaterialId;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 // See https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
@@ -75,6 +76,9 @@ where A: Allocator + Clone
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
     fn update(&mut self) {
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::Shadow
     }
     fn get_shader_id(&self) -> u32 {
         0xd0

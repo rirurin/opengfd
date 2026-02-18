@@ -18,6 +18,7 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::graphics::material::params::MaterialId;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -125,6 +126,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::Water
     }
     fn get_shader_id(&self) -> u32 {
         0x93

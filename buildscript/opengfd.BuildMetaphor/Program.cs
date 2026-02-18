@@ -160,6 +160,10 @@ public class Executor : ExecutorBase<ArgumentList, ProjectManager>
         {
             // Copy output files from target folder into Reloaded mod
             var reloadedDirectory = Path.Combine(Environment.GetEnvironmentVariable("RELOADEDIIMODS")!, "metaphor.opengfd");
+            // Force a signature rebuild (we may have defined new signatures since then)
+            var signatureCache = Path.Join(reloadedDirectory, "signature_cache");
+            if (Path.Exists(signatureCache))
+                File.Delete(signatureCache);
             ((RustCrate)ProjectManager["opengfd-reloaded"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, RootPath, reloadedDirectory);
             ((RustCrate)ProjectManager["opengfd-globals"]).CopyOutputArtifacts(ArgList["Debug"].Enabled, RootPath, reloadedDirectory);
             var modFiles = Path.Combine(ProjectManager["opengfd-reloaded"].RootPath, "data", "modfiles");

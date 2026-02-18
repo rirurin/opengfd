@@ -24,6 +24,7 @@ use crate::{
 };
 use glam::{ Vec3, Vec4 };
 use crate::graphics::material::{BlendType, MaterialFlags2};
+use crate::graphics::material::params::MaterialId;
 use crate::graphics::shader::attribute::toon_v2::CharaToonFlags;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::{RGBAFloat, RGBFloat};
@@ -212,6 +213,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::CharacterMetal
     }
     fn get_shader_id(&self) -> u32 {
         0xbb

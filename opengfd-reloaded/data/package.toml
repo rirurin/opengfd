@@ -9,6 +9,7 @@ DocsFile = "index.html"
 Tags = [ "deharcoding" ]
 IsDependency = true
 ClientSide = false
+UseCachedSignatures = true
 
 Icon = "icon.jxl"
 Reloaded2Icon = "Icon.png"

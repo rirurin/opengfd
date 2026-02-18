@@ -18,6 +18,7 @@ use crate::{
     kernel::allocator::GfdAllocator,
     object::geometry::VertexAttributeFlags,
 };
+use crate::graphics::material::params::MaterialId;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 
 pub struct Type3<A = GfdAllocator>
@@ -128,6 +129,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::Type3
     }
     fn get_shader_id(&self) -> u32 {
         0x84

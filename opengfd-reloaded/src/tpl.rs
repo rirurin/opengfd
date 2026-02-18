@@ -298,7 +298,7 @@ static TPL_MALLOC_FREE: OnceLock<usize> = OnceLock::new();
     resolve_type = set_apk_texture_decompress,
     calling_convention = "microsoft",
 ))]
-pub unsafe extern "C" fn apk_texture_decompress(p_out: *mut u8, a2: u32, p_header: *mut u8, size: *mut u64) -> *mut u8 {
+pub unsafe extern "C" fn apk_texture_decompress(p_out: *mut u8, align: u32, p_header: *mut u8, size: *mut u64) -> *mut u8 {
     match APK_TEXTURE_VTABLE.get() {
         Some(vtable) => {
             *(p_out as *mut *const u8) = std::ptr::null(); // out->ptr
@@ -324,7 +324,7 @@ pub unsafe extern "C" fn apk_texture_decompress(p_out: *mut u8, a2: u32, p_heade
             *(p_out as *mut *mut u8) = allocator.as_ptr();
         },
         None => {
-            let p_ret = original_function!(p_out, a2, p_header, size);
+            let p_ret = original_function!(p_out, align, p_header, size);
             let out = &mut *(p_out as *mut SharedPtr<ApkTextureStream, GfdAllocator>);
             let success = out._force_get_rep() != std::ptr::null();
             if success {

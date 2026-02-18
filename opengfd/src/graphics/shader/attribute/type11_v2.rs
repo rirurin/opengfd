@@ -15,6 +15,7 @@ use crate::{
     object::geometry::VertexAttributeFlags,
 };
 use crate::graphics::material::MaterialFlags;
+use crate::graphics::material::params::MaterialId;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -82,6 +83,9 @@ where A: Allocator + Clone
     fn set_shader_flags(&self, _vtx: VertexAttributeFlags, _flags: &mut ShaderFlags) {
     }
     fn update(&mut self) {
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::Type11
     }
     fn get_shader_id(&self) -> u32 {
         if !self.get_material().get_flag().contains(MaterialFlags::Light | MaterialFlags::Outline) || self.check_translucency() {

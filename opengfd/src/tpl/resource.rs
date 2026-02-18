@@ -138,8 +138,8 @@ where A: Allocator + Clone
         unsafe { (self.get_raw_stream() as *mut S).as_mut() }
     }
 
-    // 0x1414725b0
-    /// Original function: tplResourceIsReady
+    // Original function: 0x1414725b0 (Steam Prologue Demo 1.01)
+    /// tplResourceIsReady
     pub fn is_ready(&self) -> bool {
         match self.get_stream_type() {
             StreamType::SpriteAPKEntry => self.load_state_sprite_entry == LoadState::Ready,
@@ -154,15 +154,21 @@ where A: Allocator + Clone
         }
     }
 
-    // 0x141470010
-    /// Original function: TPL::Resource::Initialize
+    // Original function: 0x141470010 (Steam Prologue Demo 1.01)
+    /// TPL::Resource::Initialize
     pub fn new(filename: CppString<u8, A>, alloc: A) -> Self {
+        Self::new_inner(filename, StreamType::None, alloc)
+    }
+
+    pub fn new_apk(filename: CppString<u8, A>, alloc: A) -> Self {
+        Self::new_inner(filename, StreamType::SpriteAPKEntry, alloc)
+    }
+
+    fn new_inner(filename: CppString<u8, A>, stream_type: StreamType, alloc: A) -> Self {
         Self {
             owner: MaybeUninit::uninit(),
-            // this: std::ptr::null_mut(),
-            // owner: std::ptr::null_mut(),
-            stream_type: StreamType::None,
-            load_state_sprite_entry: LoadState::Uninitialized, 
+            stream_type,
+            load_state_sprite_entry: LoadState::Uninitialized,
             field18: 1,
             field1c: 0,
             filename,

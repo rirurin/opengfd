@@ -393,10 +393,10 @@ pub mod params {
     impl<A> Material<A>
     where A: Allocator + Clone
     {
-        pub fn get_specific_data<M>(&self) -> Result<&M, MaterialIdMismatch>
-        where M: MaterialType {
-            Err(MaterialIdMismatch(MaterialId::Field, MaterialId::Field))
+        pub fn get_data_type(&self) -> MaterialId {
+            self.mat_type
         }
+
         pub fn get_data(&self) -> Box<&dyn MaterialType> {
             Box::new(match self.mat_type {
                 MaterialId::Field => unsafe { &*(&raw const self.data as *const Field<A>) },
@@ -418,8 +418,41 @@ pub mod params {
                 MaterialId::Shadow => unsafe { &*(&raw const self.data as *const CharacterToon<A>) },
             })
         }
-        pub fn get_data_type(&self) -> MaterialId {
-            self.mat_type
+
+        pub fn get_data_mut(&mut self) -> Box<&mut dyn MaterialType> {
+            Box::new(match self.mat_type {
+                MaterialId::Field => unsafe { &mut *(&raw mut self.data as *mut Field<A>) },
+                MaterialId::Lambert => unsafe { &mut *(&raw mut self.data as *mut Lambert<A>) },
+                MaterialId::CharacterToon => unsafe { &mut *(&raw mut self.data as *mut CharacterToon<A>) },
+                MaterialId::Type3 => unsafe { &mut *(&raw mut self.data as *mut CharacterToon<A>) },
+                MaterialId::CharacterDistort => unsafe { &mut *(&raw mut self.data as *mut CharacterDistortion<A>) },
+                MaterialId::Water => unsafe { &mut *(&raw mut self.data as *mut Water<A>) },
+                MaterialId::DualLayer => unsafe { &mut *(&raw mut self.data as *mut TwoLayer<A>) },
+                MaterialId::Type7 => unsafe { &mut *(&raw mut self.data as *mut FourLayer<A>) },
+                MaterialId::Type8 => unsafe { &mut *(&raw mut self.data as *mut CharacterToon<A>) },
+                MaterialId::Type9 => unsafe { &mut *(&raw mut self.data as *mut CharacterToon<A>) },
+                MaterialId::Sky => unsafe { &mut *(&raw mut self.data as *mut CharacterToon<A>) },
+                MaterialId::Type11 => unsafe { &mut *(&raw mut self.data as *mut Type11<A>) },
+                MaterialId::CharacterMetal => unsafe { &mut *(&raw mut self.data as *mut Metal<A>) },
+                MaterialId::Type13 => unsafe { &mut *(&raw mut self.data as *mut Type13<A>) },
+                MaterialId::Type14 => unsafe { &mut *(&raw mut self.data as *mut Type14<A>) },
+                MaterialId::Type15 => unsafe { &mut *(&raw mut self.data as *mut Type15<A>) },
+                MaterialId::Shadow => unsafe { &mut *(&raw mut self.data as *mut CharacterToon<A>) },
+            })
+        }
+
+        pub fn try_get_lambert(&self) -> Result<&Lambert<A>, MaterialIdMismatch> {
+            match self.mat_type == MaterialId::Lambert {
+                true => Ok(unsafe { &*(&raw const self.data as *const Lambert<A>) }),
+                false => Err(MaterialIdMismatch(MaterialId::Lambert, self.mat_type))
+            }
+        }
+
+        pub fn try_get_lambert_mut(&mut self) -> Result<&mut Lambert<A>, MaterialIdMismatch> {
+            match self.mat_type == MaterialId::Lambert {
+                true => Ok(unsafe { &mut *(&raw mut self.data as *mut Lambert<A>) }),
+                false => Err(MaterialIdMismatch(MaterialId::Lambert, self.mat_type))
+            }
         }
     }
 }
@@ -893,6 +926,7 @@ pub trait MaterialType {
     fn update(&mut self);
     // Material->MapType also called from 
     // - inside gfdThJobGeometryUpdate
+    fn get_material_id(&self) -> params::MaterialId;
     fn get_shader_id(&self) -> u32;
     // TODO: StreamWrite, create material
 

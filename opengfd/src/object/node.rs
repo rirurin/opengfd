@@ -897,6 +897,19 @@ where A: Allocator + Clone
     pub fn set_visiblity(&mut self, value: f32) {
         self.visibility = value;
     }
+
+    /// Original function: gfdNodeEvaluateLocalTransform
+    pub fn evaluate_local_transform(&mut self) {
+        let mtx = Mat4::from_rotation_translation(self.get_rotate(), self.get_translate().into());
+        self.local_tm.x_axis = mtx.x_axis * self.get_scale().x;
+        self.local_tm.y_axis = mtx.y_axis * self.get_scale().y;
+        self.local_tm.z_axis = mtx.z_axis * self.get_scale().z;
+        self.local_tm.w_axis = mtx.w_axis;
+        self.world_tm = match self.get_parent_mut() {
+            Some(parent) => parent.world_tm * self.local_tm,
+            None => self.local_tm
+        };
+    }
 }
 
 impl<A> Display for Node<A>

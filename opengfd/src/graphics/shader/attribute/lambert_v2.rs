@@ -23,6 +23,7 @@ use crate::{
 };
 use glam::Vec4;
 use crate::graphics::material::{MaterialFlags, MaterialFlags2};
+use crate::graphics::material::params::MaterialId;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::RGBAFloat;
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
@@ -50,6 +51,18 @@ where A: Allocator + Clone
         let ofs = Material::<A>::get_mat_data_offset();
         unsafe { &*((&raw const *self as *const u8).sub(ofs) as *const Material<A>) }
     }
+
+    pub fn get_ambient_color(&self) -> RGBAFloat { self.ambient_color }
+    pub fn get_diffuse_color(&self) -> RGBAFloat { self.diffuse_color }
+    pub fn get_specular_color(&self) -> RGBAFloat { self.specular_color }
+    pub fn get_emissive_color(&self) -> RGBAFloat { self.emissive_color }
+    pub fn get_reflectivity(&self) -> f32 { self.reflectivity }
+
+    pub fn set_ambient_color(&mut self, value: RGBAFloat) { self.ambient_color = value }
+    pub fn set_diffuse_color(&mut self, value: RGBAFloat) { self.diffuse_color = value }
+    pub fn set_specular_color(&mut self, value: RGBAFloat) { self.specular_color = value }
+    pub fn set_emissive_color(&mut self, value: RGBAFloat) { self.emissive_color = value }
+    pub fn set_reflectivity(&mut self, value: f32) { self.reflectivity = value }
 }
 
 impl<A> MaterialType for Lambert<A> 
@@ -129,6 +142,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::Lambert
     }
     fn get_shader_id(&self) -> u32 {
         0

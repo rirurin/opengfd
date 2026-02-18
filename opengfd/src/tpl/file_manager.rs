@@ -73,9 +73,14 @@ where A: Allocator + Clone
     // TPL::Resource::tplResourceCreate
     pub fn add_resource(&mut self, key: &CppString<u8, A>) -> SharedPtr<Resource<usize, A>, A> {
         // create resource
-        let mut new_resrc = SharedPtr::make_shared_in(Resource::new(
+        let new_resrc = SharedPtr::make_shared_in(Resource::new(
             key.clone(), self._allocator.clone()), self._allocator.clone());
+        self.add_resource_inner(key, new_resrc)
+    }
 
+    #[inline(always)]
+    fn add_resource_inner(&mut self, key: &CppString<u8, A>, mut new_resrc: SharedPtr<Resource<usize, A>, A>)
+        -> SharedPtr<Resource<usize, A>, A> {
         let resrc_vtable = unsafe { &raw const *crate::globals::get_tpl_resource_shared_ptr_unchecked() };
         new_resrc._force_set_vtable(resrc_vtable);
         let resrc_mut = &raw mut *new_resrc.get_mut();
@@ -98,6 +103,15 @@ where A: Allocator + Clone
         }
         new_resrc
     }
+
+    /*
+    pub fn add_resource_apk(&mut self, key: &CppString<u8, A>) -> SharedPtr<Resource<usize, A>, A> {
+        // create resource
+        let new_resrc = SharedPtr::make_shared_in(Resource::new_apk(
+            key.clone(), self._allocator.clone()), self._allocator.clone());
+        self.add_resource_inner(key, new_resrc)
+    }
+    */
 
     pub fn get_running(&self) -> bool { *self.running.get() }
     pub fn set_running(&mut self, new: bool) { *self.running.get_mut() = new; }

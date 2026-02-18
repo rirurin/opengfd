@@ -24,6 +24,7 @@ use crate::{
 use crate::utility::misc::{RGBAFloat, RGBFloat};
 use crate::utility::stream::{DeserializationStack, GfdSerialize, Stream, StreamIODevice};
 use bitflags::bitflags;
+use crate::graphics::material::params::MaterialId;
 // See https://github.com/tge-was-taken/GFD-Studio/blob/master/GFDLibrary/Materials/MaterialParameterSet_Metaphor.cs
 
 bitflags! {
@@ -152,6 +153,9 @@ where A: Allocator + Clone
         }
     }
     fn update(&mut self) {
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::Type9
     }
     fn get_shader_id(&self) -> u32 {
         0x9b

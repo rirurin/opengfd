@@ -25,6 +25,7 @@ use crate::{
 };
 use glam::{Vec3, Vec3A, Vec4};
 use crate::graphics::material::{BlendType, MaterialFlags2};
+use crate::graphics::material::params::MaterialId;
 use crate::kernel::version::GfdVersion;
 use crate::utility::misc::{RGBAFloat, RGBFloat};
 #[cfg(feature = "serialize")]
@@ -293,6 +294,9 @@ where A: Allocator + Clone
             // TODO: Remove diffuse shadow
         }
         */
+    }
+    fn get_material_id(&self) -> MaterialId {
+        MaterialId::CharacterToon
     }
     fn get_shader_id(&self) -> u32 {
         3

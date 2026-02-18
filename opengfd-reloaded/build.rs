@@ -14,6 +14,7 @@ fn csbindgen_callback<P: AsRef<std::path::Path>>(this: &mut reloaded_codegen::Ho
         .csharp_make_extern_delegates(Some( |x| !x.starts_with("_")))
         .calling_convention_type_dllimport("StdCall".to_owned())
         .calling_convention_type_fnptr("Stdcall".to_owned())
+        .treat_pointer_types_as_nint(true)
         .generate_csharp_file(class.cs_path.to_str().unwrap())
 }
 
