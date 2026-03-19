@@ -55,6 +55,7 @@ where P: AsRef<Path>
             // find_assembly_attribute_in_method(class, fn_name)
             find_assembly_attribute_in_method(fn_name)
         }))
+        .treat_pointer_types_as_nint(true)
         .generate_csharp_file(class.cs_path.to_str().unwrap())
 }
 
