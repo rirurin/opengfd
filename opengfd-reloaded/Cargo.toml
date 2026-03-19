@@ -12,7 +12,7 @@ edition.workspace = true
 [dependencies]
 allocator-api2 = "0.2.21"
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
-glam = "0.30.3"
+glam = "0.32"
 metaphor-apk-rs = { git = "https://github.com/rirurin/metaphor-apk-rs" }
 opengfd = { path = "../opengfd" }
 # opengfd-inspector = { path = "../opengfd-inspector" }

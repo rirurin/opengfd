@@ -15,7 +15,7 @@ byteorder = { version = "1", optional = true }
 cpp-types = { git = "https://github.com/rirurin/cpp-types" }
 cri-adx = { git = "https://github.com/rirurin/cri-adx-rs" }
 crc32fast = "1.4.2"
-glam = "0.30.3"
+glam = "0.32"
 image = { version = "0.25.6", optional = true }
 half = "2.4.1"
 libc = "0.2.169"
